@@ -1,0 +1,28 @@
+#!/bin/bash -x
+PORT="$1"
+shift
+
+if [ -z "$PORT" ] || ! [ "$PORT" -gt 0 ]; then
+	echo "'$PORT' is not a valid port number"
+	exit 1
+fi
+
+# basic cleanup/setup
+C=sshuttle-$PORT
+iptables -t nat -D OUTPUT -j $C
+iptables -t nat -F $C
+iptables -t nat -X $C
+
+if [ -z "$*" ]; then
+    # just delete existing rules
+    exit 0
+fi
+iptables -t nat -N $C
+iptables -t nat -I OUTPUT 1 -j $C
+iptables -t nat -D $C -j REDIRECT -p tcp --to-ports $PORT
+
+# create new subnet entries
+for subnet in "$@"; do
+	iptables -t nat -A $C -j REDIRECT --dest "$subnet" -p tcp \
+		--to-ports "$PORT"
+done
