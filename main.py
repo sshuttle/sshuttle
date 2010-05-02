@@ -8,7 +8,7 @@ import options, client, iptables
 def parse_subnets(subnets_str):
     subnets = []
     for s in subnets_str:
-        m = re.match(r'(\d+)\.(\d+)\.(\d+)\.(\d+)(?:/(\d+))?$', s)
+        m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
         if not m:
             raise Exception('%r is not a valid IP subnet format' % s)
         (a,b,c,d,width) = m.groups()

@@ -21,16 +21,7 @@ def iptables_setup(port, subnets):
         raise Exception('%r returned %d' % (argv, rv))
 
 
-def main(listenip, remotename, subnets):
-    log('Starting sshuttle proxy.\n')
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(listenip)
-    listener.listen(10)
-    log('Listening on %r.\n' % (listener.getsockname(),))
-
-    iptables_setup(listenip[1], subnets)
-
+def _main(listener, remotename, subnets):
     handlers = []
     def onaccept():
         sock,srcip = listener.accept()
@@ -61,3 +52,19 @@ def main(listenip, remotename, subnets):
         for s in handlers:
             if s.socks & ready:
                 s.callback()
+
+
+def main(listenip, remotename, subnets):
+    log('Starting sshuttle proxy.\n')
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(listenip)
+    listener.listen(10)
+    log('Listening on %r.\n' % (listener.getsockname(),))
+
+    iptables_setup(listenip[1], subnets)
+
+    try:
+        return _main(listener, remotename, subnets)
+    finally:
+        iptables_setup(listenip[1], [])
