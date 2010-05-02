@@ -55,9 +55,9 @@ class SockWrapper:
         self.peername = peername or _try_peername(self.rsock)
 
     def __del__(self):
-        log('%r: deleting\n' % self)
+        debug1('%r: deleting\n' % self)
         if self.exc:
-            log('%r: error was: %r\n' % (self, self.exc))
+            debug1('%r: error was: %r\n' % (self, self.exc))
 
     def __repr__(self):
         return 'SW:%s' % (self.peername,)
@@ -68,13 +68,13 @@ class SockWrapper:
 
     def noread(self):
         if not self.shut_read:
-            log('%r: done reading\n' % self)
+            debug2('%r: done reading\n' % self)
             self.shut_read = True
             #self.rsock.shutdown(socket.SHUT_RD)  # doesn't do anything anyway
         
     def nowrite(self):
         if not self.shut_write:
-            log('%r: done writing\n' % self)
+            debug2('%r: done writing\n' % self)
             self.shut_write = True
             try:
                 self.wsock.shutdown(socket.SHUT_WR)
@@ -200,18 +200,18 @@ class Mux(Handler):
         assert(len(data) <= 65535)
         p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
-        log(' > channel=%d cmd=%s len=%d\n' 
-            % (channel, cmd_to_name[cmd], len(data)))
+        debug2(' > channel=%d cmd=%s len=%d\n' 
+               % (channel, cmd_to_name[cmd], len(data)))
         #log('Mux: send queue is %d/%d\n' 
         #    % (len(self.outbuf), sum(len(b) for b in self.outbuf)))
 
     def got_packet(self, channel, cmd, data):
-        log('<  channel=%d cmd=%s len=%d\n' 
-            % (channel, cmd_to_name[cmd], len(data)))
+        debug2('<  channel=%d cmd=%s len=%d\n' 
+               % (channel, cmd_to_name[cmd], len(data)))
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
-            log('received PING response\n')
+            debug2('received PING response\n')
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_CONNECT:
@@ -278,7 +278,7 @@ class MuxWrapper(SockWrapper):
         self.mux = mux
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
-        log('new channel: %d\n' % channel)
+        debug2('new channel: %d\n' % channel)
 
     def __del__(self):
         self.nowrite()
@@ -322,7 +322,7 @@ class MuxWrapper(SockWrapper):
 
 
 def connect_dst(ip, port):
-    log('Connecting to %s:%d\n' % (ip, port))
+    debug2('Connecting to %s:%d\n' % (ip, port))
     outsock = socket.socket()
     outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
     e = None

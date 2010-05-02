@@ -1,4 +1,5 @@
 import sys, os, re, subprocess, socket
+import helpers
 
 def connect(rhost):
     main_exe = sys.argv[0]
@@ -7,7 +8,7 @@ def connect(rhost):
     if rhost == '-':
         rhost = None
     if not rhost:
-        argv = ['sshuttle', '--server']
+        argv = ['sshuttle', '--server'] + ['-v']*(helpers.verbose or 0)
     else:
         # WARNING: shell quoting security holes are possible here, so we
         # have to be super careful.  We have to use 'sh -c' because

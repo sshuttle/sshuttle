@@ -1,4 +1,5 @@
 import subprocess, re
+import helpers
 from helpers import *
 
 
@@ -15,7 +16,7 @@ def chain_exists(name):
 
 def ipt(*args):
     argv = ['iptables', '-t', 'nat'] + list(args)
-    log('>> %s\n' % ' '.join(argv))
+    debug1('>> %s\n' % ' '.join(argv))
     rv = subprocess.call(argv)
     if rv:
         raise Exception('%r returned %d' % (argv, rv))

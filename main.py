@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import options, client, iptables, server
+import helpers, options, client, server, iptables
 
 
 # list of:
@@ -50,12 +50,15 @@ sshuttle --server
 --
 l,listen=  transproxy to this ip address and port number [default=0]
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
+v,verbose  increase debug message verbosity
 noserver   don't use a separate server process (mostly for debugging)
 server     [internal use only]
 iptables   [internal use only]
 """
 o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
+
+helpers.verbose = opt.verbose
 
 if opt.server:
     sys.exit(server.main())

@@ -32,8 +32,8 @@ def main():
         handlers = filter(lambda s: s.ok, handlers)
         for s in handlers:
             s.pre_select(r,w,x)
-        log('Waiting: %d[%d,%d,%d]...\n' 
-            % (len(handlers), len(r), len(w), len(x)))
+        debug2('Waiting: %d[%d,%d,%d]...\n' 
+               % (len(handlers), len(r), len(w), len(x)))
         (r,w,x) = select.select(r,w,x)
         #log('r=%r w=%r x=%r\n' % (r,w,x))
         ready = set(r) | set(w) | set(x)

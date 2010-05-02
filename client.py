@@ -1,5 +1,5 @@
 import struct, socket, select, subprocess, errno
-import ssnet, ssh, helpers
+import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
@@ -15,7 +15,9 @@ def original_dst(sock):
 
 def iptables_setup(port, subnets):
     subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
-    argv = ['sudo', sys.argv[0], '--iptables', str(port)] + subnets_str
+    argv = (['sudo', sys.argv[0]] +
+            ['-v'] * (helpers.verbose or 0) +
+            ['--iptables', str(port)] + subnets_str)
     rv = subprocess.call(argv)
     if rv != 0:
         raise Exception('%r returned %d' % (argv, rv))
@@ -46,10 +48,10 @@ def _main(listener, listenport, use_server, remotename, subnets):
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
-        log('Accept: %r:%r -> %r:%r.\n' % (srcip[0],srcip[1],
+        debug1('Accept: %r:%r -> %r:%r.\n' % (srcip[0],srcip[1],
                                            dstip[0],dstip[1]))
         if dstip == sock.getsockname():
-            log("-- ignored: that's my address!\n")
+            debug1("-- ignored: that's my address!\n")
             sock.close()
             return
         if use_server:
@@ -73,7 +75,7 @@ def _main(listener, listenport, use_server, remotename, subnets):
         handlers = filter(lambda s: s.ok, handlers)
         for s in handlers:
             s.pre_select(r,w,x)
-        log('Waiting: %d[%d,%d,%d]...\n' 
+        debug2('Waiting: %d[%d,%d,%d]...\n' 
             % (len(handlers), len(r), len(w), len(x)))
         (r,w,x) = select.select(r,w,x)
         #log('r=%r w=%r x=%r\n' % (r,w,x))
@@ -84,7 +86,7 @@ def _main(listener, listenport, use_server, remotename, subnets):
 
 
 def main(listenip, use_server, remotename, subnets):
-    log('Starting sshuttle proxy.\n')
+    debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if listenip[1]:
@@ -93,22 +95,22 @@ def main(listenip, use_server, remotename, subnets):
         ports = xrange(12300,65536)
     last_e = None
     bound = False
-    log('Binding:')
+    debug2('Binding:')
     for port in ports:
-        log(' %d' % port)
+        debug2(' %d' % port)
         try:
             listener.bind((listenip[0], port))
             bound = True
             break
         except socket.error, e:
             last_e = e
-    log('\n')
+    debug2('\n')
     if not bound:
         assert(last_e)
         raise last_e
     listener.listen(10)
     listenip = listener.getsockname()
-    log('Listening on %r.\n' % (listenip,))
+    debug1('Listening on %r.\n' % (listenip,))
 
     try:
         return _main(listener, listenip[1], use_server, remotename, subnets)
