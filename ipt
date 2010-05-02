@@ -24,5 +24,5 @@ iptables -t nat -D $C -j REDIRECT -p tcp --to-ports $PORT
 # create new subnet entries
 for subnet in "$@"; do
 	iptables -t nat -A $C -j REDIRECT --dest "$subnet" -p tcp \
-		--to-ports "$PORT"
+		--to-ports "$PORT" -m ttl \! --ttl 42
 done
