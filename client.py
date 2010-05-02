@@ -1,12 +1,11 @@
-import struct, select, errno
-from socket import *
+import struct, socket, select, errno
 from helpers import *
 
 
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except error, e:
+    except socket.error, e:
         if e.args[0] in (errno.EWOULDBLOCK, errno.EAGAIN):
             return None
         raise
@@ -29,13 +28,13 @@ class SockWrapper:
         if not self.shut_read:
             log('%r: done reading\n' % self)
             self.shut_read = True
-            #self.sock.shutdown(SHUT_RD)  # doesn't do anything anyway
+            #self.sock.shutdown(socket.SHUT_RD)  # doesn't do anything anyway
         
     def nowrite(self):
         if not self.shut_write:
             log('%r: done writing\n' % self)
             self.shut_write = True
-            self.sock.shutdown(SHUT_WR)
+            self.sock.shutdown(socket.SHUT_WR)
         
     def write(self, buf):
         assert(buf)
@@ -49,7 +48,7 @@ class SockWrapper:
         rb = _nb_clean(self.sock.recv, 65536)
         if rb:
             self.buf.append(rb)
-        if rb == '':  # empty string means EOF; None means nothing available
+        if rb == '':  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def maybe_fill(self):
@@ -116,17 +115,17 @@ class Proxy(Handler):
 def original_dst(sock):
     SO_ORIGINAL_DST = 80
     SOCKADDR_MIN = 16
-    sockaddr_in = sock.getsockopt(SOL_IP, SO_ORIGINAL_DST, SOCKADDR_MIN)
+    sockaddr_in = sock.getsockopt(socket.SOL_IP, SO_ORIGINAL_DST, SOCKADDR_MIN)
     (proto, port, a,b,c,d) = struct.unpack('!hhBBBB', sockaddr_in[:8])
-    assert(htons(proto) == AF_INET)
+    assert(socket.htons(proto) == socket.AF_INET)
     ip = '%d.%d.%d.%d' % (a,b,c,d)
     return (ip,port)
 
 
 def main(remotename, subnets):
     log('Starting sshuttle proxy.\n')
-    listener = socket()
-    listener.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind(('0.0.0.0',1234))
     listener.listen(10)
     log('Listening on %r.\n' % (listener.getsockname(),))
@@ -140,8 +139,8 @@ def main(remotename, subnets):
             log("-- ignored: that's my address!\n")
             sock.close()
             return
-        outsock = socket()
-        outsock.setsockopt(SOL_IP, IP_TTL, 42)
+        outsock = socket.socket()
+        outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         outsock.connect(dstip)
         handlers.append(Proxy(sock, outsock))
     handlers.append(Handler([listener], onaccept))
