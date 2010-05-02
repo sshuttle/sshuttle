@@ -25,7 +25,7 @@ def _main(listener, listenport, use_server, remotename, subnets):
     handlers = []
     if use_server:
         (serverproc, serversock) = ssh.connect(remotename)
-        mux = Mux(serversock)
+        mux = Mux(serversock, serversock)
         handlers.append(mux)
 
     # we definitely want to do this *after* starting ssh, or we might end
@@ -48,8 +48,8 @@ def _main(listener, listenport, use_server, remotename, subnets):
             outsock = socket.socket()
             outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
             outsock.connect(dstip)
-            outwrap = SockWrapper(outsock)
-        handlers.append(Proxy(SockWrapper(sock), outwrap))
+            outwrap = SockWrapper(outsock, outsock)
+        handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
     
     while 1:
