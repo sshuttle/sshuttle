@@ -83,5 +83,6 @@ except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)
 except KeyboardInterrupt:
-    log('\nKeyboard interrupt: exiting.\n')
+    log('\n')
+    log('Keyboard interrupt: exiting.\n')
     sys.exit(1)

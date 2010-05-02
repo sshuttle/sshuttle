@@ -32,7 +32,8 @@ def connect(rhost):
         os.setsid()
     s1a,s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
-    p = subprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup)
+    p = subprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
+                         close_fds=True)
     os.close(s1a)
     os.close(s1b)
     return p, s2

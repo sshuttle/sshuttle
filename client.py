@@ -13,17 +13,40 @@ def original_dst(sock):
     return (ip,port)
 
 
-def iptables_setup(port, subnets):
-    subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
-    argv = (['sudo', sys.argv[0]] +
-            ['-v'] * (helpers.verbose or 0) +
-            ['--iptables', str(port)] + subnets_str)
-    rv = subprocess.call(argv)
-    if rv != 0:
-        raise Fatal('%r returned %d' % (argv, rv))
+class IPTables:
+    def __init__(self, port, subnets):
+        self.port = port
+        self.subnets = subnets
+        subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
+        self.argv = (['sudo', sys.argv[0]] +
+                     ['-v'] * (helpers.verbose or 0) +
+                     ['--iptables', str(port)] + subnets_str)
+        self.p = subprocess.Popen(self.argv,
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+        line = self.p.stdout.readline()
+        self.check()
+        if line != 'READY\n':
+            raise Fatal('%r expected READY, got %r' % (self.argv, line))
+
+    def check(self):
+        rv = self.p.poll()
+        if rv:
+            raise Fatal('%r returned %d' % (self.argv, rv))
+
+    def start(self):
+        self.p.stdin.write('GO\n')
+        self.p.stdin.flush()
+
+    def done(self):
+        self.p.stdin.close()
+        self.p.stdout.close()
+        rv = self.p.wait()
+        if rv:
+            raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, listenport, use_server, remotename, subnets):
+def _main(listener, ipt, use_server, remotename):
     handlers = []
     if use_server:
         if helpers.verbose >= 1:
@@ -47,7 +70,7 @@ def _main(listener, listenport, use_server, remotename, subnets):
 
     # we definitely want to do this *after* starting ssh, or we might end
     # up intercepting the ssh connection!
-    iptables_setup(listenport, subnets)
+    ipt.start()
 
     def onaccept():
         sock,srcip = listener.accept()
@@ -118,7 +141,9 @@ def main(listenip, use_server, remotename, subnets):
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
+    ipt = IPTables(listenip[1], subnets)
+    
     try:
-        return _main(listener, listenip[1], use_server, remotename, subnets)
+        return _main(listener, ipt, use_server, remotename)
     finally:
-        iptables_setup(listenip[1], [])
+        ipt.done()
