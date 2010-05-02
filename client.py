@@ -1,4 +1,4 @@
-import struct, socket, select, subprocess
+import struct, socket, select, subprocess, errno
 from ssnet import SockWrapper, Handler, Proxy
 from helpers import *
 
@@ -58,9 +58,28 @@ def main(listenip, remotename, subnets):
     log('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(listenip)
+    if listenip[1]:
+        ports = [listenip[1]]
+    else:
+        ports = xrange(12300,65536)
+    last_e = None
+    bound = False
+    log('Binding:')
+    for port in ports:
+        log(' %d' % port)
+        try:
+            listener.bind((listenip[0], port))
+            bound = True
+            break
+        except socket.error, e:
+            last_e = e
+    log('\n')
+    if not bound:
+        assert(last_e)
+        raise last_e
     listener.listen(10)
-    log('Listening on %r.\n' % (listener.getsockname(),))
+    listenip = listener.getsockname()
+    log('Listening on %r.\n' % (listenip,))
 
     iptables_setup(listenip[1], subnets)
 

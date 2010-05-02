@@ -21,7 +21,20 @@ def ipt(*args):
         raise Exception('%r returned %d' % (argv, rv))
 
 
-# FIXME: this prints scary-looking errors
+# This is some iptables voodoo for setting up the Linux kernel's transparent
+# proxying stuff.  If subnets is empty, we just delete our sshuttle chain;
+# otherwise we delete it, then make it from scratch.
+#
+# We name the chain based on the transproxy port number so that it's possible
+# to run multiple copies of sshuttle at the same time.  Of course, the
+# multiple copies shouldn't have overlapping subnets, or only the most-
+# recently-started one will win (because we use "-I OUTPUT 1" instead of
+# "-A OUTPUT").
+#
+# sshuttle is supposed to clean up after itself by deleting extra chains on
+# exit.  In case that fails, it's not the end of the world; future runs will
+# supercede it in the transproxy list, at least, so the leftover iptables
+# chains are mostly harmless.
 def main(port, subnets):
     assert(port > 0)
     assert(port <= 65535)

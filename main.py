@@ -66,10 +66,10 @@ elif opt.iptables:
                            parse_subnets(extra[1:])))
 else:
     if len(extra) < 1:
-        o.fatal('at least one argument expected')
+        o.fatal('at least one subnet expected')
     remotename = extra[0]
     if remotename == '' or remotename == '-':
         remotename = None
-    sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:1234'),
+    sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
                          remotename,
                          parse_subnets(extra)))
