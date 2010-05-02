@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, re
+import sys, os, re
 import options, client, iptables
 
 
@@ -50,6 +50,7 @@ sshuttle --server
 --
 l,listen=  transproxy to this ip address and port number [default=0]
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
+noserver   don't use a separate server process (mostly for debugging)
 server     [internal use only]
 iptables   [internal use only]
 """
@@ -57,7 +58,9 @@ o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
 if opt.server:
-    o.fatal('server mode not implemented yet')
+    #o.fatal('server mode not implemented yet')
+    os.dup2(2,1)
+    os.execvp('hd', ['hd'])
     sys.exit(1)
 elif opt.iptables:
     if len(extra) < 1:
@@ -67,9 +70,10 @@ elif opt.iptables:
 else:
     if len(extra) < 1:
         o.fatal('at least one subnet expected')
-    remotename = extra[0]
+    remotename = opt.remote
     if remotename == '' or remotename == '-':
         remotename = None
     sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
+                         not opt.noserver,
                          remotename,
                          parse_subnets(extra)))

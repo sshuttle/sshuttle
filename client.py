@@ -1,13 +1,13 @@
 import struct, socket, select, subprocess, errno
-from ssnet import SockWrapper, Handler, Proxy
+import ssnet, ssh
+from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
-
 
 def original_dst(sock):
     SO_ORIGINAL_DST = 80
     SOCKADDR_MIN = 16
     sockaddr_in = sock.getsockopt(socket.SOL_IP, SO_ORIGINAL_DST, SOCKADDR_MIN)
-    (proto, port, a,b,c,d) = struct.unpack('!hhBBBB', sockaddr_in[:8])
+    (proto, port, a,b,c,d) = struct.unpack('!HHBBBB', sockaddr_in[:8])
     assert(socket.htons(proto) == socket.AF_INET)
     ip = '%d.%d.%d.%d' % (a,b,c,d)
     return (ip,port)
@@ -21,8 +21,17 @@ def iptables_setup(port, subnets):
         raise Exception('%r returned %d' % (argv, rv))
 
 
-def _main(listener, remotename, subnets):
+def _main(listener, listenport, use_server, remotename, subnets):
     handlers = []
+    if use_server:
+        (serverproc, serversock) = ssh.connect(remotename)
+        mux = Mux(serversock)
+        handlers.append(mux)
+
+    # we definitely want to do this *after* starting ssh, or we might end
+    # up intercepting the ssh connection!
+    iptables_setup(listenport, subnets)
+
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
@@ -31,10 +40,16 @@ def _main(listener, remotename, subnets):
             log("-- ignored: that's my address!\n")
             sock.close()
             return
-        outsock = socket.socket()
-        outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        outsock.connect(dstip)
-        handlers.append(Proxy(SockWrapper(sock), SockWrapper(outsock)))
+        if use_server:
+            chan = mux.next_channel()
+            mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
+            outwrap = MuxWrapper(mux, chan)
+        else:
+            outsock = socket.socket()
+            outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+            outsock.connect(dstip)
+            outwrap = SockWrapper(outsock)
+        handlers.append(Proxy(SockWrapper(sock), outwrap))
     handlers.append(Handler([listener], onaccept))
     
     while 1:
@@ -54,7 +69,7 @@ def _main(listener, remotename, subnets):
                 s.callback()
 
 
-def main(listenip, remotename, subnets):
+def main(listenip, use_server, remotename, subnets):
     log('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -81,9 +96,7 @@ def main(listenip, remotename, subnets):
     listenip = listener.getsockname()
     log('Listening on %r.\n' % (listenip,))
 
-    iptables_setup(listenip[1], subnets)
-
     try:
-        return _main(listener, remotename, subnets)
+        return _main(listener, listenip[1], use_server, remotename, subnets)
     finally:
         iptables_setup(listenip[1], [])
