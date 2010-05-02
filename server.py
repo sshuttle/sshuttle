@@ -35,12 +35,14 @@ def main():
         handlers = filter(lambda s: s.ok, handlers)
         for s in handlers:
             s.pre_select(r,w,x)
-        debug2('Waiting: %d[%d,%d,%d]...\n' 
-               % (len(handlers), len(r), len(w), len(x)))
+        debug2('Waiting: %d[%d,%d,%d] (fullness=%d/%d)...\n' 
+               % (len(handlers), len(r), len(w), len(x),
+                  mux.fullness, mux.too_full))
         (r,w,x) = select.select(r,w,x)
         #log('r=%r w=%r x=%r\n' % (r,w,x))
         ready = set(r) | set(w) | set(x)
         for s in handlers:
+            #debug2('check: %r: %r\n' % (s, s.socks & ready))
             if s.socks & ready:
                 s.callback()
         mux.check_fullness()
