@@ -36,27 +36,35 @@ def _nb_clean(func, *args):
 
 def _try_peername(sock):
     try:
-        return sock.getpeername()
+        pn = sock.getpeername()
+        if pn:
+            return '%s:%s' % (pn[0], pn[1])
     except socket.error, e:
         if e.args[0] not in (errno.ENOTCONN, errno.ENOTSOCK):
             raise
-        else:
-            return ('0.0.0.0',0)
+    return 'unknown'
 
 
 class SockWrapper:
-    def __init__(self, rsock, wsock):
+    def __init__(self, rsock, wsock, peername=None):
+        self.exc = None
         self.rsock = rsock
         self.wsock = wsock
-        self.peername = _try_peername(self.rsock)
         self.shut_read = self.shut_write = False
         self.buf = []
+        self.peername = peername or _try_peername(self.rsock)
 
     def __del__(self):
         log('%r: deleting\n' % self)
+        if self.exc:
+            log('%r: error was: %r\n' % (self, self.exc))
 
     def __repr__(self):
-        return 'SW%r' % (self.peername,)
+        return 'SW:%s' % (self.peername,)
+
+    def seterr(self, e):
+        if not self.exc:
+            self.exc = e
 
     def noread(self):
         if not self.shut_read:
@@ -70,15 +78,16 @@ class SockWrapper:
             self.shut_write = True
             try:
                 self.wsock.shutdown(socket.SHUT_WR)
-            except socket.error:
-                pass
+            except socket.error, e:
+                self.seterr(e)
 
     def uwrite(self, buf):
         self.wsock.setblocking(False)
         try:
             return _nb_clean(os.write, self.wsock.fileno(), buf)
-        except OSError:
+        except OSError, e:
             # unexpected error... stream is dead
+            self.seterr(e)
             self.nowrite()
             self.noread()
             return 0
@@ -93,7 +102,8 @@ class SockWrapper:
         self.rsock.setblocking(False)
         try:
             return _nb_clean(os.read, self.rsock.fileno(), 65536)
-        except OSError:
+        except OSError, e:
+            self.seterr(e)
             return '' # unexpected error... we'll call it EOF
 
     def fill(self):
@@ -312,11 +322,16 @@ class MuxWrapper(SockWrapper):
 
 
 def connect_dst(ip, port):
+    log('Connecting to %s:%d\n' % (ip, port))
     outsock = socket.socket()
     outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+    e = None
     try:
         outsock.connect((ip,port))
     except socket.error, e:
         if e.args[0] not in [errno.ECONNREFUSED]:
             raise
-    return SockWrapper(outsock,outsock)
+    sw = SockWrapper(outsock, outsock, peername = '%s:%d' % (ip,port))
+    if e:
+        sw.seterr(e)
+    return sw

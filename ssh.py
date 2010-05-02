@@ -20,7 +20,7 @@ def connect(rhost):
         cmd = r"""
                    sh -c PATH=%s:'$PATH exec sshuttle --server'
                """ % (escapedir,)
-        argv = ['ssh', '-v', rhost, '--', cmd.strip()]
+        argv = ['ssh', rhost, '--', cmd.strip()]
         print repr(argv)
     (s1,s2) = socket.socketpair()
     def setup():
