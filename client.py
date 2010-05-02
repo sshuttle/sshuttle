@@ -87,6 +87,8 @@ def _main(listener, listenport, use_server, remotename, subnets):
         for s in handlers:
             if s.socks & ready:
                 s.callback()
+        mux.callback()
+        mux.check_fullness()
 
 
 def main(listenip, use_server, remotename, subnets):
