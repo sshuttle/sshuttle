@@ -135,7 +135,11 @@ def main(remotename, subnets):
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
-        print 'Incoming connection from %r to %r.' % (srcip,dstip)
+        log('Incoming connection from %r to %r.\n' % (srcip,dstip))
+        if dstip == sock.getsockname():
+            log("-- ignored: that's my address!\n")
+            sock.close()
+            return
         outsock = socket()
         outsock.setsockopt(SOL_IP, IP_TTL, 42)
         outsock.connect(dstip)
