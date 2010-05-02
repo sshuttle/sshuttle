@@ -1,4 +1,4 @@
-import struct, socket, select
+import struct, socket, select, subprocess
 from ssnet import SockWrapper, Handler, Proxy
 from helpers import *
 
@@ -13,13 +13,23 @@ def original_dst(sock):
     return (ip,port)
 
 
-def main(remotename, subnets):
+def iptables_setup(port, subnets):
+    subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
+    argv = ['sudo', sys.argv[0], '--iptables', str(port)] + subnets_str
+    rv = subprocess.call(argv)
+    if rv != 0:
+        raise Exception('%r returned %d' % (argv, rv))
+
+
+def main(listenip, remotename, subnets):
     log('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind(('0.0.0.0',1234))
+    listener.bind(listenip)
     listener.listen(10)
     log('Listening on %r.\n' % (listener.getsockname(),))
+
+    iptables_setup(listenip[1], subnets)
 
     handlers = []
     def onaccept():
