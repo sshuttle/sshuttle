@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys, os, re
 import helpers, options, client, server, iptables
+from helpers import *
 
 
 # list of:
@@ -10,7 +11,7 @@ def parse_subnets(subnets_str):
     for s in subnets_str:
         m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
         if not m:
-            raise Exception('%r is not a valid IP subnet format' % s)
+            raise Fatal('%r is not a valid IP subnet format' % s)
         (a,b,c,d,width) = m.groups()
         (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
         if width == None:
@@ -18,9 +19,9 @@ def parse_subnets(subnets_str):
         else:
             width = int(width)
         if a > 255 or b > 255 or c > 255 or d > 255:
-            raise Exception('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+            raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
         if width > 32:
-            raise Exception('*/%d is greater than the maximum of 32' % width)
+            raise Fatal('*/%d is greater than the maximum of 32' % width)
         subnets.append(('%d.%d.%d.%d' % (a,b,c,d), width))
     return subnets
 
@@ -30,14 +31,14 @@ def parse_ipport(s):
     s = str(s)
     m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
     if not m:
-        raise Exception('%r is not a valid IP:port format' % s)
+        raise Fatal('%r is not a valid IP:port format' % s)
     (a,b,c,d,port) = m.groups()
     (a,b,c,d,port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
                       int(port or 0))
     if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Exception('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
     if port > 65535:
-        raise Exception('*:%d is greater than the maximum of 65535' % port)
+        raise Fatal('*:%d is greater than the maximum of 65535' % port)
     if a == None:
         a = b = c = d = 0
     return ('%d.%d.%d.%d' % (a,b,c,d), port)
@@ -60,20 +61,27 @@ o = options.Options('sshuttle', optspec)
 
 helpers.verbose = opt.verbose
 
-if opt.server:
-    sys.exit(server.main())
-elif opt.iptables:
-    if len(extra) < 1:
-        o.fatal('at least one argument expected')
-    sys.exit(iptables.main(int(extra[0]),
-                           parse_subnets(extra[1:])))
-else:
-    if len(extra) < 1:
-        o.fatal('at least one subnet expected')
-    remotename = opt.remote
-    if remotename == '' or remotename == '-':
-        remotename = None
-    sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
-                         not opt.noserver,
-                         remotename,
-                         parse_subnets(extra)))
+try:
+    if opt.server:
+        sys.exit(server.main())
+    elif opt.iptables:
+        if len(extra) < 1:
+            o.fatal('at least one argument expected')
+        sys.exit(iptables.main(int(extra[0]),
+                               parse_subnets(extra[1:])))
+    else:
+        if len(extra) < 1:
+            o.fatal('at least one subnet expected')
+        remotename = opt.remote
+        if remotename == '' or remotename == '-':
+            remotename = None
+        sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
+                             not opt.noserver,
+                             remotename,
+                             parse_subnets(extra)))
+except Fatal, e:
+    log('fatal: %s\n' % e)
+    sys.exit(99)
+except KeyboardInterrupt:
+    log('\nKeyboard interrupt: exiting.\n')
+    sys.exit(1)

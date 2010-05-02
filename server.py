@@ -8,8 +8,11 @@ def main():
     # synchronization header
     sys.stdout.write('SSHUTTLE0001')
     sys.stdout.flush()
-    
-    helpers.logprefix = ' s: '
+
+    if helpers.verbose >= 1:
+        helpers.logprefix = ' s: '
+    else:
+        helpers.logprefix = 'server: '
     handlers = []
     mux = Mux(socket.fromfd(sys.stdin.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM),

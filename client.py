@@ -20,27 +20,31 @@ def iptables_setup(port, subnets):
             ['--iptables', str(port)] + subnets_str)
     rv = subprocess.call(argv)
     if rv != 0:
-        raise Exception('%r returned %d' % (argv, rv))
+        raise Fatal('%r returned %d' % (argv, rv))
 
 
 def _main(listener, listenport, use_server, remotename, subnets):
     handlers = []
     if use_server:
-        helpers.logprefix = 'c : '
+        if helpers.verbose >= 1:
+            helpers.logprefix = 'c : '
+        else:
+            helpers.logprefix = 'client: '
         (serverproc, serversock) = ssh.connect(remotename)
         mux = Mux(serversock, serversock)
         handlers.append(mux)
 
         expected = 'SSHUTTLE0001'
         initstring = serversock.recv(len(expected))
-        if initstring != expected:
-            raise Exception('expected server init string %r; got %r'
-                            % (expected, initstring))
-
+        
         rv = serverproc.poll()
         if rv:
-            raise Exception('server died with error code %d' % rv)
+            raise Fatal('server died with error code %d' % rv)
             
+        if initstring != expected:
+            raise Fatal('expected server init string %r; got %r'
+                            % (expected, initstring))
+
     # we definitely want to do this *after* starting ssh, or we might end
     # up intercepting the ssh connection!
     iptables_setup(listenport, subnets)
@@ -67,7 +71,7 @@ def _main(listener, listenport, use_server, remotename, subnets):
         if use_server:
             rv = serverproc.poll()
             if rv:
-                raise Exception('server died with error code %d' % rv)
+                raise Fatal('server died with error code %d' % rv)
         
         r = set()
         w = set()

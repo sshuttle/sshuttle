@@ -15,3 +15,7 @@ def debug1(s):
 def debug2(s):
     if verbose >= 2:
         log(s)
+
+
+class Fatal(Exception):
+    pass

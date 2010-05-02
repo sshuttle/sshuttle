@@ -19,10 +19,9 @@ def connect(rhost):
         # stuff here.
         escapedir = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir)
         cmd = r"""
-                   sh -c PATH=%s:'$PATH exec sshuttle --server'
-               """ % (escapedir,)
+                   sh -c PATH=%s:'$PATH exec sshuttle --server%s'
+               """ % (escapedir, ' -v' * (helpers.verbose or 0))
         argv = ['ssh', rhost, '--', cmd.strip()]
-        print repr(argv)
     (s1,s2) = socket.socketpair()
     def setup():
         # runs in the child process
