@@ -18,7 +18,7 @@ def connect(rhost):
         # stuff here.
         escapedir = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir)
         cmd = r"""
-                   sh -c PATH=%s:'$PATH sshuttle --server'
+                   sh -c PATH=%s:'$PATH exec sshuttle --server'
                """ % (escapedir,)
         argv = ['ssh', '-v', rhost, '--', cmd.strip()]
         print repr(argv)
