@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import options, client, iptables
+import options, client, iptables, server
 
 
 # list of:
@@ -58,10 +58,7 @@ o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
 if opt.server:
-    #o.fatal('server mode not implemented yet')
-    os.dup2(2,1)
-    os.execvp('hd', ['hd'])
-    sys.exit(1)
+    sys.exit(server.main())
 elif opt.iptables:
     if len(extra) < 1:
         o.fatal('at least one argument expected')

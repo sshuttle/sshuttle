@@ -1,5 +1,5 @@
 import struct, socket, select, subprocess, errno
-import ssnet, ssh
+import ssnet, ssh, helpers
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
@@ -24,10 +24,21 @@ def iptables_setup(port, subnets):
 def _main(listener, listenport, use_server, remotename, subnets):
     handlers = []
     if use_server:
+        helpers.logprefix = 'c : '
         (serverproc, serversock) = ssh.connect(remotename)
         mux = Mux(serversock, serversock)
         handlers.append(mux)
 
+        expected = 'SSHUTTLE0001'
+        initstring = serversock.recv(len(expected))
+        if initstring != expected:
+            raise Exception('expected server init string %r; got %r'
+                            % (expected, initstring))
+
+        rv = serverproc.poll()
+        if rv:
+            raise Exception('server died with error code %d' % rv)
+            
     # we definitely want to do this *after* starting ssh, or we might end
     # up intercepting the ssh connection!
     iptables_setup(listenport, subnets)
@@ -45,21 +56,24 @@ def _main(listener, listenport, use_server, remotename, subnets):
             mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
             outwrap = MuxWrapper(mux, chan)
         else:
-            outsock = socket.socket()
-            outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-            outsock.connect(dstip)
-            outwrap = SockWrapper(outsock, outsock)
+            outwrap = ssnet.connect_dst(dstip[0], dstip[1])
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
     
     while 1:
+        if use_server:
+            rv = serverproc.poll()
+            if rv:
+                raise Exception('server died with error code %d' % rv)
+        
         r = set()
         w = set()
         x = set()
         handlers = filter(lambda s: s.ok, handlers)
         for s in handlers:
             s.pre_select(r,w,x)
-        log('\nWaiting: %d[%d,%d,%d]...\n' 
+        log('\n')
+        log('Waiting: %d[%d,%d,%d]...\n' 
             % (len(handlers), len(r), len(w), len(x)))
         (r,w,x) = select.select(r,w,x)
         log('r=%r w=%r x=%r\n' % (r,w,x))
