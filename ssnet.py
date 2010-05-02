@@ -81,6 +81,7 @@ class SockWrapper:
                 pass  # not connected yet
             elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT]:
                 # a "normal" kind of error
+                self.connect_to = None
                 self.seterr(e)
             else:
                 raise  # error we've never heard of?!  barf completely.
