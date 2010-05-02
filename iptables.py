@@ -44,6 +44,7 @@ def main(port, subnets):
     # basic cleanup/setup of chains
     if chain_exists(chain):
         ipt('-D', 'OUTPUT', '-j', chain)
+        ipt('-D', 'PREROUTING', '-j', chain)
         ipt('-F', chain)
         ipt('-X', chain)
 
@@ -51,6 +52,7 @@ def main(port, subnets):
         ipt('-N', chain)
         ipt('-F', chain)
         ipt('-I', 'OUTPUT', '1', '-j', chain)
+        ipt('-I', 'PREROUTING', '1', '-j', chain)
 
         # create new subnet entries
         for snet,swidth in subnets:
