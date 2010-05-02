@@ -15,18 +15,25 @@ def _nb_clean(func, *args):
 class SockWrapper:
     def __init__(self, sock):
         self.sock = sock
+        self.peername = self.sock.getpeername()
         self.shut_read = self.shut_write = False
         self.buf = []
 
+    def __del__(self):
+        log('%r: deleting\n' % self)
+
+    def __repr__(self):
+        return 'SW%r' % (self.peername,)
+
     def noread(self):
         if not self.shut_read:
-            log('%r: setting noread\n' % self)
+            log('%r: done reading\n' % self)
             self.shut_read = True
             #self.sock.shutdown(SHUT_RD)  # doesn't do anything anyway
         
     def nowrite(self):
         if not self.shut_write:
-            log('%r: setting nowrite\n' % self)
+            log('%r: done writing\n' % self)
             self.shut_write = True
             self.sock.shutdown(SHUT_WR)
         
