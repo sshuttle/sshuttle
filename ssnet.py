@@ -3,6 +3,7 @@ from helpers import *
 
 HDR_LEN = 8
 
+
 CMD_EXIT = 0x4200
 CMD_PING = 0x4201
 CMD_PONG = 0x4202
@@ -11,12 +12,23 @@ CMD_CLOSE = 0x4204
 CMD_EOF = 0x4205
 CMD_DATA = 0x4206
 
+cmd_to_name = {
+    CMD_EXIT: 'EXIT',
+    CMD_PING: 'PING',
+    CMD_PONG: 'PONG',
+    CMD_CONNECT: 'CONNECT',
+    CMD_CLOSE: 'CLOSE',
+    CMD_EOF: 'EOF',
+    CMD_DATA: 'DATA',
+}
+    
+
 
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except socket.error, e:
-        if e.args[0] not in (errno.EWOULDBLOCK, errno.EAGAIN):
+    except OSError, e:
+        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
         else:
             return None
@@ -26,7 +38,7 @@ def _try_peername(sock):
     try:
         return sock.getpeername()
     except socket.error, e:
-        if e.args[0] not in (errno.ENOTCONN,):
+        if e.args[0] not in (errno.ENOTCONN, errno.ENOTSOCK):
             raise
         else:
             return ('0.0.0.0',0)
@@ -64,8 +76,8 @@ class SockWrapper:
     def uwrite(self, buf):
         self.wsock.setblocking(False)
         try:
-            return _nb_clean(self.wsock.send, buf)
-        except socket.error:
+            return _nb_clean(os.write, self.wsock.fileno(), buf)
+        except OSError:
             # unexpected error... stream is dead
             self.nowrite()
             self.noread()
@@ -80,8 +92,8 @@ class SockWrapper:
             return
         self.rsock.setblocking(False)
         try:
-            return _nb_clean(self.rsock.recv, 65536)
-        except socket.error:
+            return _nb_clean(os.read, self.rsock.fileno(), 65536)
+        except OSError:
             return '' # unexpected error... we'll call it EOF
 
     def fill(self):
@@ -98,7 +110,7 @@ class SockWrapper:
             wrote = outwrap.write(self.buf[0])
             self.buf[0] = self.buf[0][wrote:]
         while self.buf and not self.buf[0]:
-            self.buf.pop(0)
+            self.buf[0:1] = []
         if not self.buf and self.shut_read:
             outwrap.nowrite()
 
@@ -178,11 +190,14 @@ class Mux(Handler):
         assert(len(data) <= 65535)
         p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
-        log('Mux: send queue is %d/%d\n' 
-            % (len(self.outbuf), sum(len(b) for b in self.outbuf)))
+        log(' > channel=%d cmd=%s len=%d\n' 
+            % (channel, cmd_to_name[cmd], len(data)))
+        #log('Mux: send queue is %d/%d\n' 
+        #    % (len(self.outbuf), sum(len(b) for b in self.outbuf)))
 
     def got_packet(self, channel, cmd, data):
-        log('--got-packet--\n')
+        log('<  channel=%d cmd=%s len=%d\n' 
+            % (channel, cmd_to_name[cmd], len(data)))
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
@@ -200,15 +215,16 @@ class Mux(Handler):
     def flush(self):
         self.wsock.setblocking(False)
         if self.outbuf and self.outbuf[0]:
-            wrote = _nb_clean(self.wsock.send, self.outbuf[0])
+            wrote = _nb_clean(os.write, self.wsock.fileno(), self.outbuf[0])
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
         while self.outbuf and not self.outbuf[0]:
-            self.outbuf.pop()
+            self.outbuf[0:1] = []
 
     def fill(self):
         self.rsock.setblocking(False)
-        b = _nb_clean(self.rsock.recv, 32768)
+        b = _nb_clean(os.read, self.rsock.fileno(), 32768)
+        #log('<<< %r\n' % b)
         if b == '': # EOF
             self.ok = False
         if b:
@@ -216,7 +232,8 @@ class Mux(Handler):
 
     def handle(self):
         self.fill()
-        log('inbuf is: (%d,%d) %r\n' % (self.want, len(self.inbuf), self.inbuf))
+        #log('inbuf is: (%d,%d) %r\n'
+        #     % (self.want, len(self.inbuf), self.inbuf))
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1,s2,channel,cmd,datalen) = \
@@ -251,7 +268,7 @@ class MuxWrapper(SockWrapper):
         self.mux = mux
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
-        log('Created MuxWrapper on channel %d\n' % channel)
+        log('new channel: %d\n' % channel)
 
     def __del__(self):
         self.nowrite()

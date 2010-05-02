@@ -46,7 +46,8 @@ def _main(listener, listenport, use_server, remotename, subnets):
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
-        log('Incoming connection from %r to %r.\n' % (srcip,dstip))
+        log('Accept: %r:%r -> %r:%r.\n' % (srcip[0],srcip[1],
+                                           dstip[0],dstip[1]))
         if dstip == sock.getsockname():
             log("-- ignored: that's my address!\n")
             sock.close()
@@ -72,11 +73,10 @@ def _main(listener, listenport, use_server, remotename, subnets):
         handlers = filter(lambda s: s.ok, handlers)
         for s in handlers:
             s.pre_select(r,w,x)
-        log('\n')
         log('Waiting: %d[%d,%d,%d]...\n' 
             % (len(handlers), len(r), len(w), len(x)))
         (r,w,x) = select.select(r,w,x)
-        log('r=%r w=%r x=%r\n' % (r,w,x))
+        #log('r=%r w=%r x=%r\n' % (r,w,x))
         ready = set(r) | set(w) | set(x)
         for s in handlers:
             if s.socks & ready:
