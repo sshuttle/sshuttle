@@ -43,5 +43,5 @@ def main():
         for s in handlers:
             if s.socks & ready:
                 s.callback()
-        mux.callback()
         mux.check_fullness()
+        mux.callback()

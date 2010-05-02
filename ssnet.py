@@ -215,6 +215,7 @@ class Mux(Handler):
         self.want = 0
         self.inbuf = ''
         self.outbuf = []
+        self.fullness = 0
         self.too_full = False
         self.send(0, CMD_PING, 'chicken')
 
@@ -231,20 +232,24 @@ class Mux(Handler):
         return sum(len(b) for b in self.outbuf)
             
     def check_fullness(self):
-        self.too_full = (self.amount_queued() > 32768)
-        ob = []
-        for b in self.outbuf:
-            (s1,s2,c) = struct.unpack('!ccH', b[:4])
-            ob.append(c)
-        log('outbuf: %d %r\n' % (self.amount_queued(), ob,))
+        if self.fullness > 65536:
+            self.too_full = True
+        #ob = []
+        #for b in self.outbuf:
+        #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
+        #    ob.append(c)
+        #log('outbuf: %d %r\n' % (self.amount_queued(), ob))
         
     def send(self, channel, cmd, data):
         data = str(data)
         assert(len(data) <= 65535)
         p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
-        debug2(' > channel=%d cmd=%s len=%d\n' 
-               % (channel, cmd_to_name[cmd], len(data)))
+        debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
+               % (channel, cmd_to_name[cmd], len(data), self.fullness))
+        if self.fullness < 32768 and self.fullness+len(data) > 32768:
+            self.send(0, CMD_PING, 'rttest')
+        self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
         debug2('<  channel=%d cmd=%s len=%d\n' 
@@ -253,6 +258,8 @@ class Mux(Handler):
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
             debug2('received PING response\n')
+            self.too_full = False
+            self.fullness = 0
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_CONNECT:
@@ -267,6 +274,7 @@ class Mux(Handler):
         self.wsock.setblocking(False)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wsock.fileno(), self.outbuf[0])
+            debug2('wrote: %d/%d\n' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
         while self.outbuf and not self.outbuf[0]:
