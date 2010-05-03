@@ -85,12 +85,16 @@ def main(port, subnets):
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
-    sys.stdin.readline(128)
+    line = sys.stdin.readline(128)
+    if not line:
+        return  # parent died; nothing to do
+    if line != 'GO\n':
+        raise Fatal('iptables: expected GO but got %r' % line)
     try:
-        debug1('iptables manager: starting transproxy.\n')
-        do_it(port, subnets)
-
-        sys.stdout.write('STARTED\n')
+        if line:
+            debug1('iptables manager: starting transproxy.\n')
+            do_it(port, subnets)
+            sys.stdout.write('STARTED\n')
         
         try:
             sys.stdout.flush()
