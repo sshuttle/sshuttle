@@ -1,4 +1,5 @@
-= sshuttle: where transparent proxy meets VPN meets ssh =
+sshuttle: where transparent proxy meets VPN meets ssh
+=====================================================
 
 I just spent an afternoon working on a new kind of VPN.  You can get
 the first release, <a href="http://github.com/apenwarr/sshuttle">sshuttle
@@ -15,7 +16,9 @@ common case:
 - You hate openssh's port forwarding because it's randomly slow and/or stupid.
 - You can't use openssh's PermitTunnel feature because it's disabled by default on openssh servers; plus it does TCP-over-TCP, which has terrible performance (see below).
 
-== This is how you use it: ==
+
+This is how you use it:
+-----------------------
 
 - <tt>git clone git://github.com/apenwarr/sshuttle</tt><br>on your client and server machines. The server can be any ssh server with python available; the client must be Linux with iptables, and you'll need root or sudo access.
 - <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
@@ -38,7 +41,9 @@ the data back and forth through ssh.
 Fun, right?  A poor man's instant VPN, and you don't even have to have
 admin access on the server.
 
-== Theory of Operation ==
+
+Theory of Operation
+-------------------
 
 sshuttle is not exactly a VPN, and not exactly port forwarding.  It's kind
 of both, and kind of neither.
@@ -75,7 +80,9 @@ an ssh session, and disassembles it back into packets at the other end.  So
 it never ends up doing TCP-over-TCP.  It's just data-over-TCP, which is
 safe.
 
-== Useless Trivia ==
+
+Useless Trivia
+--------------
 
 Back in 1998 (12 years ago!  Yikes!), I released the first version of <a
 href="http://alumnit.ca/wiki/?TunnelVisionReadMe">Tunnel Vision</a>, a
