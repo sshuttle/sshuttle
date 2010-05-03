@@ -287,7 +287,10 @@ class Mux(Handler):
 
     def fill(self):
         self.rsock.setblocking(False)
-        b = _nb_clean(os.read, self.rsock.fileno(), 32768)
+        try:
+            b = _nb_clean(os.read, self.rsock.fileno(), 32768)
+        except OSError, e:
+            raise Fatal('other end: %r' % e)
         #log('<<< %r\n' % b)
         if b == '': # EOF
             self.ok = False
