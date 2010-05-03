@@ -28,6 +28,17 @@ common case:
  - You can't use openssh's PermitTunnel feature because
     it's disabled by default on openssh servers; plus it does
     TCP-over-TCP, which has terrible performance (see below).
+    
+
+Prerequisites
+-------------
+
+ - sudo, su, or logged in as root on your client machine
+   (the server doesn't need admin access).
+   
+ - Linux+iptables on your client machine, including at
+   least the iptables DNAT, REDIRECT, and ttl modules. 
+   (This is available by default on most Linux distributions.)
 
 
 This is how you use it:
