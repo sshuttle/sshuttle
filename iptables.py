@@ -87,15 +87,27 @@ def main(port, subnets):
     # authentication as early in the startup process as possible).
     sys.stdin.readline(128)
     try:
+        debug1('iptables manager: starting transproxy.\n')
         do_it(port, subnets)
 
         sys.stdout.write('STARTED\n')
-        sys.stdout.flush()
+        
+        try:
+            sys.stdout.flush()
+            
+            # Now we wait until EOF or any other kind of exception.  We need
+            # to stay running so that we don't need a *second* password
+            # authentication at shutdown time - that cleanup is important!
+            while sys.stdin.readline(128):
+                pass
+        except IOError:
+            # the parent process died for some reason; he's surely been loud
+            # enough, so no reason to report another error
+            return
 
-        # Now we wait until EOF or any other kind of exception.  We need
-        # to stay running so that we don't need a *second* password
-        # authentication at shutdown time - that cleanup is important!
-        while sys.stdin.readline(128):
-            pass
     finally:
+        try:
+            debug1('iptables manager: undoing changes.\n')
+        except:
+            pass
         do_it(port, [])
