@@ -8,20 +8,38 @@ the first release, <a href="http://github.com/apenwarr/sshuttle">sshuttle
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
-- Your client machine (or router) is Linux.
-- You have access to a remote network via ssh.
-- You don't necessarily have admin access on the remote network.
-- The remote network has no VPN, or only stupid/complex VPN protocols (IPsec, PPTP, etc). Or maybe you <i>are</i> the admin and you just got frustrated with the awful state of VPN tools.
-- You don't want to create an ssh port forward for every single host/port on the remote network.
-- You hate openssh's port forwarding because it's randomly slow and/or stupid.
-- You can't use openssh's PermitTunnel feature because it's disabled by default on openssh servers; plus it does TCP-over-TCP, which has terrible performance (see below).
+ - Your client machine (or router) is Linux.
+
+ - You have access to a remote network via ssh.
+
+ - You don't necessarily have admin access on the remote network.
+
+ - The remote network has no VPN, or only stupid/complex VPN
+    protocols (IPsec, PPTP, etc). Or maybe you <i>are</i> the
+    admin and you just got frustrated with the awful state of
+    VPN tools.
+
+ - You don't want to create an ssh port forward for every
+    single host/port on the remote network.
+
+ - You hate openssh's port forwarding because it's randomly
+    slow and/or stupid.
+ 
+ - You can't use openssh's PermitTunnel feature because
+    it's disabled by default on openssh servers; plus it does
+    TCP-over-TCP, which has terrible performance (see below).
 
 
 This is how you use it:
 -----------------------
 
-- <tt>git clone git://github.com/apenwarr/sshuttle</tt><br>on your client and server machines. The server can be any ssh server with python available; the client must be Linux with iptables, and you'll need root or sudo access.
-- <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
+ - <tt>git clone git://github.com/apenwarr/sshuttle</tt>
+    on your client and server machines. The server can be
+    any ssh server with python available; the client must
+    be Linux with iptables, and you'll need root or sudo
+    access.
+
+ - <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
 
 That's it!  Now your local machine can access the remote network as if you
 were right there!  And if your "client" machine is a router, everyone on
