@@ -11,7 +11,7 @@ def chain_exists(name):
             return True
     rv = p.wait()
     if rv:
-        raise Exception('%r returned %d' % (argv, rv))
+        raise Fatal('%r returned %d' % (argv, rv))
 
 
 def ipt(*args):
@@ -19,7 +19,7 @@ def ipt(*args):
     debug1('>> %s\n' % ' '.join(argv))
     rv = subprocess.call(argv)
     if rv:
-        raise Exception('%r returned %d' % (argv, rv))
+        raise Fatal('%r returned %d' % (argv, rv))
 
 
 def do_it(port, subnets):
@@ -66,6 +66,14 @@ def main(port, subnets):
     assert(port > 0)
     assert(port <= 65535)
 
+    if os.getuid() != 0:
+        raise Fatal('you must be root (or enable su/sudo) to set up iptables')
+
+    # because of limitations of the 'su' command, the *real* stdin/stdout
+    # are both attached to stdout initially.  Clone stdout into stdin so we
+    # can read from it.
+    os.dup2(1, 0)
+
     debug1('iptables manager ready.\n')
     sys.stdout.write('READY\n')
     sys.stdout.flush()
@@ -77,14 +85,17 @@ def main(port, subnets):
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
-    sys.stdin.readline()
+    sys.stdin.readline(128)
     try:
         do_it(port, subnets)
+
+        sys.stdout.write('STARTED\n')
+        sys.stdout.flush()
 
         # Now we wait until EOF or any other kind of exception.  We need
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
-        while sys.stdin.readline():
+        while sys.stdin.readline(128):
             pass
     finally:
         do_it(port, [])

@@ -18,13 +18,38 @@ class IPTables:
         self.port = port
         self.subnets = subnets
         subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
-        self.argv = (['sudo', sys.argv[0]] +
-                     ['-v'] * (helpers.verbose or 0) +
-                     ['--iptables', str(port)] + subnets_str)
-        self.p = subprocess.Popen(self.argv,
-                                  stdin=subprocess.PIPE,
-                                  stdout=subprocess.PIPE)
-        line = self.p.stdout.readline()
+        argvbase = ([sys.argv[0]] +
+                    ['-v'] * (helpers.verbose or 0) +
+                    ['--iptables', str(port)] + subnets_str)
+        argv_tries = [
+            ['sudo'] + argvbase,
+            ['su', '-c', ' '.join(argvbase)],
+            argvbase
+        ]
+
+        # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
+        # because stupid Linux 'su' requires that stdin be attached to a tty.
+        # Instead, attach a *bidirectional* socket to its stdout, and use
+        # that for talking in both directions.
+        (s1,s2) = socket.socketpair()
+        def setup():
+            # run in the child process
+            s2.close()
+        e = None
+        for argv in argv_tries:
+            try:
+                self.p = subprocess.Popen(argv, stdout=s1, preexec_fn=setup)
+                e = None
+                break
+            except OSError, e:
+                pass
+        self.argv = argv
+        s1.close()
+        self.pfile = s2.makefile('wb+')
+        if e:
+            log('Spawning iptables: %r\n' % self.argv)
+            raise Fatal(e)
+        line = self.pfile.readline()
         self.check()
         if line != 'READY\n':
             raise Fatal('%r expected READY, got %r' % (self.argv, line))
@@ -35,12 +60,15 @@ class IPTables:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
     def start(self):
-        self.p.stdin.write('GO\n')
-        self.p.stdin.flush()
+        self.pfile.write('GO\n')
+        self.pfile.flush()
+        line = self.pfile.readline()
+        self.check()
+        if line != 'STARTED\n':
+            raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def done(self):
-        self.p.stdin.close()
-        self.p.stdout.close()
+        self.pfile.close()
         rv = self.p.wait()
         if rv:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
