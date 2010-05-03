@@ -1,10 +1,16 @@
 import sys, os, re, subprocess, socket
 import helpers
+from helpers import *
 
 def connect(rhost):
     main_exe = sys.argv[0]
     nicedir = os.path.split(os.path.abspath(main_exe))[0]
     nicedir = re.sub(r':', "_", nicedir)
+    myhome = os.path.expanduser('~') + '/'
+    if nicedir.startswith(myhome):
+        nicedir2 = nicedir[len(myhome):]
+    else:
+        nicedir2 = nicedir
     if rhost == '-':
         rhost = None
     if not rhost:
@@ -17,11 +23,14 @@ def connect(rhost):
         # can't exec *safely* using argv, because *both* ssh and 'sh -c'
         # allow shellquoting.  So we end up having to double-shellquote
         # stuff here.
-        escapedir = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir)
+        escapedir  = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir)
+        escapedir2 = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir2)
         cmd = r"""
-                   sh -c PATH=%s:'$PATH exec sshuttle --server%s'
-               """ % (escapedir, ' -v' * (helpers.verbose or 0))
+                   sh -c PATH=%s:'$HOME'/%s:'$PATH exec sshuttle --server%s'
+               """ % (escapedir, escapedir2,
+                      ' -v' * (helpers.verbose or 0))
         argv = ['ssh', rhost, '--', cmd.strip()]
+        debug2('executing: %r\n' % argv)
     (s1,s2) = socket.socketpair()
     def setup():
         # runs in the child process
