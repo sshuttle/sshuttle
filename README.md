@@ -33,12 +33,14 @@ common case:
 Prerequisites
 -------------
 
- - sudo, su, or logged in as root on your client machine
-   (the server doesn't need admin access).
+ - sudo, su, or logged in as root on your client machine.
+   (The server doesn't need admin access.)
    
  - Linux+iptables on your client machine, including at
    least the iptables DNAT, REDIRECT, and ttl modules. 
-   (This is available by default on most Linux distributions.)
+   This is available by default on most Linux distributions. 
+   (The server doesn't need iptables and doesn't need to be
+   Linux.)
 
 
 This is how you use it:
