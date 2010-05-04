@@ -4,13 +4,19 @@ from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
 def original_dst(sock):
-    SO_ORIGINAL_DST = 80
-    SOCKADDR_MIN = 16
-    sockaddr_in = sock.getsockopt(socket.SOL_IP, SO_ORIGINAL_DST, SOCKADDR_MIN)
-    (proto, port, a,b,c,d) = struct.unpack('!HHBBBB', sockaddr_in[:8])
-    assert(socket.htons(proto) == socket.AF_INET)
-    ip = '%d.%d.%d.%d' % (a,b,c,d)
-    return (ip,port)
+    try:
+        SO_ORIGINAL_DST = 80
+        SOCKADDR_MIN = 16
+        sockaddr_in = sock.getsockopt(socket.SOL_IP,
+                                      SO_ORIGINAL_DST, SOCKADDR_MIN)
+        (proto, port, a,b,c,d) = struct.unpack('!HHBBBB', sockaddr_in[:8])
+        assert(socket.htons(proto) == socket.AF_INET)
+        ip = '%d.%d.%d.%d' % (a,b,c,d)
+        return (ip,port)
+    except socket.error, e:
+        if e.args[0] == errno.ENOPROTOOPT:
+            return sock.getsockname()
+        raise
 
 
 class IPTables:
@@ -105,7 +111,7 @@ def _main(listener, ipt, use_server, remotename):
         dstip = original_dst(sock)
         debug1('Accept: %r:%r -> %r:%r.\n' % (srcip[0],srcip[1],
                                            dstip[0],dstip[1]))
-        if dstip == sock.getsockname():
+        if dstip == listener.getsockname():
             debug1("-- ignored: that's my address!\n")
             sock.close()
             return
@@ -150,7 +156,7 @@ def main(listenip, use_server, remotename, subnets):
     if listenip[1]:
         ports = [listenip[1]]
     else:
-        ports = xrange(12300,65536)
+        ports = xrange(12300,9000,-1)
     last_e = None
     bound = False
     debug2('Binding:')

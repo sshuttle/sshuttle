@@ -71,14 +71,17 @@ class SockWrapper:
     def try_connect(self):
         if not self.connect_to:
             return  # already connected
-        self.rsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         self.rsock.setblocking(False)
         try:
             self.rsock.connect(self.connect_to)
+            # connected successfully (Linux)
             self.connect_to = None
         except socket.error, e:
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
+            elif e.args[0] == errno.EISCONN:
+                # connected successfully (BSD)
+                self.connect_to = None
             elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT]:
                 # a "normal" kind of error
                 self.connect_to = None
@@ -387,6 +390,7 @@ class MuxWrapper(SockWrapper):
 def connect_dst(ip, port):
     debug2('Connecting to %s:%d\n' % (ip, port))
     outsock = socket.socket()
+    outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
     return SockWrapper(outsock, outsock,
                        connect_to = (ip,port),
                        peername = '%s:%d' % (ip,port))
