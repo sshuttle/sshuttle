@@ -2,8 +2,13 @@ import sys, os, re, subprocess, socket
 import helpers
 from helpers import *
 
-def connect(rhost):
+def connect(rhostport):
     main_exe = sys.argv[0]
+    l = (rhostport or '').split(':', 1)
+    rhost = l[0]
+    portl = []
+    if len(l) > 1:
+        portl = ['-p', str(int(l[1]))]
     nicedir = os.path.split(os.path.abspath(main_exe))[0]
     nicedir = re.sub(r':', "_", nicedir)
     myhome = os.path.expanduser('~') + '/'
@@ -29,7 +34,7 @@ def connect(rhost):
                    sh -c PATH=%s:'$HOME'/%s:'$PATH exec sshuttle --server%s'
                """ % (escapedir, escapedir2,
                       ' -v' * (helpers.verbose or 0))
-        argv = ['ssh', rhost, '--', cmd.strip()]
+        argv = ['ssh'] + portl + [rhost, '--', cmd.strip()]
         debug2('executing: %r\n' % argv)
     (s1,s2) = socket.socketpair()
     def setup():

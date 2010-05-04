@@ -45,7 +45,7 @@ def parse_ipport(s):
 
 
 optspec = """
-sshuttle [-l [ip:]port] [-r [username@]sshserver] <subnets...>
+sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
 sshuttle --iptables <port> <subnets...>
 sshuttle --server
 --
