@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import helpers, options, client, server, iptables
+import helpers, options, client, server, firewall
 from helpers import *
 
 
@@ -46,7 +46,7 @@ def parse_ipport(s):
 
 optspec = """
 sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
-sshuttle --iptables <port> <subnets...>
+sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
 l,listen=  transproxy to this ip address and port number [default=0]
@@ -54,7 +54,7 @@ r,remote=  ssh hostname (and optional username) of remote sshuttle server
 v,verbose  increase debug message verbosity
 noserver   don't use a separate server process (mostly for debugging)
 server     [internal use only]
-iptables   [internal use only]
+firewall   [internal use only]
 """
 o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
@@ -64,10 +64,10 @@ helpers.verbose = opt.verbose
 try:
     if opt.server:
         sys.exit(server.main())
-    elif opt.iptables:
+    elif opt.firewall:
         if len(extra) < 1:
             o.fatal('at least one argument expected')
-        sys.exit(iptables.main(int(extra[0]),
+        sys.exit(firewall.main(int(extra[0]),
                                parse_subnets(extra[1:])))
     else:
         if len(extra) < 1:

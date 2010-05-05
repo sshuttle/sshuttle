@@ -19,14 +19,14 @@ def original_dst(sock):
         raise
 
 
-class IPTables:
+class FirewallClient:
     def __init__(self, port, subnets):
         self.port = port
         self.subnets = subnets
         subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--iptables', str(port)] + subnets_str)
+                    ['--firewall', str(port)] + subnets_str)
         argv_tries = [
             ['sudo'] + argvbase,
             ['su', '-c', ' '.join(argvbase)],
@@ -53,7 +53,7 @@ class IPTables:
         s1.close()
         self.pfile = s2.makefile('wb+')
         if e:
-            log('Spawning iptables: %r\n' % self.argv)
+            log('Spawning firewall manager: %r\n' % self.argv)
             raise Fatal(e)
         line = self.pfile.readline()
         self.check()
@@ -80,7 +80,7 @@ class IPTables:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, ipt, use_server, remotename):
+def _main(listener, fw, use_server, remotename):
     handlers = []
     if use_server:
         if helpers.verbose >= 1:
@@ -104,7 +104,7 @@ def _main(listener, ipt, use_server, remotename):
 
     # we definitely want to do this *after* starting ssh, or we might end
     # up intercepting the ssh connection!
-    ipt.start()
+    fw.start()
 
     def onaccept():
         sock,srcip = listener.accept()
@@ -176,9 +176,9 @@ def main(listenip, use_server, remotename, subnets):
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
-    ipt = IPTables(listenip[1], subnets)
+    fw = FirewallClient(listenip[1], subnets)
     
     try:
-        return _main(listener, ipt, use_server, remotename)
+        return _main(listener, fw, use_server, remotename)
     finally:
-        ipt.done()
+        fw.done()
