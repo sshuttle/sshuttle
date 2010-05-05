@@ -1,18 +1,20 @@
 import struct, socket, select
-import ssnet, helpers
-from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
-from helpers import *
+if not globals().get('skip_imports'):
+    import ssnet, helpers
+    from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
+    from helpers import *
 
 
 def main():
-    # synchronization header
-    sys.stdout.write('SSHUTTLE0001')
-    sys.stdout.flush()
-
     if helpers.verbose >= 1:
         helpers.logprefix = ' s: '
     else:
         helpers.logprefix = 'server: '
+        
+    # synchronization header
+    sys.stdout.write('SSHUTTLE0001')
+    sys.stdout.flush()
+
     handlers = []
     mux = Mux(socket.fromfd(sys.stdin.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM),

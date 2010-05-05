@@ -36,11 +36,17 @@ Prerequisites
  - sudo, su, or logged in as root on your client machine.
    (The server doesn't need admin access.)
    
- - Linux+iptables on your client machine, including at
+ - If you use Linux on your client machine:
+   iptables installed on the client, including at
    least the iptables DNAT, REDIRECT, and ttl modules. 
-   This is available by default on most Linux distributions. 
+   These are installed by default on most Linux distributions. 
    (The server doesn't need iptables and doesn't need to be
    Linux.)
+   
+ - If you use MacOS or BSD on your client machine:
+   Your kernel needs to be compiled with IPFIREWALL_FORWARD
+   (MacOS has this by default) and you need to have ipfw
+   available. (The server doesn't need to be MacOS or BSD.)
 
 
 This is how you use it:
@@ -57,6 +63,11 @@ This is how you use it:
 That's it!  Now your local machine can access the remote network as if you
 were right there!  And if your "client" machine is a router, everyone on
 your local network can make connections to your remote network.
+
+You don't need to install sshuttle on the remote server;
+the remote server just needs to have python available. 
+sshuttle will automatically upload and run its source code
+to the remote python interpreter.
 
 This creates a transparent proxy server on your local machine for all IP
 addresses that match 0.0.0.0/0.  (You can use more specific IP addresses if

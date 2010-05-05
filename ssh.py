@@ -1,6 +1,19 @@
-import sys, os, re, subprocess, socket
+import sys, os, re, subprocess, socket, zlib
 import helpers
 from helpers import *
+
+
+def readfile(name):
+    basedir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    fullname = os.path.join(basedir, name)
+    return open(fullname, 'rb').read()
+
+
+def empackage(z, filename):
+    content = z.compress(readfile(filename))
+    content += z.flush(zlib.Z_SYNC_FLUSH)
+    return '%s\n%d\n%s' % (filename,len(content), content)
+
 
 def connect(rhostport):
     main_exe = sys.argv[0]
@@ -9,45 +22,42 @@ def connect(rhostport):
     portl = []
     if len(l) > 1:
         portl = ['-p', str(int(l[1]))]
-    nicedir = os.path.split(os.path.abspath(main_exe))[0]
-    nicedir = re.sub(r':', "_", nicedir)
-    myhome = os.path.expanduser('~') + '/'
-    if nicedir.startswith(myhome):
-        nicedir2 = nicedir[len(myhome):]
-    else:
-        nicedir2 = nicedir
+
     if rhost == '-':
         rhost = None
+
+    z = zlib.compressobj(1)
+    content = readfile('assembler.py')
+    content2 = (empackage(z, 'helpers.py') +
+                empackage(z, 'ssnet.py') +
+                empackage(z, 'server.py') +
+                "\n")
+    
+    pyscript = r"""
+                import sys;
+                skip_imports=1;
+                verbosity=%d;
+                exec compile(sys.stdin.read(%d), "assembler.py", "exec")
+                """ % (helpers.verbose or 0, len(content))
+    pyscript = re.sub(r'\s+', ' ', pyscript.strip())
+
+        
     if not rhost:
-        argv = ['sshuttle', '--server'] + ['-v']*(helpers.verbose or 0)
+        argv = ['python', '-c', pyscript]
     else:
-        # WARNING: shell quoting security holes are possible here, so we
-        # have to be super careful.  We have to use 'sh -c' because
-        # csh-derived shells can't handle PATH= notation.  We can't
-        # set PATH in advance, because ssh probably replaces it.  We
-        # can't exec *safely* using argv, because *both* ssh and 'sh -c'
-        # allow shellquoting.  So we end up having to double-shellquote
-        # stuff here.
-        escapedir  = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir)
-        escapedir2 = re.sub(r'([^\w/])', r'\\\\\\\1', nicedir2)
-        cmd = r"""
-                   sh -c PATH=%s:'$HOME'/%s:'$PATH exec sshuttle --server%s'
-               """ % (escapedir, escapedir2,
-                      ' -v' * (helpers.verbose or 0))
-        argv = ['ssh'] + portl + [rhost, '--', cmd.strip()]
-        debug2('executing: %r\n' % argv)
+        argv = ['ssh'] + portl + [rhost, '--', "python -c '%s'" % pyscript]
     (s1,s2) = socket.socketpair()
     def setup():
         # runs in the child process
         s2.close()
-        if not rhost:
-            os.environ['PATH'] = ':'.join([nicedir,
-                                           os.environ.get('PATH', '')])
         os.setsid()
     s1a,s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
+    debug2('executing: %r\n' % argv)
     p = subprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
                          close_fds=True)
     os.close(s1a)
     os.close(s1b)
+    s2.sendall(content)
+    s2.sendall(content2)
     return p, s2

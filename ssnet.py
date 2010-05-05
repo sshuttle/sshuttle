@@ -1,5 +1,6 @@
 import struct, socket, errno, select
-from helpers import *
+if not globals().get('skip_imports'):
+    from helpers import *
 
 HDR_LEN = 8
 
