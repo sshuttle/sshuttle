@@ -83,7 +83,9 @@ class SockWrapper:
             elif e.args[0] == errno.EISCONN:
                 # connected successfully (BSD)
                 self.connect_to = None
-            elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT]:
+            elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT,
+                               errno.EHOSTUNREACH, errno.ENETUNREACH,
+                               errno.EACCES, errno.EPERM]:
                 # a "normal" kind of error
                 self.connect_to = None
                 self.seterr(e)
