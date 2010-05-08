@@ -13,6 +13,8 @@ CMD_CLOSE = 0x4204
 CMD_EOF = 0x4205
 CMD_DATA = 0x4206
 CMD_ROUTES = 0x4207
+CMD_HOST_REQ = 0x4208
+CMD_HOST_LIST = 0x4209
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -23,6 +25,8 @@ cmd_to_name = {
     CMD_EOF: 'EOF',
     CMD_DATA: 'DATA',
     CMD_ROUTES: 'ROUTES',
+    CMD_HOST_REQ: 'HOST_REQ',
+    CMD_HOST_LIST: 'HOST_LIST',
 }
     
 
@@ -223,6 +227,7 @@ class Mux(Handler):
         self.rsock = rsock
         self.wsock = wsock
         self.new_channel = self.got_routes = None
+        self.got_host_req = self.got_host_list = None
         self.channels = {}
         self.chani = 0
         self.want = 0
@@ -284,7 +289,17 @@ class Mux(Handler):
             if self.got_routes:
                 self.got_routes(data)
             else:
-                raise Exception('weird: got CMD_ROUTES without got_routes?')
+                raise Exception('got CMD_ROUTES without got_routes?')
+        elif cmd == CMD_HOST_REQ:
+            if self.got_host_req:
+                self.got_host_req(data)
+            else:
+                raise Exception('got CMD_HOST_REQ without got_host_req?')
+        elif cmd == CMD_HOST_LIST:
+            if self.got_host_list:
+                self.got_host_list(data)
+            else:
+                raise Exception('got CMD_HOST_LIST without got_host_list?')
         else:
             callback = self.channels[channel]
             callback(cmd, data)

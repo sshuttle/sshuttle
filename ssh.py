@@ -30,6 +30,7 @@ def connect(rhostport):
     content = readfile('assembler.py')
     content2 = (empackage(z, 'helpers.py') +
                 empackage(z, 'ssnet.py') +
+                empackage(z, 'hostwatch.py') +
                 empackage(z, 'server.py') +
                 "\n")
     

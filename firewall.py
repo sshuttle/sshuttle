@@ -1,4 +1,4 @@
-import subprocess, re
+import subprocess, re, errno
 import helpers
 from helpers import *
 
@@ -134,6 +134,38 @@ def program_exists(name):
         if os.path.exists(fn):
             return not os.path.isdir(fn) and os.access(fn, os.X_OK)
 
+hostmap = {}
+def rewrite_etc_hosts(port):
+    HOSTSFILE='/etc/hosts'
+    BAKFILE='%s.sbak' % HOSTSFILE
+    APPEND='# sshuttle-firewall-%d AUTOCREATED' % port
+    old_content = ''
+    try:
+        old_content = open(HOSTSFILE).read()
+    except IOError, e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
+    if old_content.strip() and not os.path.exists(BAKFILE):
+        open(BAKFILE, 'w').write(old_content)
+    tmpname = "%s.%d.tmp" % (HOSTSFILE, port)
+    f = open(tmpname, 'w')
+    for line in old_content.rstrip().split('\n'):
+        if line.find(APPEND) >= 0:
+            continue
+        f.write('%s\n' % line)
+    for (name,ip) in sorted(hostmap.items()):
+        f.write('%-30s %s\n' % ('%s %s' % (ip,name), APPEND))
+    f.close()
+    os.rename(tmpname, HOSTSFILE)
+
+
+def restore_etc_hosts(port):
+    global hostmap
+    hostmap = {}
+    rewrite_etc_hosts(port)
+
 
 # This is some voodoo for setting up the kernel's transparent
 # proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
@@ -199,16 +231,24 @@ def main(port):
         
         try:
             sys.stdout.flush()
-            
-            # Now we wait until EOF or any other kind of exception.  We need
-            # to stay running so that we don't need a *second* password
-            # authentication at shutdown time - that cleanup is important!
-            while sys.stdin.readline(128):
-                pass
         except IOError:
             # the parent process died for some reason; he's surely been loud
             # enough, so no reason to report another error
             return
+
+        # Now we wait until EOF or any other kind of exception.  We need
+        # to stay running so that we don't need a *second* password
+        # authentication at shutdown time - that cleanup is important!
+        while 1:
+            line = sys.stdin.readline(128)
+            if line.startswith('HOST '):
+                (name,ip) = line[5:].strip().split(',', 1)
+                hostmap[name] = ip
+                rewrite_etc_hosts(port)
+            elif line:
+                raise Fatal('expected EOF, got %r' % line)
+            else:
+                break
 
     finally:
         try:
@@ -216,3 +256,4 @@ def main(port):
         except:
             pass
         do_it(port, [])
+        restore_etc_hosts(port)

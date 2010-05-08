@@ -1,4 +1,4 @@
-import struct, socket, select, subprocess, errno
+import struct, socket, select, subprocess, errno, re
 import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
@@ -76,6 +76,12 @@ class FirewallClient:
         if line != 'STARTED\n':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
+    def sethostip(self, hostname, ip):
+        assert(not re.search(r'[^-\w]', hostname))
+        assert(not re.search(r'[^0-9.]', ip))
+        self.pfile.write('HOST %s,%s\n' % (hostname, ip))
+        self.pfile.flush()
+
     def done(self):
         self.pfile.close()
         rv = self.p.wait()
@@ -83,7 +89,7 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, use_server, remotename, auto_nets):
+def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
     handlers = []
     if use_server:
         if helpers.verbose >= 1:
@@ -122,6 +128,14 @@ def _main(listener, fw, use_server, remotename, auto_nets):
         fw.start()
     mux.got_routes = onroutes
 
+    def onhostlist(hostlist):
+        debug2('got host list: %r\n' % hostlist)
+        for line in hostlist.strip().split():
+            if line:
+                name,ip = line.split(',', 1)
+                fw.sethostip(name, ip)
+    mux.got_host_list = onhostlist
+
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
@@ -139,6 +153,10 @@ def _main(listener, fw, use_server, remotename, auto_nets):
             outwrap = ssnet.connect_dst(dstip[0], dstip[1])
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
+
+    if seed_hosts != None:
+        debug1('seed_hosts: %r\n' % seed_hosts)
+        mux.send(0, ssnet.CMD_HOST_REQ, '\n'.join(seed_hosts))
     
     while 1:
         if use_server:
@@ -165,7 +183,7 @@ def _main(listener, fw, use_server, remotename, auto_nets):
             mux.check_fullness()
 
 
-def main(listenip, use_server, remotename, auto_nets, subnets):
+def main(listenip, use_server, remotename, seed_hosts, auto_nets, subnets):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -195,6 +213,7 @@ def main(listenip, use_server, remotename, auto_nets, subnets):
     fw = FirewallClient(listenip[1], subnets)
     
     try:
-        return _main(listener, fw, use_server, remotename, auto_nets)
+        return _main(listener, fw, use_server, remotename,
+                     seed_hosts, auto_nets)
     finally:
         fw.done()

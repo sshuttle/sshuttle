@@ -1,6 +1,6 @@
-import re, struct, socket, select, subprocess
+import re, struct, socket, select, subprocess, traceback
 if not globals().get('skip_imports'):
-    import ssnet, helpers
+    import ssnet, helpers, hostwatch
     from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
     from helpers import *
 
@@ -65,7 +65,38 @@ def list_routes():
     for (ip,width) in _list_routes():
         if not ip.startswith('0.') and not ip.startswith('127.'):
             yield (ip,width)
-        
+
+
+def _exc_dump():
+    exc_info = sys.exc_info()
+    return ''.join(traceback.format_exception(*exc_info))
+
+
+def start_hostwatch(seed_hosts):
+    s1,s2 = socket.socketpair()
+    pid = os.fork()
+    if not pid:
+        # child
+        rv = 99
+        try:
+            s2.close()
+            os.dup2(s1.fileno(), 1)
+            os.dup2(s1.fileno(), 0)
+            s1.close()
+            rv = hostwatch.hw_main(seed_hosts) or 0
+        except Exception, e:
+            log('%s\n' % _exc_dump())
+            rv = 98
+        finally:
+            os._exit(rv)
+    s1.close()
+    return pid,s2
+
+
+class Hostwatch:
+    def __init__(self):
+        self.pid = 0
+        self.sock = None
 
 
 def main():
@@ -93,15 +124,36 @@ def main():
                        for r in routes)
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
+    hw = Hostwatch()
+
+    def hostwatch_ready():
+        assert(hw.pid)
+        content = hw.sock.recv(4096)
+        if content:
+            mux.send(0, ssnet.CMD_HOST_LIST, content)
+        else:
+            raise Fatal('hostwatch process died')
+
+    def got_host_req(data):
+        if not hw.pid:
+            (hw.pid,hw.sock) = start_hostwatch(data.strip().split())
+            handlers.append(Handler(socks = [hw.sock],
+                                    callback = hostwatch_ready))
+    mux.got_host_req = got_host_req
+
     def new_channel(channel, data):
         (dstip,dstport) = data.split(',', 1)
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(dstip,dstport)
         handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
-    
     mux.new_channel = new_channel
 
     while mux.ok:
+        if hw.pid:
+            (rpid, rv) = os.waitpid(hw.pid, os.WNOHANG)
+            if rpid:
+                raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)
+        
         r = set()
         w = set()
         x = set()

@@ -4,6 +4,7 @@ if not globals().get('skip_imports'):
     from helpers import *
 
 POLL_TIME = 60*15
+CACHEFILE=os.path.expanduser('~/.sshuttle.hosts')
 
 
 _nmb_ok = True
@@ -17,6 +18,39 @@ def _is_ip(s):
     return re.match(r'\d+\.\d+\.\d+\.\d+$', s)
 
 
+def write_host_cache():
+    tmpname = '%s.%d.tmp' % (CACHEFILE, os.getpid())
+    try:
+        f = open(tmpname, 'wb')
+        for name,ip in sorted(hostnames.items()):
+            f.write('%s,%s\n' % (name, ip))
+        f.close()
+        os.rename(tmpname, CACHEFILE)
+    finally:
+        try:
+            os.unlink(tmpname)
+        except:
+            pass
+
+
+def read_host_cache():
+    try:
+        f = open(CACHEFILE)
+    except IOError, e:
+        if e.errno == errno.ENOENT:
+            return
+        else:
+            raise
+    for line in f:
+        words = line.strip().split(',')
+        if len(words) == 2:
+            (name,ip) = words
+            name = re.sub(r'[^-\w]', '-', name).strip()
+            ip = re.sub(r'[^0-9.]', '', ip).strip()
+            if name and ip:
+                found_host(name, ip)
+                
+
 def found_host(hostname, ip):
     hostname = re.sub(r'\..*', '', hostname)
     hostname = re.sub(r'[^-\w]', '_', hostname)
@@ -27,6 +61,7 @@ def found_host(hostname, ip):
         hostnames[hostname] = ip
         debug1('Found: %s: %s\n' % (hostname, ip))
         sys.stdout.write('%s,%s\n' % (hostname, ip))
+        write_host_cache()
 
 
 def _check_etc_hosts():
@@ -187,6 +222,8 @@ def hw_main(seed_hosts):
         helpers.logprefix = 'HH: '
     else:
         helpers.logprefix = 'hostwatch: '
+
+    read_host_cache()
         
     _enqueue(_check_etc_hosts)
     check_host('localhost')

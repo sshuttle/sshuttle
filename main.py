@@ -50,9 +50,11 @@ sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
 l,listen=  transproxy to this ip address and port number [default=0]
-N,auto-nets automatically determine subnets to route
+H,auto-hosts scan for remote hostnames and update local /etc/hosts
+N,auto-nets  automatically determine subnets to route
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 v,verbose  increase debug message verbosity
+seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 noserver   don't use a separate server process (mostly for debugging)
 server     [internal use only]
 firewall   [internal use only]
@@ -80,9 +82,18 @@ try:
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
+        if opt.seed_hosts and not opt.auto_hosts:
+            o.fatal('--seed-hosts only works if you also use -H')
+        if opt.seed_hosts:
+            sh = re.split(r'[\s,]+', (opt.seed_hosts or "").strip())
+        elif opt.auto_hosts:
+            sh = []
+        else:
+            sh = None
         sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
                              not opt.noserver,
                              remotename,
+                             sh,
                              opt.auto_nets,
                              parse_subnets(extra)))
 except Fatal, e:
