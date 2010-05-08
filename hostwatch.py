@@ -4,6 +4,7 @@ if not globals().get('skip_imports'):
     from helpers import *
 
 POLL_TIME = 60*15
+NETSTAT_POLL_TIME = 30
 CACHEFILE=os.path.expanduser('~/.sshuttle.hosts')
 
 
@@ -54,7 +55,8 @@ def read_host_cache():
 def found_host(hostname, ip):
     hostname = re.sub(r'\..*', '', hostname)
     hostname = re.sub(r'[^-\w]', '_', hostname)
-    if ip.startswith('127.') or hostname == 'localhost':
+    if (ip.startswith('127.') or ip.startswith('255.') 
+        or hostname == 'localhost'):
         return
     oldip = hostnames.get(hostname)
     if oldip != ip:
@@ -65,7 +67,7 @@ def found_host(hostname, ip):
 
 
 def _check_etc_hosts():
-    debug1(' > hosts\n')
+    debug2(' > hosts\n')
     for line in open('/etc/hosts'):
         line = re.sub(r'#.*', '', line)
         words = line.strip().split()
@@ -74,14 +76,14 @@ def _check_etc_hosts():
         ip = words[0]
         names = words[1:]
         if _is_ip(ip):
-            debug2('<    %s %r\n' % (ip, names))
+            debug3('<    %s %r\n' % (ip, names))
             for n in names:
                 check_host(n)
                 found_host(n, ip)
 
 
 def _check_revdns(ip):
-    debug1(' > rev: %s\n' % ip)
+    debug2(' > rev: %s\n' % ip)
     try:
         r = socket.gethostbyaddr(ip)
         debug3('<    %s\n' % r[0])
@@ -92,7 +94,7 @@ def _check_revdns(ip):
 
 
 def _check_dns(hostname):
-    debug1(' > dns: %s\n' % hostname)
+    debug2(' > dns: %s\n' % hostname)
     try:
         ip = socket.gethostbyname(hostname)
         debug3('<    %s\n' % ip)
@@ -102,7 +104,24 @@ def _check_dns(hostname):
         pass
 
 
+def _check_netstat():
+    debug2(' > netstat\n')
+    argv = ['netstat', '-n']
+    try:
+        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=null)
+        content = p.stdout.read()
+        p.wait()
+    except OSError, e:
+        log('%r failed: %r\n' % (argv, e))
+        return
+
+    for ip in re.findall(r'\d+\.\d+\.\d+\.\d+', content):
+        debug3('<    %s\n' % ip)
+        check_host(ip)
+        
+
 def _check_smb(hostname):
+    return
     global _smb_ok
     if not _smb_ok:
         return
@@ -159,6 +178,7 @@ def _check_smb(hostname):
 
 
 def _check_nmb(hostname, is_workgroup, is_master):
+    return
     global _nmb_ok
     if not _nmb_ok:
         return
@@ -226,6 +246,7 @@ def hw_main(seed_hosts):
     read_host_cache()
         
     _enqueue(_check_etc_hosts)
+    _enqueue(_check_netstat)
     check_host('localhost')
     check_host(socket.gethostname())
     check_workgroup('workgroup')
@@ -236,10 +257,13 @@ def hw_main(seed_hosts):
     while 1:
         now = time.time()
         for t,last_polled in queue.items():
+            (op,args) = t
             if not _stdin_still_ok(0):
                 break
-            if now - last_polled > POLL_TIME:
-                (op,args) = t
+            maxtime = POLL_TIME
+            if op == _check_netstat:
+                maxtime = NETSTAT_POLL_TIME
+            if now - last_polled > maxtime:
                 queue[t] = time.time()
                 op(*args)
             try:
