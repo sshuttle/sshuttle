@@ -12,6 +12,7 @@ CMD_CONNECT = 0x4203
 CMD_CLOSE = 0x4204
 CMD_EOF = 0x4205
 CMD_DATA = 0x4206
+CMD_ROUTES = 0x4207
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -21,6 +22,7 @@ cmd_to_name = {
     CMD_CLOSE: 'CLOSE',
     CMD_EOF: 'EOF',
     CMD_DATA: 'DATA',
+    CMD_ROUTES: 'ROUTES',
 }
     
 
@@ -220,7 +222,7 @@ class Mux(Handler):
         Handler.__init__(self, [rsock, wsock])
         self.rsock = rsock
         self.wsock = wsock
-        self.new_channel = None
+        self.new_channel = self.got_routes = None
         self.channels = {}
         self.chani = 0
         self.want = 0
@@ -259,12 +261,13 @@ class Mux(Handler):
         p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
-               % (channel, cmd_to_name[cmd], len(data), self.fullness))
+               % (channel, cmd_to_name.get(cmd,hex(cmd)),
+                  len(data), self.fullness))
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
         debug2('<  channel=%d cmd=%s len=%d\n' 
-               % (channel, cmd_to_name[cmd], len(data)))
+               % (channel, cmd_to_name.get(cmd,hex(cmd)), len(data)))
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
@@ -277,6 +280,11 @@ class Mux(Handler):
             assert(not self.channels.get(channel))
             if self.new_channel:
                 self.new_channel(channel, data)
+        elif cmd == CMD_ROUTES:
+            if self.got_routes:
+                self.got_routes(data)
+            else:
+                raise Exception('weird: got CMD_ROUTES without got_routes?')
         else:
             callback = self.channels[channel]
             callback(cmd, data)

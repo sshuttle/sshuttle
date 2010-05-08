@@ -22,11 +22,11 @@ def original_dst(sock):
 class FirewallClient:
     def __init__(self, port, subnets):
         self.port = port
+        self.auto_nets = []
         self.subnets = subnets
-        subnets_str = ['%s/%d' % (ip,width) for ip,width in subnets]
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port)] + subnets_str)
+                    ['--firewall', str(port)])
         argv_tries = [
             ['sudo'] + argvbase,
             ['su', '-c', ' '.join(argvbase)],
@@ -66,6 +66,9 @@ class FirewallClient:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
     def start(self):
+        self.pfile.write('ROUTES\n')
+        for (ip,width) in self.subnets+self.auto_nets:
+            self.pfile.write('%s,%d\n' % (ip, width))
         self.pfile.write('GO\n')
         self.pfile.flush()
         line = self.pfile.readline()
@@ -80,7 +83,7 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, use_server, remotename):
+def _main(listener, fw, use_server, remotename, auto_nets):
     handlers = []
     if use_server:
         if helpers.verbose >= 1:
@@ -102,9 +105,22 @@ def _main(listener, fw, use_server, remotename):
             raise Fatal('expected server init string %r; got %r'
                             % (expected, initstring))
 
-    # we definitely want to do this *after* starting ssh, or we might end
-    # up intercepting the ssh connection!
-    fw.start()
+    def onroutes(routestr):
+        if auto_nets:
+            for line in routestr.strip().split('\n'):
+                (ip,width) = line.split(',', 1)
+                fw.auto_nets.append((ip,int(width)))
+
+        # we definitely want to do this *after* starting ssh, or we might end
+        # up intercepting the ssh connection!
+        #
+        # Moreover, now that we have the --auto-nets option, we have to wait
+        # for the server to send us that message anyway.  Even if we haven't
+        # set --auto-nets, we might as well wait for the message first, then
+        # ignore its contents.
+        mux.got_routes = None
+        fw.start()
+    mux.got_routes = onroutes
 
     def onaccept():
         sock,srcip = listener.accept()
@@ -149,7 +165,7 @@ def _main(listener, fw, use_server, remotename):
             mux.check_fullness()
 
 
-def main(listenip, use_server, remotename, subnets):
+def main(listenip, use_server, remotename, auto_nets, subnets):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -179,6 +195,6 @@ def main(listenip, use_server, remotename, subnets):
     fw = FirewallClient(listenip[1], subnets)
     
     try:
-        return _main(listener, fw, use_server, remotename)
+        return _main(listener, fw, use_server, remotename, auto_nets)
     finally:
         fw.done()

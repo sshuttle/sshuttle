@@ -7,7 +7,7 @@ while 1:
     if name:
         nbytes = int(sys.stdin.readline())
         if verbosity >= 2:
-            sys.stderr.write('remote assembling %r (%d bytes)\n'
+            sys.stderr.write('server: assembling %r (%d bytes)\n'
                              % (name, nbytes))
         content = z.decompress(sys.stdin.read(nbytes))
         exec compile(content, name, "exec")

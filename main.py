@@ -50,6 +50,7 @@ sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
 l,listen=  transproxy to this ip address and port number [default=0]
+N,auto-nets automatically determine subnets to route
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 v,verbose  increase debug message verbosity
 noserver   don't use a separate server process (mostly for debugging)
@@ -65,19 +66,19 @@ try:
     if opt.server:
         sys.exit(server.main())
     elif opt.firewall:
-        if len(extra) < 1:
-            o.fatal('at least one argument expected')
-        sys.exit(firewall.main(int(extra[0]),
-                               parse_subnets(extra[1:])))
+        if len(extra) != 1:
+            o.fatal('exactly one argument expected')
+        sys.exit(firewall.main(int(extra[0])))
     else:
-        if len(extra) < 1:
-            o.fatal('at least one subnet expected')
+        if len(extra) < 1 and not opt.auto_nets:
+            o.fatal('at least one subnet (or -N) expected')
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
         sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
                              not opt.noserver,
                              remotename,
+                             opt.auto_nets,
                              parse_subnets(extra)))
 except Fatal, e:
     log('fatal: %s\n' % e)

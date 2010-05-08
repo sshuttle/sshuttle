@@ -140,7 +140,7 @@ def program_exists(name):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port, subnets):
+def main(port):
     assert(port > 0)
     assert(port <= 65535)
 
@@ -173,8 +173,21 @@ def main(port, subnets):
     line = sys.stdin.readline(128)
     if not line:
         return  # parent died; nothing to do
-    if line != 'GO\n':
-        raise Fatal('firewall: expected GO but got %r' % line)
+
+    subnets = []
+    if line != 'ROUTES\n':
+        raise Fatal('firewall: expected ROUTES but got %r' % line)
+    while 1:
+        line = sys.stdin.readline(128)
+        if not line:
+            raise Fatal('firewall: expected route but got %r' % line)
+        elif line == 'GO\n':
+            break
+        try:
+            (ip,width) = line.strip().split(',', 1)
+        except:
+            raise Fatal('firewall: expected route or GO but got %r' % line)
+        subnets.append((ip, int(width)))
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
