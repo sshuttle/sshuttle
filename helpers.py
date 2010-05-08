@@ -16,6 +16,10 @@ def debug2(s):
     if verbose >= 2:
         log(s)
 
+def debug3(s):
+    if verbose >= 3:
+        log(s)
+
 
 class Fatal(Exception):
     pass

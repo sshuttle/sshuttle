@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import helpers, options, client, server, firewall
+import helpers, options, client, server, firewall, hostwatch
 from helpers import *
 
 
@@ -56,6 +56,7 @@ v,verbose  increase debug message verbosity
 noserver   don't use a separate server process (mostly for debugging)
 server     [internal use only]
 firewall   [internal use only]
+hostwatch  [internal use only]
 """
 o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
@@ -64,11 +65,15 @@ helpers.verbose = opt.verbose
 
 try:
     if opt.server:
+        if len(extra) != 0:
+            o.fatal('no arguments expected')
         sys.exit(server.main())
     elif opt.firewall:
         if len(extra) != 1:
             o.fatal('exactly one argument expected')
         sys.exit(firewall.main(int(extra[0])))
+    elif opt.hostwatch:
+        sys.exit(hostwatch.hw_main(extra))
     else:
         if len(extra) < 1 and not opt.auto_nets:
             o.fatal('at least one subnet (or -N) expected')
