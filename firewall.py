@@ -58,7 +58,7 @@ def ipfw_rule_exists(n):
     p = subprocess.Popen(argv, stdout = subprocess.PIPE)
     for line in p.stdout:
         if line.startswith('%05d ' % n):
-            if line[5:].find('ipttl 42') < 0:
+            if line.find('ipttl 42') < 0 and line.find('established') < 0:
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
             return True
     rv = p.wait()
