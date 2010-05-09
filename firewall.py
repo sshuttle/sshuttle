@@ -140,15 +140,17 @@ def rewrite_etc_hosts(port):
     BAKFILE='%s.sbak' % HOSTSFILE
     APPEND='# sshuttle-firewall-%d AUTOCREATED' % port
     old_content = ''
+    st = None
     try:
         old_content = open(HOSTSFILE).read()
+        st = os.stat(HOSTSFILE)
     except IOError, e:
         if e.errno == errno.ENOENT:
             pass
         else:
             raise
     if old_content.strip() and not os.path.exists(BAKFILE):
-        open(BAKFILE, 'w').write(old_content)
+        os.link(HOSTSFILE, BAKFILE)
     tmpname = "%s.%d.tmp" % (HOSTSFILE, port)
     f = open(tmpname, 'w')
     for line in old_content.rstrip().split('\n'):
@@ -158,6 +160,13 @@ def rewrite_etc_hosts(port):
     for (name,ip) in sorted(hostmap.items()):
         f.write('%-30s %s\n' % ('%s %s' % (ip,name), APPEND))
     f.close()
+
+    if st:
+        os.chown(tmpname, st.st_uid, st.st_gid)
+        os.chmod(tmpname, st.st_mode)
+    else:
+        os.chown(tmpname, 0, 0)
+        os.chmod(tmpname, 0644)
     os.rename(tmpname, HOSTSFILE)
 
 
