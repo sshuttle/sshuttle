@@ -79,14 +79,15 @@ def start_hostwatch(seed_hosts):
         # child
         rv = 99
         try:
-            s2.close()
-            os.dup2(s1.fileno(), 1)
-            os.dup2(s1.fileno(), 0)
-            s1.close()
-            rv = hostwatch.hw_main(seed_hosts) or 0
-        except Exception, e:
-            log('%s\n' % _exc_dump())
-            rv = 98
+            try:
+                s2.close()
+                os.dup2(s1.fileno(), 1)
+                os.dup2(s1.fileno(), 0)
+                s1.close()
+                rv = hostwatch.hw_main(seed_hosts) or 0
+            except Exception, e:
+                log('%s\n' % _exc_dump())
+                rv = 98
         finally:
             os._exit(rv)
     s1.close()
