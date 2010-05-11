@@ -161,3 +161,6 @@ later.  You're welcome.
 --
 Avery Pennarun <apenwarr@gmail.com>
 
+Mailing list:
+   Subscribe by sending a message to <sshuttle+subscribe@googlegroups.com>
+   List archives are at: http://groups.google.com/group/sshuttle
