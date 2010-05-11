@@ -96,6 +96,7 @@ def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
             helpers.logprefix = 'c : '
         else:
             helpers.logprefix = 'client: '
+        debug1('connecting to server...\n')
         (serverproc, serversock) = ssh.connect(remotename)
         mux = Mux(serversock, serversock)
         handlers.append(mux)
@@ -110,6 +111,7 @@ def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
         if initstring != expected:
             raise Fatal('expected server init string %r; got %r'
                             % (expected, initstring))
+        debug1('connected.\n')
 
     def onroutes(routestr):
         if auto_nets:
