@@ -5,8 +5,12 @@ from helpers import *
 
 def readfile(name):
     basedir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    fullname = os.path.join(basedir, name)
-    return open(fullname, 'rb').read()
+    path = [basedir] + sys.path
+    for d in path:
+        fullname = os.path.join(d, name)
+        if os.path.exists(fullname):
+            return open(fullname, 'rb').read()
+    raise Exception("can't find file %r in any of %r" % (name, path))
 
 
 def empackage(z, filename):
