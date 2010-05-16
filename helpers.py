@@ -4,9 +4,14 @@ logprefix = ''
 verbose = 0
 
 def log(s):
-    sys.stdout.flush()
-    sys.stderr.write(logprefix + s)
-    sys.stderr.flush()
+    try:
+        sys.stdout.flush()
+        sys.stderr.write(logprefix + s)
+        sys.stderr.flush()
+    except IOError:
+        # this could happen if stderr gets forcibly disconnected, eg. because
+        # our tty closes.  That sucks, but it's no reason to abort the program.
+        pass
 
 def debug1(s):
     if verbose >= 1:
