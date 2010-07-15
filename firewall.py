@@ -43,14 +43,23 @@ def do_iptables(port, subnets):
         ipt('-I', 'OUTPUT', '1', '-j', chain)
         ipt('-I', 'PREROUTING', '1', '-j', chain)
 
-        # create new subnet entries
-        for snet,swidth in subnets:
-            ipt('-A', chain, '-j', 'REDIRECT',
-                '--dest', '%s/%s' % (snet,swidth),
-                '-p', 'tcp',
-                '--to-ports', str(port),
-                '-m', 'ttl', '!', '--ttl', '42'  # to prevent infinite loops
-                )
+        # create new subnet entries.  Note that we're sorting in a very
+        # particular order: we need to go from most-specific (largest swidth)
+        # to least-specific, and at any given level of specificity, we want
+        # excludes to come first.  That's why the columns are in such a non-
+        # intuitive order.
+        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+            if sexclude:
+                ipt('-A', chain, '-j', 'RETURN',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-p', 'tcp')
+            else:
+                ipt('-A', chain, '-j', 'REDIRECT',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-p', 'tcp',
+                    '--to-ports', str(port),
+                    '-m', 'ttl', '!', '--ttl', '42'  # to prevent infinite loops
+                    )
 
 
 def ipfw_rule_exists(n):
@@ -103,6 +112,7 @@ def ipfw(*args):
 
 def do_ipfw(port, subnets):
     sport = str(port)
+    xsport = str(port+1)
 
     # cleanup any existing rules
     if ipfw_rule_exists(port):
@@ -120,11 +130,16 @@ def do_ipfw(port, subnets):
              'from', 'any', 'to', 'any', 'established')
         
         # create new subnet entries
-        for snet,swidth in subnets:
-            ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
-                 'log', 'tcp',
-                 'from', 'any', 'to', '%s/%s' % (snet,swidth),
-                 'not', 'ipttl', '42')
+        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+            if sexclude:
+                ipfw('add', sport, 'skipto', xsport,
+                     'log', 'tcp',
+                     'from', 'any', 'to', '%s/%s' % (snet,swidth))
+            else:
+                ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
+                     'log', 'tcp',
+                     'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                     'not', 'ipttl', '42')
 
 
 def program_exists(name):
@@ -228,10 +243,11 @@ def main(port):
         elif line == 'GO\n':
             break
         try:
-            (ip,width) = line.strip().split(',', 1)
+            (width,exclude,ip) = line.strip().split(',', 2)
         except:
             raise Fatal('firewall: expected route or GO but got %r' % line)
-        subnets.append((ip, int(width)))
+        subnets.append((int(width), bool(int(exclude)), ip))
+        
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
@@ -258,7 +274,6 @@ def main(port):
                 raise Fatal('expected EOF, got %r' % line)
             else:
                 break
-
     finally:
         try:
             debug1('firewall manager: undoing changes.\n')

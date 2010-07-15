@@ -53,6 +53,7 @@ l,listen=  transproxy to this ip address and port number [default=0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
+x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 noserver   don't use a separate server process (mostly for debugging)
@@ -79,6 +80,11 @@ try:
     else:
         if len(extra) < 1 and not opt.auto_nets:
             o.fatal('at least one subnet (or -N) expected')
+        includes = extra
+        excludes = ['127.0.0.0/8']
+        for k,v in flags:
+            if k in ('-x','--exclude'):
+                excludes.append(v)
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
@@ -95,7 +101,8 @@ try:
                              remotename,
                              sh,
                              opt.auto_nets,
-                             parse_subnets(extra)))
+                             parse_subnets(includes),
+                             parse_subnets(excludes)))
 except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)

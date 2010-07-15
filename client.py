@@ -20,10 +20,11 @@ def original_dst(sock):
 
 
 class FirewallClient:
-    def __init__(self, port, subnets):
+    def __init__(self, port, subnets_include, subnets_exclude):
         self.port = port
         self.auto_nets = []
-        self.subnets = subnets
+        self.subnets_include = subnets_include
+        self.subnets_exclude = subnets_exclude
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port)])
@@ -67,8 +68,10 @@ class FirewallClient:
 
     def start(self):
         self.pfile.write('ROUTES\n')
-        for (ip,width) in self.subnets+self.auto_nets:
-            self.pfile.write('%s,%d\n' % (ip, width))
+        for (ip,width) in self.subnets_include+self.auto_nets:
+            self.pfile.write('%d,0,%s\n' % (width, ip))
+        for (ip,width) in self.subnets_exclude:
+            self.pfile.write('%d,1,%s\n' % (width, ip))
         self.pfile.write('GO\n')
         self.pfile.flush()
         line = self.pfile.readline()
@@ -185,7 +188,8 @@ def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
             mux.check_fullness()
 
 
-def main(listenip, use_server, remotename, seed_hosts, auto_nets, subnets):
+def main(listenip, use_server, remotename, seed_hosts, auto_nets,
+         subnets_include, subnets_exclude):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -212,7 +216,7 @@ def main(listenip, use_server, remotename, seed_hosts, auto_nets, subnets):
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
-    fw = FirewallClient(listenip[1], subnets)
+    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude)
     
     try:
         return _main(listener, fw, use_server, remotename,
