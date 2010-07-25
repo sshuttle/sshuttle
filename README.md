@@ -1,14 +1,12 @@
 sshuttle: where transparent proxy meets VPN meets ssh
 =====================================================
 
-I just spent an afternoon working on a new kind of VPN.  You can get
-the first release, <a href="http://github.com/apenwarr/sshuttle">sshuttle
-0.10, on github</a>.
-
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
- - Your client machine (or router) is Linux.
+ - Your client machine (or router) is Linux or FreeBSD (or
+   MacOS, but MacOS 10.6 in particular has a bug that
+   prevents it from working).
 
  - You have access to a remote network via ssh.
 
@@ -53,10 +51,8 @@ This is how you use it:
 -----------------------
 
  - <tt>git clone git://github.com/apenwarr/sshuttle</tt>
-    on your client and server machines. The server can be
-    any ssh server with python available; the client must
-    be Linux with iptables, and you'll need root or sudo
-    access.
+    on your client machine. You'll need root or sudo
+    access, and python needs to be installed.
 
  - <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
 
