@@ -19,7 +19,7 @@ def empackage(z, filename):
     return '%s\n%d\n%s' % (filename,len(content), content)
 
 
-def connect(rhostport):
+def connect(rhostport, python):
     main_exe = sys.argv[0]
     l = (rhostport or '').split(':', 1)
     rhost = l[0]
@@ -48,9 +48,9 @@ def connect(rhostport):
 
         
     if not rhost:
-        argv = ['python', '-c', pyscript]
+        argv = [python, '-c', pyscript]
     else:
-        argv = ['ssh'] + portl + [rhost, '--', "python -c '%s'" % pyscript]
+        argv = ['ssh'] + portl + [rhost, '--', "'%s' -c '%s'" % (python, pyscript)]
     (s1,s2) = socket.socketpair()
     def setup():
         # runs in the child process

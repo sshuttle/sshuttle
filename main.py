@@ -52,6 +52,7 @@ sshuttle --server
 l,listen=  transproxy to this ip address and port number [0.0.0.0:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
+python= specify the name/path of the python interpreter on the remote server [python]
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
@@ -99,6 +100,7 @@ try:
         sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
                              not opt.noserver,
                              remotename,
+                             (opt.python or "python"),
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),

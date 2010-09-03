@@ -92,7 +92,7 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
+def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
     handlers = []
     if use_server:
         if helpers.verbose >= 1:
@@ -100,7 +100,7 @@ def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
         else:
             helpers.logprefix = 'client: '
         debug1('connecting to server...\n')
-        (serverproc, serversock) = ssh.connect(remotename)
+        (serverproc, serversock) = ssh.connect(remotename, python)
         mux = Mux(serversock, serversock)
         handlers.append(mux)
 
@@ -188,7 +188,7 @@ def _main(listener, fw, use_server, remotename, seed_hosts, auto_nets):
             mux.check_fullness()
 
 
-def main(listenip, use_server, remotename, seed_hosts, auto_nets,
+def main(listenip, use_server, remotename, python, seed_hosts, auto_nets,
          subnets_include, subnets_exclude):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
@@ -220,6 +220,6 @@ def main(listenip, use_server, remotename, seed_hosts, auto_nets,
     
     try:
         return _main(listener, fw, use_server, remotename,
-                     seed_hosts, auto_nets)
+                     python, seed_hosts, auto_nets)
     finally:
         fw.done()
