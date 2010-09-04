@@ -49,7 +49,7 @@ sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
 sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
-l,listen=  transproxy to this ip address and port number [default=0]
+l,listen=  transproxy to this ip address and port number [0.0.0.0:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
@@ -57,9 +57,9 @@ x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 noserver   don't use a separate server process (mostly for debugging)
-server     [internal use only]
-firewall   [internal use only]
-hostwatch  [internal use only]
+server     (internal use only)
+firewall   (internal use only)
+hostwatch  (internal use only)
 """
 o = options.Options('sshuttle', optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
