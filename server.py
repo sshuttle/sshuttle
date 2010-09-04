@@ -57,7 +57,8 @@ def _list_routes():
         routes.append((socket.inet_ntoa(struct.pack('!I', ip)), width))
     rv = p.wait()
     if rv != 0:
-        raise Fatal('%r returned %d' % (argv, rv))
+        log('WARNING: %r returned %d\n' % (argv, rv))
+        log('WARNING: That prevents --auto-nets from working.\n')
     return routes
 
 
