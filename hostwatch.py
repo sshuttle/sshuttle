@@ -1,4 +1,4 @@
-import subprocess, time, socket, re, select
+import subprocess, time, socket, re, select, errno
 if not globals().get('skip_imports'):
     import helpers
     from helpers import *
