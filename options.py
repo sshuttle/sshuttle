@@ -1,19 +1,21 @@
 """Command-line options parser.
 With the help of an options spec string, easily parse command-line options.
 """
-import sys
-import textwrap
-import getopt
-import re
+import sys, os, textwrap, getopt, re, struct
 
 class OptDict:
     def __init__(self):
         self._opts = {}
 
     def __setitem__(self, k, v):
+        if k.startswith('no-') or k.startswith('no_'):
+            k = k[3:]
+            v = not v
         self._opts[k] = v
 
     def __getitem__(self, k):
+        if k.startswith('no-') or k.startswith('no_'):
+            return not self._opts[k[3:]]
         return self._opts[k]
 
     def __getattr__(self, k):
@@ -32,6 +34,33 @@ def _intify(v):
     except ValueError:
         pass
     return v
+
+
+def _atoi(v):
+    try:
+        return int(v or 0)
+    except ValueError:
+        return 0
+
+
+def _remove_negative_kv(k, v):
+    if k.startswith('no-') or k.startswith('no_'):
+        return k[3:], not v
+    return k,v
+
+def _remove_negative_k(k):
+    return _remove_negative_kv(k, None)[0]
+
+
+def _tty_width():
+    s = struct.pack("HHHH", 0, 0, 0, 0)
+    try:
+        import fcntl, termios
+        s = fcntl.ioctl(sys.stderr.fileno(), termios.TIOCGWINSZ, s)
+    except (IOError, ImportError):
+        return _atoi(os.environ.get('WIDTH')) or 70
+    (ysize,xsize,ypix,xpix) = struct.unpack('HHHH', s)
+    return xsize
 
 
 class Options:
@@ -71,10 +100,13 @@ class Options:
             out.append('%s: %s\n' % (first_syn and 'usage' or '   or', l))
             first_syn = False
         out.append('\n')
+        last_was_option = False
         while lines:
             l = lines.pop()
             if l.startswith(' '):
-                out.append('\n%s\n' % l.lstrip())
+                out.append('%s%s\n' % (last_was_option and '\n' or '',
+                                       l.lstrip()))
+                last_was_option = False
             elif l:
                 (flags, extra) = l.split(' ', 1)
                 extra = extra.strip()
@@ -83,7 +115,7 @@ class Options:
                     has_parm = 1
                 else:
                     has_parm = 0
-                g = re.search(r'\[([^\]]*)\]', extra)
+                g = re.search(r'\[([^\]]*)\]$', extra)
                 if g:
                     defval = g.group(1)
                 else:
@@ -91,16 +123,16 @@ class Options:
                 flagl = flags.split(',')
                 flagl_nice = []
                 for f in flagl:
-                    self._aliases[f] = flagl[0]
+                    f,dvi = _remove_negative_kv(f, _intify(defval))
+                    self._aliases[f] = _remove_negative_k(flagl[0])
                     self._hasparms[f] = has_parm
-                    self._defaults[f] = _intify(defval)
+                    self._defaults[f] = dvi
                     if len(f) == 1:
                         self._shortopts += f + (has_parm and ':' or '')
                         flagl_nice.append('-' + f)
                     else:
                         f_nice = re.sub(r'\W', '_', f)
-                        self._aliases[f_nice] = flagl[0]
-                        assert(not f.startswith('no-')) # supported implicitly
+                        self._aliases[f_nice] = _remove_negative_k(flagl[0])
                         self._longopts.append(f + (has_parm and '=' or ''))
                         self._longopts.append('no-' + f)
                         flagl_nice.append('--' + f)
@@ -108,12 +140,14 @@ class Options:
                 if has_parm:
                     flags_nice += ' ...'
                 prefix = '    %-20s  ' % flags_nice
-                argtext = '\n'.join(textwrap.wrap(extra, width=70,
+                argtext = '\n'.join(textwrap.wrap(extra, width=_tty_width(),
                                                 initial_indent=prefix,
                                                 subsequent_indent=' '*28))
                 out.append(argtext + '\n')
+                last_was_option = True
             else:
                 out.append('\n')
+                last_was_option = False
         return ''.join(out).rstrip() + '\n'
 
     def usage(self, msg=""):
