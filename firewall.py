@@ -1,11 +1,12 @@
-import subprocess, re, errno
+import re, errno
+import compat.ssubprocess as ssubprocess
 import helpers
 from helpers import *
 
 
 def ipt_chain_exists(name):
     argv = ['iptables', '-t', 'nat', '-nL']
-    p = subprocess.Popen(argv, stdout = subprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
     for line in p.stdout:
         if line.startswith('Chain %s ' % name):
             return True
@@ -17,7 +18,7 @@ def ipt_chain_exists(name):
 def ipt(*args):
     argv = ['iptables', '-t', 'nat'] + list(args)
     debug1('>> %s\n' % ' '.join(argv))
-    rv = subprocess.call(argv)
+    rv = ssubprocess.call(argv)
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
 
@@ -64,7 +65,7 @@ def do_iptables(port, subnets):
 
 def ipfw_rule_exists(n):
     argv = ['ipfw', 'list']
-    p = subprocess.Popen(argv, stdout = subprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
     found = False
     for line in p.stdout:
         if line.startswith('%05d ' % n):
@@ -82,7 +83,7 @@ def ipfw_rule_exists(n):
 
 def sysctl_get(name):
     argv = ['sysctl', '-n', name]
-    p = subprocess.Popen(argv, stdout = subprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
     line = p.stdout.readline()
     rv = p.wait()
     if rv:
@@ -96,7 +97,7 @@ def sysctl_get(name):
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
-    rv = subprocess.call(argv, stdout = open('/dev/null', 'w'))
+    rv = ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
 
 
 _oldctls = []
@@ -110,7 +111,7 @@ def sysctl_set(name, val):
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
     debug1('>> %s\n' % ' '.join(argv))
-    rv = subprocess.call(argv)
+    rv = ssubprocess.call(argv)
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
 

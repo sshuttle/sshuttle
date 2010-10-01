@@ -1,6 +1,7 @@
-import re, struct, socket, select, subprocess, traceback
+import re, struct, socket, select, traceback
 if not globals().get('skip_imports'):
     import ssnet, helpers, hostwatch
+    import compat.ssubprocess as ssubprocess
     from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
     from helpers import *
 
@@ -43,7 +44,7 @@ def _maskbits(netmask):
 
 def _list_routes():
     argv = ['netstat', '-rn']
-    p = subprocess.Popen(argv, stdout=subprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
     for line in p.stdout:
         cols = re.split(r'\s+', line)

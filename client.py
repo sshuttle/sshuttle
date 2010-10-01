@@ -1,4 +1,5 @@
-import struct, socket, select, subprocess, errno, re
+import struct, socket, select, errno, re
+import compat.ssubprocess as ssubprocess
 import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
@@ -45,7 +46,7 @@ class FirewallClient:
         e = None
         for argv in argv_tries:
             try:
-                self.p = subprocess.Popen(argv, stdout=s1, preexec_fn=setup)
+                self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 e = None
                 break
             except OSError, e:
