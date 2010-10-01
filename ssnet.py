@@ -247,7 +247,10 @@ class Mux(Handler):
                 return self.chani
 
     def amount_queued(self):
-        return sum(len(b) for b in self.outbuf)
+        total = 0
+        for b in self.outbuf:
+            total += len(b)
+        return total
             
     def check_fullness(self):
         if self.fullness > 32768:

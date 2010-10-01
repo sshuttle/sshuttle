@@ -122,8 +122,9 @@ def main():
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
     handlers.append(mux)
-    routepkt = ''.join('%s,%d\n' % r
-                       for r in routes)
+    routepkt = ''
+    for r in routes:
+        routepkt += '%s,%d\n' % r
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
     hw = Hostwatch()
