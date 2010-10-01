@@ -40,6 +40,10 @@ def _maskbits(netmask):
         if netmask[0] & (1<<i):
             return 32-i
     return 0
+    
+    
+def _shl(n, bits):
+    return n * int(2**bits)
 
 
 def _list_routes():
@@ -54,7 +58,7 @@ def _list_routes():
         maskw = _ipmatch(cols[2])  # linux only
         mask = _maskbits(maskw)   # returns 32 if maskw is null
         width = min(ipw[1], mask)
-        ip = ipw[0] & (((1<<width)-1) << (32-width))
+        ip = ipw[0] & _shl(_shl(1, width) - 1, 32-width)
         routes.append((socket.inet_ntoa(struct.pack('!I', ip)), width))
     rv = p.wait()
     if rv != 0:
