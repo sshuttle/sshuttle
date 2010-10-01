@@ -35,7 +35,7 @@ def _nb_clean(func, *args):
     try:
         return func(*args)
     except OSError, e:
-        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
+        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EPIPE):
             raise
         else:
             return None
@@ -308,7 +308,7 @@ class Mux(Handler):
         self.wsock.setblocking(False)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wsock.fileno(), self.outbuf[0])
-            debug2('mux wrote: %d/%d\n' % (wrote, len(self.outbuf[0])))
+            debug2('mux wrote: %r/%d\n' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
         while self.outbuf and not self.outbuf[0]:
