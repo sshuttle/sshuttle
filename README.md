@@ -4,9 +4,7 @@ sshuttle: where transparent proxy meets VPN meets ssh
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
- - Your client machine (or router) is Linux or FreeBSD (or
-   MacOS, but MacOS 10.6 in particular has a bug that
-   prevents it from working).
+ - Your client machine (or router) is Linux, FreeBSD, or MacOS.
 
  - You have access to a remote network via ssh.
 
