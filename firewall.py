@@ -125,6 +125,7 @@ def do_ipfw(port, subnets):
     if subnets:
         sysctl_set('net.inet.ip.fw.enable', 1)
         sysctl_set('net.inet.ip.forwarding', 1)
+        sysctl_set('net.inet.ip.scopedroute', 0)
 
         ipfw('add', sport, 'accept', 'ip',
              'from', 'any', 'to', 'any', 'established')
