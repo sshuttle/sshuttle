@@ -55,7 +55,6 @@ def connect(rhostport, python):
     def setup():
         # runs in the child process
         s2.close()
-        os.setsid()
     s1a,s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
     debug2('executing: %r\n' % argv)
