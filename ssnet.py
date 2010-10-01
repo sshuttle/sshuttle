@@ -31,6 +31,11 @@ cmd_to_name = {
     
 
 
+def _add(l, elem):
+    if not elem in l:
+        l.append(elem)
+
+
 def _nb_clean(func, *args):
     try:
         return func(*args)
@@ -167,12 +172,13 @@ class SockWrapper:
 class Handler:
     def __init__(self, socks = None, callback = None):
         self.ok = True
-        self.socks = set(socks or [])
+        self.socks = socks or []
         if callback:
             self.callback = callback
 
     def pre_select(self, r, w, x):
-        r |= self.socks
+        for i in self.socks:
+            _add(r, i)
 
     def callback(self):
         log('--no callback defined-- %r\n' % self)
@@ -181,7 +187,7 @@ class Handler:
             v = s.recv(4096)
             if not v:
                 log('--closed-- %r\n' % self)
-                self.socks = set()
+                self.socks = []
                 self.ok = False
 
 
@@ -194,20 +200,20 @@ class Proxy(Handler):
 
     def pre_select(self, r, w, x):
         if self.wrap1.connect_to:
-            w.add(self.wrap1.rsock)
+            _add(w, self.wrap1.rsock)
         elif self.wrap1.buf:
             if not self.wrap2.too_full():
-                w.add(self.wrap2.wsock)
+                _add(w, self.wrap2.wsock)
         elif not self.wrap1.shut_read:
-            r.add(self.wrap1.rsock)
+            _add(r, self.wrap1.rsock)
 
         if self.wrap2.connect_to:
-            w.add(self.wrap2.rsock)
+            _add(w, self.wrap2.rsock)
         elif self.wrap2.buf:
             if not self.wrap1.too_full():
-                w.add(self.wrap1.wsock)
+                _add(w, self.wrap1.wsock)
         elif not self.wrap2.shut_read:
-            r.add(self.wrap2.rsock)
+            _add(r, self.wrap2.rsock)
 
     def callback(self):
         self.wrap1.try_connect()
@@ -349,9 +355,9 @@ class Mux(Handler):
                 break
 
     def pre_select(self, r, w, x):
-        r.add(self.rsock)
+        _add(r, self.rsock)
         if self.outbuf:
-            w.add(self.wsock)
+            _add(w, self.wsock)
 
     def callback(self):
         (r,w,x) = select.select([self.rsock], [self.wsock], [], 0)
