@@ -65,14 +65,19 @@ def do_iptables(port, subnets):
 def ipfw_rule_exists(n):
     argv = ['ipfw', 'list']
     p = subprocess.Popen(argv, stdout = subprocess.PIPE)
+    found = False
     for line in p.stdout:
         if line.startswith('%05d ' % n):
-            if line.find('ipttl 42') < 0 and line.find('established') < 0:
+            if not ('ipttl 42 setup keep-state' in line
+                    or ('skipto %d' % (n+1)) in line
+                    or 'check-state' in line):
+                log('non-sshuttle ipfw rule: %r\n' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
-            return True
+            found = True
     rv = p.wait()
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
+    return found
 
 
 def sysctl_get(name):
@@ -127,8 +132,8 @@ def do_ipfw(port, subnets):
         sysctl_set('net.inet.ip.forwarding', 1)
         sysctl_set('net.inet.ip.scopedroute', 0)
 
-        ipfw('add', sport, 'accept', 'ip',
-             'from', 'any', 'to', 'any', 'established')
+        ipfw('add', sport, 'check-state', 'ip',
+             'from', 'any', 'to', 'any')
         
         # create new subnet entries
         for swidth,sexclude,snet in sorted(subnets, reverse=True):
@@ -140,7 +145,7 @@ def do_ipfw(port, subnets):
                 ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
                      'log', 'tcp',
                      'from', 'any', 'to', '%s/%s' % (snet,swidth),
-                     'not', 'ipttl', '42')
+                     'not', 'ipttl', '42', 'keep-state', 'setup')
 
 
 def program_exists(name):
