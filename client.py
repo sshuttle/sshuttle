@@ -100,7 +100,13 @@ def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
         else:
             helpers.logprefix = 'client: '
         debug1('connecting to server...\n')
-        (serverproc, serversock) = ssh.connect(remotename, python)
+        try:
+            (serverproc, serversock) = ssh.connect(remotename, python)
+        except socket.error, e:
+            if e.errno == errno.EPIPE:
+                raise Fatal("failed to establish ssh session")
+            else:
+                raise
         mux = Mux(serversock, serversock)
         handlers.append(mux)
 
