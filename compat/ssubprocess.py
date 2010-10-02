@@ -531,6 +531,17 @@ def list2cmdline(seq):
     return ''.join(result)
 
 
+def _closerange(start, max):
+    try:
+        os.closerange(start, max)
+    except AttributeError:
+        for i in xrange(start, max):
+            try:
+                os.close(i)
+            except:
+                pass
+
+
 class Popen(object):
     def __init__(self, args, bufsize=0, executable=None,
                  stdin=None, stdout=None, stderr=None,
@@ -989,8 +1000,8 @@ class Popen(object):
 
 
         def _close_fds(self, but):
-            os.closerange(3, but)
-            os.closerange(but + 1, MAXFD)
+            _closerange(3, but)
+            _closerange(but + 1, MAXFD)
 
 
         def _execute_child(self, args, executable, preexec_fn, close_fds,
