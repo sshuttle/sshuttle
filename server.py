@@ -37,7 +37,7 @@ def _maskbits(netmask):
     if not netmask:
         return 32
     for i in range(32):
-        if netmask[0] & (1<<i):
+        if netmask[0] & _shl(1, i):
             return 32-i
     return 0
     
