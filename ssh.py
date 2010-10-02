@@ -1,4 +1,5 @@
-import sys, os, re, subprocess, socket, zlib
+import sys, os, re, socket, zlib
+import compat.ssubprocess as ssubprocess
 import helpers
 from helpers import *
 
@@ -14,9 +15,10 @@ def readfile(name):
 
 
 def empackage(z, filename):
+    (path,basename) = os.path.split(filename)
     content = z.compress(readfile(filename))
     content += z.flush(zlib.Z_SYNC_FLUSH)
-    return '%s\n%d\n%s' % (filename,len(content), content)
+    return '%s\n%d\n%s' % (basename,len(content), content)
 
 
 def connect(rhostport, python):
@@ -33,6 +35,7 @@ def connect(rhostport, python):
     z = zlib.compressobj(1)
     content = readfile('assembler.py')
     content2 = (empackage(z, 'helpers.py') +
+                empackage(z, 'compat/ssubprocess.py') +
                 empackage(z, 'ssnet.py') +
                 empackage(z, 'hostwatch.py') +
                 empackage(z, 'server.py') +
@@ -58,7 +61,7 @@ def connect(rhostport, python):
     s1a,s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
     debug2('executing: %r\n' % argv)
-    p = subprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
+    p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
                          close_fds=True)
     os.close(s1a)
     os.close(s1b)

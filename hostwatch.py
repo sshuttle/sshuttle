@@ -1,5 +1,6 @@
-import subprocess, time, socket, re, select, errno
+import time, socket, re, select, errno
 if not globals().get('skip_imports'):
+    import compat.ssubprocess as ssubprocess
     import helpers
     from helpers import *
 
@@ -108,7 +109,7 @@ def _check_netstat():
     debug2(' > netstat\n')
     argv = ['netstat', '-n']
     try:
-        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         content = p.stdout.read()
         p.wait()
     except OSError, e:
@@ -128,7 +129,7 @@ def _check_smb(hostname):
     argv = ['smbclient', '-U', '%', '-L', hostname]
     debug2(' > smb: %s\n' % hostname)
     try:
-        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         p.wait()
     except OSError, e:
@@ -185,7 +186,7 @@ def _check_nmb(hostname, is_workgroup, is_master):
     argv = ['nmblookup'] + ['-M']*is_master + ['--', hostname]
     debug2(' > n%d%d: %s\n' % (is_workgroup, is_master, hostname))
     try:
-        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         rv = p.wait()
     except OSError, e:

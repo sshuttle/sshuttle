@@ -28,3 +28,10 @@ def debug3(s):
 
 class Fatal(Exception):
     pass
+
+
+def list_contains_any(l, sub):
+    for i in sub:
+        if i in l:
+            return True
+    return False

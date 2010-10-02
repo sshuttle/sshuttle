@@ -1,6 +1,7 @@
-import re, struct, socket, select, subprocess, traceback
+import re, struct, socket, select, traceback
 if not globals().get('skip_imports'):
     import ssnet, helpers, hostwatch
+    import compat.ssubprocess as ssubprocess
     from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
     from helpers import *
 
@@ -36,14 +37,18 @@ def _maskbits(netmask):
     if not netmask:
         return 32
     for i in range(32):
-        if netmask[0] & (1<<i):
+        if netmask[0] & _shl(1, i):
             return 32-i
     return 0
+    
+    
+def _shl(n, bits):
+    return n * int(2**bits)
 
 
 def _list_routes():
     argv = ['netstat', '-rn']
-    p = subprocess.Popen(argv, stdout=subprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
     for line in p.stdout:
         cols = re.split(r'\s+', line)
@@ -53,7 +58,7 @@ def _list_routes():
         maskw = _ipmatch(cols[2])  # linux only
         mask = _maskbits(maskw)   # returns 32 if maskw is null
         width = min(ipw[1], mask)
-        ip = ipw[0] & (((1<<width)-1) << (32-width))
+        ip = ipw[0] & _shl(_shl(1, width) - 1, 32-width)
         routes.append((socket.inet_ntoa(struct.pack('!I', ip)), width))
     rv = p.wait()
     if rv != 0:
@@ -122,8 +127,9 @@ def main():
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
     handlers.append(mux)
-    routepkt = ''.join('%s,%d\n' % r
-                       for r in routes)
+    routepkt = ''
+    for r in routes:
+        routepkt += '%s,%d\n' % r
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
     hw = Hostwatch()
@@ -156,21 +162,6 @@ def main():
             if rpid:
                 raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)
         
-        r = set()
-        w = set()
-        x = set()
-        handlers = filter(lambda s: s.ok, handlers)
-        for s in handlers:
-            s.pre_select(r,w,x)
-        debug2('Waiting: %d[%d,%d,%d] (fullness=%d/%d)...\n' 
-               % (len(handlers), len(r), len(w), len(x),
-                  mux.fullness, mux.too_full))
-        (r,w,x) = select.select(r,w,x)
-        #log('r=%r w=%r x=%r\n' % (r,w,x))
-        ready = set(r) | set(w) | set(x)
-        for s in handlers:
-            #debug2('check: %r: %r\n' % (s, s.socks & ready))
-            if s.socks & ready:
-                s.callback()
+        ssnet.runonce(handlers, mux)
         mux.check_fullness()
         mux.callback()

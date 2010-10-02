@@ -1,7 +1,9 @@
-import struct, socket, select, subprocess, errno, re
+import struct, socket, select, errno, re
+import compat.ssubprocess as ssubprocess
 import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
+
 
 def original_dst(sock):
     try:
@@ -45,7 +47,7 @@ class FirewallClient:
         e = None
         for argv in argv_tries:
             try:
-                self.p = subprocess.Popen(argv, stdout=s1, preexec_fn=setup)
+                self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 e = None
                 break
             except OSError, e:
@@ -175,20 +177,7 @@ def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
             if rv:
                 raise Fatal('server died with error code %d' % rv)
         
-        r = set()
-        w = set()
-        x = set()
-        handlers = filter(lambda s: s.ok, handlers)
-        for s in handlers:
-            s.pre_select(r,w,x)
-        debug2('Waiting: %d[%d,%d,%d]...\n' 
-            % (len(handlers), len(r), len(w), len(x)))
-        (r,w,x) = select.select(r,w,x)
-        #log('r=%r w=%r x=%r\n' % (r,w,x))
-        ready = set(r) | set(w) | set(x)
-        for s in handlers:
-            if s.socks & ready:
-                s.callback()
+        ssnet.runonce(handlers, mux)
         if use_server:
             mux.callback()
             mux.check_fullness()
