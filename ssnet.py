@@ -51,7 +51,7 @@ def _nb_clean(func, *args):
     try:
         return func(*args)
     except OSError, e:
-        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EPIPE):
+        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
         else:
             debug3('%s: err was: %s\n' % (func.__name__, e))
