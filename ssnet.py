@@ -36,6 +36,17 @@ def _add(l, elem):
         l.append(elem)
 
 
+def _fds(l):
+    out = []
+    for i in l:
+        try:
+            out.append(i.fileno())
+        except AttributeError:
+            out.append(i)
+    out.sort()
+    return out
+
+
 def _nb_clean(func, *args):
     try:
         return func(*args)
@@ -43,6 +54,7 @@ def _nb_clean(func, *args):
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN, errno.EPIPE):
             raise
         else:
+            debug3('%s: err was: %s\n' % (func.__name__, e))
             return None
 
 
@@ -429,3 +441,22 @@ def connect_dst(ip, port):
     return SockWrapper(outsock, outsock,
                        connect_to = (ip,port),
                        peername = '%s:%d' % (ip,port))
+
+
+def runonce(handlers, mux):
+    r = []
+    w = []
+    x = []
+    handlers = filter(lambda s: s.ok, handlers)
+    for s in handlers:
+        s.pre_select(r,w,x)
+    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n' 
+            % (len(handlers), _fds(r), _fds(w), _fds(x),
+               mux.fullness, mux.too_full))
+    (r,w,x) = select.select(r,w,x)
+    debug2('  Ready: %d r=%r w=%r x=%r\n' 
+        % (len(handlers), _fds(r), _fds(w), _fds(x)))
+    ready = r+w+x
+    for s in handlers:
+        if list_contains_any(s.socks, ready):
+            s.callback()

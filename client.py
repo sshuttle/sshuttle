@@ -4,6 +4,7 @@ import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
+
 def original_dst(sock):
     try:
         SO_ORIGINAL_DST = 80
@@ -176,20 +177,7 @@ def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
             if rv:
                 raise Fatal('server died with error code %d' % rv)
         
-        r = []
-        w = []
-        x = []
-        handlers = filter(lambda s: s.ok, handlers)
-        for s in handlers:
-            s.pre_select(r,w,x)
-        debug2('Waiting: %d[%d,%d,%d]...\n' 
-            % (len(handlers), len(r), len(w), len(x)))
-        (r,w,x) = select.select(r,w,x)
-        #log('r=%r w=%r x=%r\n' % (r,w,x))
-        ready = r+w+x
-        for s in handlers:
-            if list_contains_any(s.socks, ready):
-                s.callback()
+        ssnet.runonce(handlers, mux)
         if use_server:
             mux.callback()
             mux.check_fullness()

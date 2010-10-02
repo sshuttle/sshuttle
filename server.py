@@ -162,21 +162,6 @@ def main():
             if rpid:
                 raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)
         
-        r = []
-        w = []
-        x = []
-        handlers = filter(lambda s: s.ok, handlers)
-        for s in handlers:
-            s.pre_select(r,w,x)
-        debug2('Waiting: %d[%d,%d,%d] (fullness=%d/%d)...\n' 
-               % (len(handlers), len(r), len(w), len(x),
-                  mux.fullness, mux.too_full))
-        (r,w,x) = select.select(r,w,x)
-        #log('r=%r w=%r x=%r\n' % (r,w,x))
-        ready = r+w+x
-        for s in handlers:
-            #debug2('check: %r: %r\n' % (s, s.socks & ready))
-            if list_contains_any(s.socks, ready):
-                s.callback()
+        ssnet.runonce(handlers, mux)
         mux.check_fullness()
         mux.callback()
