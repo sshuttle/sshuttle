@@ -86,21 +86,30 @@ class SockWrapper:
             debug1('%r: error was: %r\n' % (self, self.exc))
 
     def __repr__(self):
-        return 'SW:%s' % (self.peername,)
+        if self.rsock == self.wsock:
+            fds = '#%d' % self.rsock.fileno()
+        else:
+            fds = '#%d,%d' % (self.rsock.fileno(), self.wsock.fileno())
+        return 'SW%s:%s' % (fds, self.peername)
 
     def seterr(self, e):
         if not self.exc:
             self.exc = e
 
     def try_connect(self):
+        if self.connect_to and self.shut_write:
+            self.noread()
+            self.connect_to = None
         if not self.connect_to:
             return  # already connected
         self.rsock.setblocking(False)
+        debug3('%r: trying connect to %r\n' % (self, self.connect_to))
         try:
             self.rsock.connect(self.connect_to)
             # connected successfully (Linux)
             self.connect_to = None
         except socket.error, e:
+            debug3('%r: connect result: %r\n' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
             elif e.args[0] == errno.EISCONN:
@@ -176,7 +185,7 @@ class SockWrapper:
             wrote = outwrap.write(self.buf[0])
             self.buf[0] = self.buf[0][wrote:]
         while self.buf and not self.buf[0]:
-            self.buf[0:1] = []
+            self.buf.pop(0)
         if not self.buf and self.shut_read:
             outwrap.nowrite()
 
@@ -234,6 +243,12 @@ class Proxy(Handler):
         self.wrap2.fill()
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
+        if self.wrap1.buf and self.wrap2.shut_write:
+            self.wrap1.buf = []
+            self.wrap1.noread()
+        if self.wrap2.buf and self.wrap1.shut_write:
+            self.wrap2.buf = []
+            self.wrap2.noread()
         if (self.wrap1.shut_read and self.wrap2.shut_read and
             not self.wrap1.buf and not self.wrap2.buf):
             self.ok = False
@@ -457,6 +472,12 @@ def runonce(handlers, mux):
     debug2('  Ready: %d r=%r w=%r x=%r\n' 
         % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r+w+x
-    for s in handlers:
-        if list_contains_any(s.socks, ready):
-            s.callback()
+    did = {}
+    for h in handlers:
+        for s in h.socks:
+            if s in ready:
+                h.callback()
+                did[s] = 1
+    for s in ready:
+        if not s in did:
+            raise Fatal('socket %r was not used by any handler' % s)
