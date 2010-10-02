@@ -1,6 +1,12 @@
 import struct, socket, errno, select
 if not globals().get('skip_imports'):
     from helpers import *
+    
+# these don't exist in the socket module in python 2.3!
+SHUT_RD = 0
+SHUT_WR = 1
+SHUT_RDWR = 2
+
 
 HDR_LEN = 8
 
@@ -128,14 +134,14 @@ class SockWrapper:
         if not self.shut_read:
             debug2('%r: done reading\n' % self)
             self.shut_read = True
-            #self.rsock.shutdown(socket.SHUT_RD)  # doesn't do anything anyway
+            #self.rsock.shutdown(SHUT_RD)  # doesn't do anything anyway
         
     def nowrite(self):
         if not self.shut_write:
             debug2('%r: done writing\n' % self)
             self.shut_write = True
             try:
-                self.wsock.shutdown(socket.SHUT_WR)
+                self.wsock.shutdown(SHUT_WR)
             except socket.error, e:
                 self.seterr(e)
 
