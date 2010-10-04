@@ -133,12 +133,20 @@ def main():
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
     hw = Hostwatch()
-
+    hw.leftover = ''
+        
     def hostwatch_ready():
         assert(hw.pid)
         content = hw.sock.recv(4096)
         if content:
-            mux.send(0, ssnet.CMD_HOST_LIST, content)
+            lines = (hw.leftover + content).split('\n')
+            if lines[-1]:
+                # no terminating newline: entry isn't complete yet!
+                hw.leftover = lines.pop()
+                lines.append('')
+            else:
+                hw.leftover = ''
+            mux.send(0, ssnet.CMD_HOST_LIST, '\n'.join(lines))
         else:
             raise Fatal('hostwatch process died')
 
