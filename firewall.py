@@ -122,7 +122,7 @@ def do_ipfw(port, subnets):
 
     # cleanup any existing rules
     if ipfw_rule_exists(port):
-        ipfw('del', sport)
+        ipfw('delete', sport)
 
     while _oldctls:
         (name,oldval) = _oldctls.pop()
