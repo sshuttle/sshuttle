@@ -81,17 +81,19 @@ def ipfw_rule_exists(n):
     return found
 
 
-def sysctl_get(name):
-    argv = ['sysctl', '-n', name]
+_oldctls = {}
+def _fill_oldctls(prefix):
+    argv = ['sysctl', prefix]
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
-    line = p.stdout.readline()
+    for line in p.stdout:
+        assert(line[-1] == '\n')
+        (k,v) = line[:-1].split(': ', 1)
+        _oldctls[k] = v
     rv = p.wait()
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
     if not line:
         raise Fatal('%r returned no data' % (argv,))
-    assert(line[-1] == '\n')
-    return line[:-1]
 
 
 def _sysctl_set(name, val):
@@ -100,11 +102,19 @@ def _sysctl_set(name, val):
     rv = ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
 
 
-_oldctls = []
+_changedctls = []
 def sysctl_set(name, val):
-    oldval = sysctl_get(name)
-    if str(val) != str(oldval):
-        _oldctls.append((name, oldval))
+    PREFIX = 'net.inet.ip'
+    assert(name.startswith(PREFIX + '.'))
+    val = str(val)
+    if not _oldctls:
+        _fill_oldctls(PREFIX)
+    if not (name in _oldctls):
+        debug1('>> No such sysctl: %r\n' % name)
+        return
+    oldval = _oldctls[name]
+    if val != oldval:
+        _changedctls.append(name)
         return _sysctl_set(name, val)
     
 
@@ -124,8 +134,9 @@ def do_ipfw(port, subnets):
     if ipfw_rule_exists(port):
         ipfw('delete', sport)
 
-    while _oldctls:
-        (name,oldval) = _oldctls.pop()
+    while _changedctls:
+        name = _changedctls.pop()
+        oldval = _oldctls[name]
         _sysctl_set(name, oldval)
 
     if subnets:
