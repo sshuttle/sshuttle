@@ -31,7 +31,7 @@ class FirewallClient:
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port)])
         argv_tries = [
-            ['sudo'] + argvbase,
+            ['sudo', '-p', '[local sudo] Password: '] + argvbase,
             ['su', '-c', ' '.join(argvbase)],
             argvbase
         ]
@@ -45,8 +45,12 @@ class FirewallClient:
             # run in the child process
             s2.close()
         e = None
+        if os.getuid() == 0:
+            argv_tries = argv_tries[-1:]  # last entry only
         for argv in argv_tries:
             try:
+                if argv[0] == 'su':
+                    sys.stderr.write('[local su] ')
                 self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 e = None
                 break

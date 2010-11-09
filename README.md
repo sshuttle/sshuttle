@@ -54,8 +54,14 @@ This is how you use it:
 
  - <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
 
+(You may be prompted for one or more passwords; first, the
+local password to become root using either sudo or su, and
+then the remote ssh password.  Or you might have sudo and ssh set
+up to not require passwords, in which case you won't be
+prompted at all.)
+
 That's it!  Now your local machine can access the remote network as if you
-were right there!  And if your "client" machine is a router, everyone on
+were right there.  And if your "client" machine is a router, everyone on
 your local network can make connections to your remote network.
 
 You don't need to install sshuttle on the remote server;
