@@ -98,7 +98,7 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, remotename, python, seed_hosts, auto_nets):
+def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
     handlers = []
     if helpers.verbose >= 1:
         helpers.logprefix = 'c : '
@@ -106,7 +106,7 @@ def _main(listener, fw, remotename, python, seed_hosts, auto_nets):
         helpers.logprefix = 'client: '
     debug1('connecting to server...\n')
     try:
-        (serverproc, serversock) = ssh.connect(remotename, python)
+        (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
     except socket.error, e:
         if e.errno == errno.EPIPE:
             raise Fatal("failed to establish ssh session")
@@ -181,7 +181,7 @@ def _main(listener, fw, remotename, python, seed_hosts, auto_nets):
         mux.check_fullness()
 
 
-def main(listenip, remotename, python, seed_hosts, auto_nets,
+def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
          subnets_include, subnets_exclude):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
@@ -212,6 +212,7 @@ def main(listenip, remotename, python, seed_hosts, auto_nets,
     fw = FirewallClient(listenip[1], subnets_include, subnets_exclude)
     
     try:
-        return _main(listener, fw, remotename, python, seed_hosts, auto_nets)
+        return _main(listener, fw, ssh_cmd, remotename,
+                     python, seed_hosts, auto_nets)
     finally:
         fw.done()
