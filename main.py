@@ -57,7 +57,6 @@ r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
-noserver   don't use a separate server process (mostly for debugging)
 server     (internal use only)
 firewall   (internal use only)
 hostwatch  (internal use only)
@@ -98,7 +97,6 @@ try:
         else:
             sh = None
         sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
-                             not opt.noserver,
                              remotename,
                              (opt.python or "python"),
                              sh,

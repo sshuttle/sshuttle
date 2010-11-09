@@ -98,35 +98,34 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
+def _main(listener, fw, remotename, python, seed_hosts, auto_nets):
     handlers = []
-    if use_server:
-        if helpers.verbose >= 1:
-            helpers.logprefix = 'c : '
+    if helpers.verbose >= 1:
+        helpers.logprefix = 'c : '
+    else:
+        helpers.logprefix = 'client: '
+    debug1('connecting to server...\n')
+    try:
+        (serverproc, serversock) = ssh.connect(remotename, python)
+    except socket.error, e:
+        if e.errno == errno.EPIPE:
+            raise Fatal("failed to establish ssh session")
         else:
-            helpers.logprefix = 'client: '
-        debug1('connecting to server...\n')
-        try:
-            (serverproc, serversock) = ssh.connect(remotename, python)
-        except socket.error, e:
-            if e.errno == errno.EPIPE:
-                raise Fatal("failed to establish ssh session")
-            else:
-                raise
-        mux = Mux(serversock, serversock)
-        handlers.append(mux)
+            raise
+    mux = Mux(serversock, serversock)
+    handlers.append(mux)
 
-        expected = 'SSHUTTLE0001'
-        initstring = serversock.recv(len(expected))
+    expected = 'SSHUTTLE0001'
+    initstring = serversock.recv(len(expected))
+    
+    rv = serverproc.poll()
+    if rv:
+        raise Fatal('server died with error code %d' % rv)
         
-        rv = serverproc.poll()
-        if rv:
-            raise Fatal('server died with error code %d' % rv)
-            
-        if initstring != expected:
-            raise Fatal('expected server init string %r; got %r'
-                            % (expected, initstring))
-        debug1('connected.\n')
+    if initstring != expected:
+        raise Fatal('expected server init string %r; got %r'
+                        % (expected, initstring))
+    debug1('connected.\n')
 
     def onroutes(routestr):
         if auto_nets:
@@ -162,12 +161,9 @@ def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
             debug1("-- ignored: that's my address!\n")
             sock.close()
             return
-        if use_server:
-            chan = mux.next_channel()
-            mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
-            outwrap = MuxWrapper(mux, chan)
-        else:
-            outwrap = ssnet.connect_dst(dstip[0], dstip[1])
+        chan = mux.next_channel()
+        mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
+        outwrap = MuxWrapper(mux, chan)
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
 
@@ -176,18 +172,16 @@ def _main(listener, fw, use_server, remotename, python, seed_hosts, auto_nets):
         mux.send(0, ssnet.CMD_HOST_REQ, '\n'.join(seed_hosts))
     
     while 1:
-        if use_server:
-            rv = serverproc.poll()
-            if rv:
-                raise Fatal('server died with error code %d' % rv)
+        rv = serverproc.poll()
+        if rv:
+            raise Fatal('server died with error code %d' % rv)
         
         ssnet.runonce(handlers, mux)
-        if use_server:
-            mux.callback()
-            mux.check_fullness()
+        mux.callback()
+        mux.check_fullness()
 
 
-def main(listenip, use_server, remotename, python, seed_hosts, auto_nets,
+def main(listenip, remotename, python, seed_hosts, auto_nets,
          subnets_include, subnets_exclude):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
@@ -218,7 +212,6 @@ def main(listenip, use_server, remotename, python, seed_hosts, auto_nets,
     fw = FirewallClient(listenip[1], subnets_include, subnets_exclude)
     
     try:
-        return _main(listener, fw, use_server, remotename,
-                     python, seed_hosts, auto_nets)
+        return _main(listener, fw, remotename, python, seed_hosts, auto_nets)
     finally:
         fw.done()
