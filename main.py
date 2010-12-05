@@ -45,10 +45,11 @@ def parse_ipport(s):
 
 
 optspec = """
-sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
+sshuttle [-b] [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
 sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
+b,background run in background as daemon
 l,listen=  transproxy to this ip address and port number [0.0.0.0:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
@@ -104,7 +105,8 @@ try:
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),
-                             parse_subnets(excludes)))
+                             parse_subnets(excludes),
+                             opt.background))
 except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)

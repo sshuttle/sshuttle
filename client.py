@@ -4,6 +4,7 @@ import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
+import os, sys, atexit, signal, syslog
 
 def original_dst(sock):
     try:
@@ -97,14 +98,40 @@ class FirewallClient:
         if rv:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
+def exit_cleanup():
+    debug1('exit cleanup\n')
+    os.unlink('sshuttle.pid')
 
-def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
+def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets, background):
     handlers = []
     if helpers.verbose >= 1:
         helpers.logprefix = 'c : '
     else:
         helpers.logprefix = 'client: '
     debug1('connecting to server...\n')
+
+    if background:
+        helpers.do_syslog = True
+        syslog.openlog('sshuttle')
+
+        # we're redirecting the standard outputs here early so that
+        # the stderr debug message of ssh subprocess would be
+        # redirected properly 
+
+        # TODO: redirecting stderr of ssh to syslog
+
+        sys.stdout.flush()
+        sys.stderr.flush()
+        si = file('/dev/null', 'r')
+        so = file('/dev/null', 'a+')
+        se = file('/dev/null', 'a+', 0)
+        os.dup2(si.fileno(), sys.stdin.fileno())
+        os.dup2(so.fileno(), sys.stdout.fileno())
+        os.dup2(se.fileno(), sys.stderr.fileno())
+        si.close()
+        so.close()
+        se.close()
+
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
     except socket.error, e:
@@ -126,6 +153,22 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
         raise Fatal('expected server init string %r; got %r'
                         % (expected, initstring))
     debug1('connected.\n')
+    if background:
+        debug1('daemonizing\n')
+        if os.fork(): 
+            os._exit(0)
+        os.setsid() 
+        if os.fork(): 
+            os._exit(0)
+
+        outfd = os.open('sshuttle.pid', 
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+        os.write(outfd, '%i' % os.getpid())
+        os.close(outfd)
+
+        atexit.register(exit_cleanup)
+        # Normal exit when killed, or atexit won't work
+        signal.signal(signal.SIGTERM, lambda signum, stack_frame: sys.exit(1))
 
     def onroutes(routestr):
         if auto_nets:
@@ -182,7 +225,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
 
 
 def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
-         subnets_include, subnets_exclude):
+         subnets_include, subnets_exclude, background):
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -213,6 +256,6 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, seed_hosts, auto_nets)
+                     python, seed_hosts, auto_nets, background)
     finally:
         fw.done()
