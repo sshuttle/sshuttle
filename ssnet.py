@@ -264,6 +264,8 @@ class Proxy(Handler):
         if (self.wrap1.shut_read and self.wrap2.shut_read and
             not self.wrap1.buf and not self.wrap2.buf):
             self.ok = False
+            self.wrap1.nowrite()
+            self.wrap2.nowrite()
 
 
 class Mux(Handler):
@@ -425,11 +427,19 @@ class MuxWrapper(SockWrapper):
     def noread(self):
         if not self.shut_read:
             self.shut_read = True
+            self.maybe_close()
 
     def nowrite(self):
         if not self.shut_write:
             self.shut_write = True
             self.mux.send(self.channel, CMD_EOF, '')
+            self.maybe_close()
+
+    def maybe_close(self):
+        if self.shut_read and self.shut_write:
+            # remove the mux's reference to us.  The python garbage collector
+            # will then be able to reap our object.
+            self.mux.channels[self.channel] = None
 
     def too_full(self):
         return self.mux.too_full
