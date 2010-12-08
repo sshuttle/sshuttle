@@ -468,7 +468,10 @@ def runonce(handlers, mux):
     r = []
     w = []
     x = []
-    handlers = filter(lambda s: s.ok, handlers)
+    to_remove = filter(lambda s: not s.ok, handlers)
+    for h in to_remove:
+        handlers.remove(h)
+
     for s in handlers:
         s.pre_select(r,w,x)
     debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n' 
