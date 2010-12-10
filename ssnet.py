@@ -75,8 +75,12 @@ def _try_peername(sock):
     return 'unknown'
 
 
+_swcount = 0
 class SockWrapper:
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
+        global _swcount
+        _swcount += 1
+        debug3('creating new SockWrapper (%d now exist\n)' % _swcount)
         self.exc = None
         self.rsock = rsock
         self.wsock = wsock
@@ -87,7 +91,9 @@ class SockWrapper:
         self.try_connect()
 
     def __del__(self):
-        debug1('%r: deleting\n' % self)
+        global _swcount
+        _swcount -= 1
+        debug1('%r: deleting (%d remain)\n' % (self, _swcount))
         if self.exc:
             debug1('%r: error was: %r\n' % (self, self.exc))
 
