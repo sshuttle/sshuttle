@@ -15,7 +15,7 @@ CMD_EXIT = 0x4200
 CMD_PING = 0x4201
 CMD_PONG = 0x4202
 CMD_CONNECT = 0x4203
-CMD_CLOSE = 0x4204
+# CMD_CLOSE = 0x4204   # never used - removed
 CMD_EOF = 0x4205
 CMD_DATA = 0x4206
 CMD_ROUTES = 0x4207
@@ -27,7 +27,6 @@ cmd_to_name = {
     CMD_PING: 'PING',
     CMD_PONG: 'PONG',
     CMD_CONNECT: 'CONNECT',
-    CMD_CLOSE: 'CLOSE',
     CMD_EOF: 'EOF',
     CMD_DATA: 'DATA',
     CMD_ROUTES: 'ROUTES',
@@ -459,10 +458,7 @@ class MuxWrapper(SockWrapper):
             return None  # no data available right now
 
     def got_packet(self, cmd, data):
-        if cmd == CMD_CLOSE:
-            self.noread()
-            self.nowrite()
-        elif cmd == CMD_EOF:
+        if cmd == CMD_EOF:
             self.noread()
         elif cmd == CMD_DATA:
             self.buf.append(data)
