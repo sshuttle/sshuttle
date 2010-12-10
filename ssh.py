@@ -26,7 +26,7 @@ def connect(ssh_cmd, rhostport, python):
     portl = []
 
     rhostIsIPv6 = False
-    if rhostport.count(':') > 1:
+    if (rhostport or '').count(':') > 1:
         rhostIsIPv6 = True
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
