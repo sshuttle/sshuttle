@@ -350,8 +350,12 @@ class Mux(Handler):
             else:
                 raise Exception('got CMD_HOST_LIST without got_host_list?')
         else:
-            callback = self.channels[channel]
-            callback(cmd, data)
+            callback = self.channels.get(channel)
+            if not callback:
+                log('warning: closed channel %d got cmd=%s len=%d\n' 
+                       % (channel, cmd_to_name.get(cmd,hex(cmd)), len(data)))
+            else:
+                callback(cmd, data)
 
     def flush(self):
         self.wsock.setblocking(False)
