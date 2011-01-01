@@ -4,6 +4,7 @@ import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
+_extra_fd = os.open('/dev/null', os.O_RDONLY)
 
 def _islocal(ip):
     sock = socket.socket()
@@ -168,7 +169,22 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
     mux.got_host_list = onhostlist
 
     def onaccept():
-        sock,srcip = listener.accept()
+        global _extra_fd
+        try:
+            sock,srcip = listener.accept()
+        except socket.error, e:
+            if e.args[0] in [errno.EMFILE, errno.ENFILE]:
+                debug1('Rejected incoming connection: too many open files!\n')
+                # free up an fd so we can eat the connection
+                os.close(_extra_fd)
+                try:
+                    sock,srcip = listener.accept()
+                    sock.close()
+                finally:
+                    _extra_fd = os.open('/dev/null', os.O_RDONLY)
+                return
+            else:
+                raise
         dstip = original_dst(sock)
         debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                               dstip[0],dstip[1]))
