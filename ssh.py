@@ -21,7 +21,7 @@ def empackage(z, filename):
     return '%s\n%d\n%s' % (basename,len(content), content)
 
 
-def connect(ssh_cmd, rhostport, python):
+def connect(ssh_cmd, rhostport, python, stderr):
     main_exe = sys.argv[0]
     portl = []
 
@@ -87,7 +87,7 @@ def connect(ssh_cmd, rhostport, python):
     s1.close()
     debug2('executing: %r\n' % argv)
     p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
-                         close_fds=True)
+                          close_fds=True, stderr=stderr)
     os.close(s1a)
     os.close(s1b)
     s2.sendall(content)

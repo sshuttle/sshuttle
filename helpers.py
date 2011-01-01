@@ -1,17 +1,13 @@
-import sys, os, syslog
+import sys, os
 
 logprefix = ''
 verbose = 0
-do_syslog = False
 
 def log(s):
     try:
-        if do_syslog:
-            syslog.syslog(logprefix + s)
-        else:
-            sys.stdout.flush()
-            sys.stderr.write(logprefix + s)
-            sys.stderr.flush()
+        sys.stdout.flush()
+        sys.stderr.write(logprefix + s)
+        sys.stderr.flush()
     except IOError:
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.

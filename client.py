@@ -1,10 +1,97 @@
-import struct, socket, select, errno, re
+import struct, socket, select, errno, re, signal
 import compat.ssubprocess as ssubprocess
 import helpers, ssnet, ssh
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
-import os, sys, atexit, signal, syslog
+
+_loggerp = None
+def start_syslog():
+    global _loggerp
+    _loggerp = ssubprocess.Popen(['logger',
+                                  '-p', 'daemon.info',
+                                  '-t', 'sshuttle'], stdin=ssubprocess.PIPE)
+
+
+def stderr_to_syslog():
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os.dup2(_loggerp.stdin.fileno(), 1)
+    os.dup2(_loggerp.stdin.fileno(), 2)
+
+
+def got_signal(signum, frame):
+    log('exiting on signal %d\n' % signum)
+    sys.exit(1)
+
+
+_pidname = None
+def check_daemon(pidfile):
+    global _pidname
+    _pidname = os.path.abspath(pidfile)
+    try:
+        oldpid = open(_pidname).read(1024)
+    except IOError, e:
+        if e.errno == errno.ENOENT:
+            return  # no pidfile, ok
+        else:
+            raise Fatal("can't read %s: %s" % (_pidname, e))
+    if not oldpid:
+        os.unlink(_pidname)
+        return  # invalid pidfile, ok
+    oldpid = int(oldpid.strip() or 0)
+    if oldpid <= 0:
+        os.unlink(_pidname)
+        return  # invalid pidfile, ok
+    try:
+        os.kill(oldpid, 0)
+    except OSError, e:
+        if e.errno == errno.ESRCH:
+            os.unlink(_pidname)
+            return  # outdated pidfile, ok
+        elif e.errno == errno.EPERM:
+            pass
+        else:
+            raise
+    raise Fatal("%s: sshuttle is already running (pid=%d)"
+                % (_pidname, oldpid))
+
+
+def daemonize():
+    if os.fork():
+        os._exit(0)
+    os.setsid()
+    if os.fork():
+        os._exit(0)
+
+    outfd = os.open(_pidname, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0666)
+    try:
+        os.write(outfd, '%d\n' % os.getpid())
+    finally:
+        os.close(outfd)
+    os.chdir("/")
+
+    # Normal exit when killed, or try/finally won't work and the pidfile won't
+    # be deleted.
+    signal.signal(signal.SIGTERM, got_signal)
+    
+    si = open('/dev/null', 'r+')
+    os.dup2(si.fileno(), 0)
+    si.close()
+
+    stderr_to_syslog()
+    log('daemonizing (%s).\n' % _pidname)
+
+
+def daemon_cleanup():
+    try:
+        os.unlink(_pidname)
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
+
 
 def original_dst(sock):
     try:
@@ -98,11 +185,9 @@ class FirewallClient:
         if rv:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
-def exit_cleanup():
-    debug1('exit cleanup\n')
-    os.unlink('sshuttle.pid')
 
-def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets, background):
+def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+          syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
         helpers.logprefix = 'c : '
@@ -110,30 +195,9 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets, back
         helpers.logprefix = 'client: '
     debug1('connecting to server...\n')
 
-    if background:
-        helpers.do_syslog = True
-        syslog.openlog('sshuttle')
-
-        # we're redirecting the standard outputs here early so that
-        # the stderr debug message of ssh subprocess would be
-        # redirected properly 
-
-        # TODO: redirecting stderr of ssh to syslog
-
-        sys.stdout.flush()
-        sys.stderr.flush()
-        si = file('/dev/null', 'r')
-        so = file('/dev/null', 'a+')
-        se = file('/dev/null', 'a+', 0)
-        os.dup2(si.fileno(), sys.stdin.fileno())
-        os.dup2(so.fileno(), sys.stdout.fileno())
-        os.dup2(se.fileno(), sys.stderr.fileno())
-        si.close()
-        so.close()
-        se.close()
-
     try:
-        (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
+        (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
+                                               stderr=_loggerp.stdin)
     except socket.error, e:
         if e.errno == errno.EPIPE:
             raise Fatal("failed to establish ssh session")
@@ -153,22 +217,10 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets, back
         raise Fatal('expected server init string %r; got %r'
                         % (expected, initstring))
     debug1('connected.\n')
-    if background:
-        debug1('daemonizing\n')
-        if os.fork(): 
-            os._exit(0)
-        os.setsid() 
-        if os.fork(): 
-            os._exit(0)
-
-        outfd = os.open('sshuttle.pid', 
-                        os.O_WRONLY | os.O_CREAT | os.O_EXCL)
-        os.write(outfd, '%i' % os.getpid())
-        os.close(outfd)
-
-        atexit.register(exit_cleanup)
-        # Normal exit when killed, or atexit won't work
-        signal.signal(signal.SIGTERM, lambda signum, stack_frame: sys.exit(1))
+    if daemon:
+        daemonize()
+    elif syslog:
+        stderr_to_syslog()
 
     def onroutes(routestr):
         if auto_nets:
@@ -225,7 +277,15 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets, back
 
 
 def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
-         subnets_include, subnets_exclude, background):
+         subnets_include, subnets_exclude, syslog, daemon, pidfile):
+    if syslog:
+        start_syslog()
+    if daemon:
+        try:
+            check_daemon(pidfile)
+        except Fatal, e:
+            log("%s\n" % e)
+            return 5
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -256,6 +316,13 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, seed_hosts, auto_nets, background)
+                     python, seed_hosts, auto_nets, syslog, daemon)
     finally:
-        fw.done()
+        try:
+            if daemon:
+                # it's not our child anymore; can't waitpid
+                fw.p.returncode = 0
+            fw.done()
+        finally:
+            if daemon:
+                daemon_cleanup()
