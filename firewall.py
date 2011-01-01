@@ -1,6 +1,6 @@
 import re, errno
 import compat.ssubprocess as ssubprocess
-import helpers
+import helpers, ssyslog
 from helpers import *
 
 
@@ -216,7 +216,7 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port):
+def main(port, syslog):
     assert(port > 0)
     assert(port <= 65535)
 
@@ -234,6 +234,10 @@ def main(port):
     # are both attached to stdout initially.  Clone stdout into stdin so we
     # can read from it.
     os.dup2(1, 0)
+
+    if syslog:
+        ssyslog.start_syslog()
+        ssyslog.stderr_to_syslog()
 
     debug1('firewall manager ready.\n')
     sys.stdout.write('READY\n')

@@ -166,6 +166,7 @@ def main():
 
     while mux.ok:
         if hw.pid:
+            assert(hw.pid > 0)
             (rpid, rv) = os.waitpid(hw.pid, os.WNOHANG)
             if rpid:
                 raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)

@@ -1,6 +1,6 @@
-import struct, socket, select, errno, re
+import struct, socket, select, errno, re, signal
 import compat.ssubprocess as ssubprocess
-import helpers, ssnet, ssh
+import helpers, ssnet, ssh, ssyslog
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
@@ -19,6 +19,79 @@ def _islocal(ip):
     finally:
         sock.close()
     return True  # it's a local IP, or there would have been an error
+
+
+def got_signal(signum, frame):
+    log('exiting on signal %d\n' % signum)
+    sys.exit(1)
+
+
+_pidname = None
+def check_daemon(pidfile):
+    global _pidname
+    _pidname = os.path.abspath(pidfile)
+    try:
+        oldpid = open(_pidname).read(1024)
+    except IOError, e:
+        if e.errno == errno.ENOENT:
+            return  # no pidfile, ok
+        else:
+            raise Fatal("can't read %s: %s" % (_pidname, e))
+    if not oldpid:
+        os.unlink(_pidname)
+        return  # invalid pidfile, ok
+    oldpid = int(oldpid.strip() or 0)
+    if oldpid <= 0:
+        os.unlink(_pidname)
+        return  # invalid pidfile, ok
+    try:
+        os.kill(oldpid, 0)
+    except OSError, e:
+        if e.errno == errno.ESRCH:
+            os.unlink(_pidname)
+            return  # outdated pidfile, ok
+        elif e.errno == errno.EPERM:
+            pass
+        else:
+            raise
+    raise Fatal("%s: sshuttle is already running (pid=%d)"
+                % (_pidname, oldpid))
+
+
+def daemonize():
+    if os.fork():
+        os._exit(0)
+    os.setsid()
+    if os.fork():
+        os._exit(0)
+
+    outfd = os.open(_pidname, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0666)
+    try:
+        os.write(outfd, '%d\n' % os.getpid())
+    finally:
+        os.close(outfd)
+    os.chdir("/")
+
+    # Normal exit when killed, or try/finally won't work and the pidfile won't
+    # be deleted.
+    signal.signal(signal.SIGTERM, got_signal)
+    
+    si = open('/dev/null', 'r+')
+    os.dup2(si.fileno(), 0)
+    os.dup2(si.fileno(), 1)
+    si.close()
+
+    ssyslog.stderr_to_syslog()
+
+
+def daemon_cleanup():
+    try:
+        os.unlink(_pidname)
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            pass
+        else:
+            raise
 
 
 def original_dst(sock):
@@ -46,6 +119,8 @@ class FirewallClient:
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port)])
+        if ssyslog._p:
+            argvbase += ['--syslog']
         argv_tries = [
             ['sudo', '-p', '[local sudo] Password: '] + argvbase,
             ['su', '-c', ' '.join(argvbase)],
@@ -114,15 +189,18 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
+def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+          syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
         helpers.logprefix = 'c : '
     else:
         helpers.logprefix = 'client: '
     debug1('connecting to server...\n')
+
     try:
-        (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
+        (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
+                        stderr=ssyslog._p and ssyslog._p.stdin)
     except socket.error, e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -148,6 +226,12 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
         raise Fatal('expected server init string %r; got %r'
                         % (expected, initstring))
     debug1('connected.\n')
+    if daemon:
+        daemonize()
+        log('daemonizing (%s).\n' % _pidname)
+    elif syslog:
+        debug1('switching to syslog.\n')
+        ssyslog.stderr_to_syslog()
 
     def onroutes(routestr):
         if auto_nets:
@@ -219,7 +303,15 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
 
 
 def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
-         subnets_include, subnets_exclude):
+         subnets_include, subnets_exclude, syslog, daemon, pidfile):
+    if syslog:
+        ssyslog.start_syslog()
+    if daemon:
+        try:
+            check_daemon(pidfile)
+        except Fatal, e:
+            log("%s\n" % e)
+            return 5
     debug1('Starting sshuttle proxy.\n')
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -250,6 +342,13 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, seed_hosts, auto_nets)
+                     python, seed_hosts, auto_nets, syslog, daemon)
     finally:
-        fw.done()
+        try:
+            if daemon:
+                # it's not our child anymore; can't waitpid
+                fw.p.returncode = 0
+            fw.done()
+        finally:
+            if daemon:
+                daemon_cleanup()
