@@ -108,6 +108,20 @@ entire subnet to the VPN.
     for lists of local hostnames, but can speed things up
     if you use this option to give it a few names to start
     from.
+    
+-D, --daemon
+:   automatically fork into the background after connecting
+    to the remote server.  Implies `--syslog`.
+    
+--syslog
+:   after connecting, send all log messages to the
+    `syslog`(3) service instead of stderr.  This is
+    implicit if you use `--daemon`.
+    
+--pidfile=*pidfilename*
+:   when using `--daemon`, save sshuttle's pid to
+    *pidfilename*.  The default is `sshuttle.pid` in the
+    current directory.
 
 --server
 :   (internal use only) run the sshuttle server on
