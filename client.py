@@ -5,6 +5,21 @@ from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
 
+def _islocal(ip):
+    sock = socket.socket()
+    try:
+        try:
+            sock.bind((ip, 0))
+        except socket.error, e:
+            if e.args[0] == errno.EADDRNOTAVAIL:
+                return False  # not a local IP
+            else:
+                raise
+    finally:
+        sock.close()
+    return True  # it's a local IP, or there would have been an error
+
+
 def original_dst(sock):
     try:
         SO_ORIGINAL_DST = 80
@@ -108,7 +123,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
     except socket.error, e:
-        if e.errno == errno.EPIPE:
+        if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session")
         else:
             raise
@@ -157,7 +172,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
         dstip = original_dst(sock)
         debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                               dstip[0],dstip[1]))
-        if dstip == listener.getsockname():
+        if dstip[1] == listener.getsockname()[1] and _islocal(dstip[0]):
             debug1("-- ignored: that's my address!\n")
             sock.close()
             return
