@@ -82,7 +82,7 @@ try:
     elif opt.firewall:
         if len(extra) != 1:
             o.fatal('exactly one argument expected')
-        sys.exit(firewall.main(int(extra[0])))
+        sys.exit(firewall.main(int(extra[0]), opt.syslog))
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:

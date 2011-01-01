@@ -1,23 +1,8 @@
 import struct, socket, select, errno, re, signal
 import compat.ssubprocess as ssubprocess
-import helpers, ssnet, ssh
+import helpers, ssnet, ssh, ssyslog
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
-
-
-_loggerp = None
-def start_syslog():
-    global _loggerp
-    _loggerp = ssubprocess.Popen(['logger',
-                                  '-p', 'daemon.info',
-                                  '-t', 'sshuttle'], stdin=ssubprocess.PIPE)
-
-
-def stderr_to_syslog():
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os.dup2(_loggerp.stdin.fileno(), 1)
-    os.dup2(_loggerp.stdin.fileno(), 2)
 
 
 def got_signal(signum, frame):
@@ -77,10 +62,10 @@ def daemonize():
     
     si = open('/dev/null', 'r+')
     os.dup2(si.fileno(), 0)
+    os.dup2(si.fileno(), 1)
     si.close()
 
-    stderr_to_syslog()
-    log('daemonizing (%s).\n' % _pidname)
+    ssyslog.stderr_to_syslog()
 
 
 def daemon_cleanup():
@@ -118,6 +103,8 @@ class FirewallClient:
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port)])
+        if ssyslog._p:
+            argvbase += ['--syslog']
         argv_tries = [
             ['sudo', '-p', '[local sudo] Password: '] + argvbase,
             ['su', '-c', ' '.join(argvbase)],
@@ -197,7 +184,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
 
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
-                                               stderr=_loggerp.stdin)
+                        stderr=ssyslog._p and ssyslog._p.stdin)
     except socket.error, e:
         if e.errno == errno.EPIPE:
             raise Fatal("failed to establish ssh session")
@@ -219,8 +206,10 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     debug1('connected.\n')
     if daemon:
         daemonize()
+        log('daemonizing (%s).\n' % _pidname)
     elif syslog:
-        stderr_to_syslog()
+        debug1('switching to syslog.\n')
+        ssyslog.stderr_to_syslog()
 
     def onroutes(routestr):
         if auto_nets:
@@ -279,7 +268,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
 def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
-        start_syslog()
+        ssyslog.start_syslog()
     if daemon:
         try:
             check_daemon(pidfile)
