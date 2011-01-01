@@ -125,14 +125,20 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python)
     except socket.error, e:
         if e.args[0] == errno.EPIPE:
-            raise Fatal("failed to establish ssh session")
+            raise Fatal("failed to establish ssh session (1)")
         else:
             raise
     mux = Mux(serversock, serversock)
     handlers.append(mux)
 
     expected = 'SSHUTTLE0001'
-    initstring = serversock.recv(len(expected))
+    try:
+        initstring = serversock.recv(len(expected))
+    except socket.error, e:
+        if e.args[0] == errno.ECONNRESET:
+            raise Fatal("failed to establish ssh session (2)")
+        else:
+            raise
     
     rv = serverproc.poll()
     if rv:
