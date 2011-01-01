@@ -15,7 +15,7 @@ CMD_EXIT = 0x4200
 CMD_PING = 0x4201
 CMD_PONG = 0x4202
 CMD_CONNECT = 0x4203
-# CMD_CLOSE = 0x4204   # never used - removed
+CMD_STOP_SENDING = 0x4204
 CMD_EOF = 0x4205
 CMD_DATA = 0x4206
 CMD_ROUTES = 0x4207
@@ -27,6 +27,7 @@ cmd_to_name = {
     CMD_PING: 'PING',
     CMD_PONG: 'PONG',
     CMD_CONNECT: 'CONNECT',
+    CMD_STOP_SENDING: 'STOP_SENDING',
     CMD_EOF: 'EOF',
     CMD_DATA: 'DATA',
     CMD_ROUTES: 'ROUTES',
@@ -106,6 +107,8 @@ class SockWrapper:
     def seterr(self, e):
         if not self.exc:
             self.exc = e
+        self.nowrite()
+        self.noread()
 
     def try_connect(self):
         if self.connect_to and self.shut_write:
@@ -162,8 +165,6 @@ class SockWrapper:
         except OSError, e:
             # unexpected error... stream is dead
             self.seterr(e)
-            self.nowrite()
-            self.noread()
             return 0
         
     def write(self, buf):
@@ -231,6 +232,11 @@ class Proxy(Handler):
         self.wrap2 = wrap2
 
     def pre_select(self, r, w, x):
+        if self.wrap1.shut_read: self.wrap2.nowrite()
+        if self.wrap1.shut_write: self.wrap2.noread()
+        if self.wrap2.shut_read: self.wrap1.nowrite()
+        if self.wrap2.shut_write: self.wrap1.noread()
+        
         if self.wrap1.connect_to:
             _add(w, self.wrap1.rsock)
         elif self.wrap1.buf:
@@ -430,6 +436,7 @@ class MuxWrapper(SockWrapper):
     def noread(self):
         if not self.shut_read:
             self.shut_read = True
+            self.mux.send(self.channel, CMD_STOP_SENDING, '')
             self.maybe_close()
 
     def nowrite(self):
@@ -464,6 +471,8 @@ class MuxWrapper(SockWrapper):
     def got_packet(self, cmd, data):
         if cmd == CMD_EOF:
             self.noread()
+        elif cmd == CMD_STOP_SENDING:
+            self.nowrite()
         elif cmd == CMD_DATA:
             self.buf.append(data)
         else:
