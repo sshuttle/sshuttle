@@ -49,7 +49,7 @@ sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
 sshuttle --firewall <port> <subnets...>
 sshuttle --server
 --
-l,listen=  transproxy to this ip address and port number [0.0.0.0:0]
+l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 python= specify the name/path of the python interpreter on the remote server [python]

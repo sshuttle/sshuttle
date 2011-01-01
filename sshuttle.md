@@ -1,6 +1,6 @@
-% sshuttle(8) Sshuttle 0.42
+% sshuttle(8) Sshuttle 0.44
 % Avery Pennarun <apenwarr@gmail.com>
-% 2010-11-09
+% 2010-12-31
 
 # NAME
 
@@ -41,7 +41,13 @@ entire subnet to the VPN.
 -l, --listen=*[ip:]port*
 :   use this ip address and port number as the transparent
     proxy port.  By default sshuttle finds an available
-    port automatically, so you don't need to override it.
+    port automatically and listens on IP 127.0.0.1
+    (localhost), so you don't need to override it, and
+    connections are only proxied from the local machine,
+    not from outside machines.  If you want to accept
+    connections from other machines on your network (ie. to
+    run sshuttle on a router) try enabling IP Forwarding in
+    your kernel, then using `--listen 0.0.0.0:0`. 
 
 -H, --auto-hosts
 :   scan for remote hostnames and update the local /etc/hosts
