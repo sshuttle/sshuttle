@@ -139,8 +139,8 @@ Test locally by proxying all local connections, without using ssh:
      s:   192.168.42.0/24
     c : connected.
     firewall manager: starting transproxy.
-    c : Accept: '192.168.42.106':50035 -> '192.168.42.121':139.
-    c : Accept: '192.168.42.121':47523 -> '77.141.99.22':443.
+    c : Accept: 192.168.42.106:50035 -> 192.168.42.121:139.
+    c : Accept: 192.168.42.121:47523 -> 77.141.99.22:443.
         ...etc...
     ^C
     firewall manager: undoing changes.
@@ -166,7 +166,7 @@ and subnet guessing:
     hostwatch: Found: testbox1: 1.2.3.4
     hostwatch: Found: mytest2: 5.6.7.8
     hostwatch: Found: domaincontroller: 99.1.2.3
-    c : Accept: '192.168.42.121':60554 -> '77.141.99.22':22.
+    c : Accept: 192.168.42.121:60554 -> 77.141.99.22:22.
     ^C
     firewall manager: undoing changes.
     c : Keyboard interrupt: exiting.

@@ -155,8 +155,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets):
     def onaccept():
         sock,srcip = listener.accept()
         dstip = original_dst(sock)
-        debug1('Accept: %r:%r -> %r:%r.\n' % (srcip[0],srcip[1],
-                                           dstip[0],dstip[1]))
+        debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
+                                              dstip[0],dstip[1]))
         if dstip == listener.getsockname():
             debug1("-- ignored: that's my address!\n")
             sock.close()
