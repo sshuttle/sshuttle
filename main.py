@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import helpers, options, client, server, firewall, hostwatch
+import helpers, options, client, server, firewall, hostwatch, ssnet
 import compat.ssubprocess as ssubprocess
 from helpers import *
 
@@ -51,6 +51,7 @@ sshuttle --server
 sshuttle --firewall <port> <subnets...>
 sshuttle --hostwatch
 --
+f,disable-fullness turn off fullness checking (could 10x bandwidth on high latency link)
 l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
@@ -73,7 +74,7 @@ o = options.Options('sshuttle', optspec)
 if opt.daemon:
     opt.syslog = 1
 helpers.verbose = opt.verbose
-
+ssnet.no_fullness = opt.disable_fullness
 try:
     if opt.server:
         if len(extra) != 0:

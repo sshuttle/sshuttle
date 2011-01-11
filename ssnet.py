@@ -35,7 +35,7 @@ cmd_to_name = {
     CMD_HOST_LIST: 'HOST_LIST',
 }
     
-
+no_fullness = 0
 
 def _add(l, elem):
     if not elem in l:
@@ -308,7 +308,7 @@ class Mux(Handler):
         return total
             
     def check_fullness(self):
-        if self.fullness > 32768:
+        if not no_fullness and self.fullness > 32768:
             if not self.too_full:
                 self.send(0, CMD_PING, 'rttest')
             self.too_full = True
@@ -326,7 +326,8 @@ class Mux(Handler):
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
                % (channel, cmd_to_name.get(cmd,hex(cmd)),
                   len(data), self.fullness))
-        self.fullness += len(data)
+        if not no_fullness:
+            self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
         debug2('<  channel=%d cmd=%s len=%d\n' 

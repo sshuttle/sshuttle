@@ -1,6 +1,6 @@
 import sys, os, re, socket, zlib
 import compat.ssubprocess as ssubprocess
-import helpers
+import helpers, ssnet
 from helpers import *
 
 
@@ -63,8 +63,9 @@ def connect(ssh_cmd, rhostport, python, stderr):
                 import sys;
                 skip_imports=1;
                 verbosity=%d;
+                no_fullness0=%d;
                 exec compile(sys.stdin.read(%d), "assembler.py", "exec")
-                """ % (helpers.verbose or 0, len(content))
+                """ % (helpers.verbose or 0, ssnet.no_fullness or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
 
         
