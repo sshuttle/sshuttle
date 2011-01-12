@@ -151,7 +151,7 @@ class SockWrapper:
             try:
                 self.wsock.shutdown(SHUT_WR)
             except socket.error, e:
-                self.seterr(e)
+                self.seterr('nowrite: %s' % e)
 
     def too_full(self):
         return False  # fullness is determined by the socket's select() state
@@ -164,7 +164,7 @@ class SockWrapper:
             return _nb_clean(os.write, self.wsock.fileno(), buf)
         except OSError, e:
             # unexpected error... stream is dead
-            self.seterr(e)
+            self.seterr('uwrite: %s' % e)
             return 0
         
     def write(self, buf):
@@ -180,7 +180,7 @@ class SockWrapper:
         try:
             return _nb_clean(os.read, self.rsock.fileno(), 65536)
         except OSError, e:
-            self.seterr(e)
+            self.seterr('uread: %s' % e)
             return '' # unexpected error... we'll call it EOF
 
     def fill(self):
