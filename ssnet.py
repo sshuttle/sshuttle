@@ -163,9 +163,14 @@ class SockWrapper:
         try:
             return _nb_clean(os.write, self.wsock.fileno(), buf)
         except OSError, e:
-            # unexpected error... stream is dead
-            self.seterr('uwrite: %s' % e)
-            return 0
+            if e.errno == errno.EPIPE:
+                debug1('%r: uwrite: got EPIPE\n' % self)
+                self.nowrite()
+                return 0
+            else:
+                # unexpected error... stream is dead
+                self.seterr('uwrite: %s' % e)
+                return 0
         
     def write(self, buf):
         assert(buf)
