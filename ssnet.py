@@ -237,9 +237,7 @@ class Proxy(Handler):
         self.wrap2 = wrap2
 
     def pre_select(self, r, w, x):
-        if self.wrap1.shut_read: self.wrap2.nowrite()
         if self.wrap1.shut_write: self.wrap2.noread()
-        if self.wrap2.shut_read: self.wrap1.nowrite()
         if self.wrap2.shut_write: self.wrap1.noread()
         
         if self.wrap1.connect_to:
