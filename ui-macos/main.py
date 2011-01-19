@@ -41,6 +41,7 @@ class Runner:
         self.promptfunc = promptfunc
         self.serverobj = serverobj
         self.buf = ''
+        self.logfunc('\nConnecting to %s.\n' % self.serverobj.host())
         print 'will run: %r' % argv
         self.serverobj.setConnected_(False)
         pid,fd = pty.fork()
@@ -76,6 +77,7 @@ class Runner:
                     self.rv = -os.WSTOPSIG(code)
                 self.serverobj.setConnected_(False)
                 self.serverobj.setError_('VPN process died')
+                self.logfunc('Disconnected.\n')
         print 'wait_result: %r' % self.rv
         return self.rv
 
@@ -89,8 +91,9 @@ class Runner:
         assert(self.pid > 0)
         print 'killing: pid=%r rv=%r' % (self.pid, self.rv)
         if self.rv == None:
+            self.logfunc('Disconnecting from %s.\n' % self.serverobj.host())
             os.kill(self.pid, 15)
-            self.serverobj.setConnected_(False)
+            self.wait()
 
     def gotdata(self, notification):
         print 'gotdata!'
@@ -141,6 +144,7 @@ class SshuttleController(NSObject):
             self.logField.textStorage()\
                 .appendAttributedString_(NSAttributedString.alloc()\
                                          .initWithString_(msg))
+            self.logField.didChangeText()
         def promptfunc(prompt):
             print 'prompt! %r' % prompt
             return 'scss'
@@ -164,10 +168,12 @@ class SshuttleController(NSObject):
     def _disconnect(self, server):
         host = server.host()
         print 'disconnecting %r' % host
-        self.fill_menu()
         conn = self.conns.get(host)
         if conn:
             conn.kill()
+        self.fill_menu()
+        self.logField.textStorage().setAttributedString_(
+                        NSAttributedString.alloc().initWithString_(''))
     
     @objc.IBAction
     def cmd_connect(self, sender):
