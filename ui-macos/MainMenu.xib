@@ -12,7 +12,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="236"/>
+			<integer value="233"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -157,7 +157,7 @@
 																		<object class="NSTableHeaderCell" key="NSHeaderCell">
 																			<int key="NSCellFlags">75628096</int>
 																			<int key="NSCellFlags2">2048</int>
-																			<string key="NSContents">Connected</string>
+																			<string key="NSContents">Connect</string>
 																			<object class="NSFont" key="NSSupport" id="26">
 																				<string key="NSName">LucidaGrande</string>
 																				<double key="NSSize">11</double>
@@ -742,19 +742,19 @@
 													<int key="NSPeriodicInterval">25</int>
 												</object>
 											</object>
-											<object class="NSButton" id="47326841">
+											<object class="NSButton" id="625121428">
 												<reference key="NSNextResponder" ref="187214803"/>
 												<int key="NSvFlags">268</int>
 												<string key="NSFrame">{{189, 225}, {270, 29}}</string>
 												<reference key="NSSuperview" ref="187214803"/>
 												<int key="NSViewLayerContentsRedrawPolicy">2</int>
 												<bool key="NSEnabled">YES</bool>
-												<object class="NSButtonCell" key="NSCell" id="817782448">
+												<object class="NSButtonCell" key="NSCell" id="132399775">
 													<int key="NSCellFlags">67239424</int>
 													<int key="NSCellFlags2">0</int>
 													<string key="NSContents">Send debug information to log</string>
 													<reference key="NSSupport" ref="696441443"/>
-													<reference key="NSControlView" ref="47326841"/>
+													<reference key="NSControlView" ref="625121428"/>
 													<int key="NSButtonFlags">1211912703</int>
 													<int key="NSButtonFlags2">2</int>
 													<reference key="NSNormalImage" ref="581816235"/>
@@ -999,6 +999,7 @@
 					<string>wantConnect</string>
 					<string>statusMsg</string>
 					<string>status</string>
+					<string>isValid</string>
 				</object>
 				<string key="NSObjectClassName">SshuttleServer</string>
 				<bool key="NSEditable">YES</bool>
@@ -1416,10 +1417,10 @@
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
 						<string key="label">value: values.debug</string>
-						<reference key="source" ref="47326841"/>
+						<reference key="source" ref="625121428"/>
 						<reference key="destination" ref="582889489"/>
 						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="47326841"/>
+							<reference key="NSSource" ref="625121428"/>
 							<reference key="NSDestination" ref="582889489"/>
 							<string key="NSLabel">value: values.debug</string>
 							<string key="NSBinding">value</string>
@@ -1433,9 +1434,25 @@
 					<object class="IBOutletConnection" key="connection">
 						<string key="label">debugField</string>
 						<reference key="source" ref="307402018"/>
-						<reference key="destination" ref="47326841"/>
+						<reference key="destination" ref="625121428"/>
 					</object>
 					<int key="connectionID">556</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">enabled: arrangedObjects.isValid</string>
+						<reference key="source" ref="401421410"/>
+						<reference key="destination" ref="59237012"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="401421410"/>
+							<reference key="NSDestination" ref="59237012"/>
+							<string key="NSLabel">enabled: arrangedObjects.isValid</string>
+							<string key="NSBinding">enabled</string>
+							<string key="NSKeyPath">arrangedObjects.isValid</string>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">557</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -1526,7 +1543,7 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<reference ref="625816566"/>
 							<reference ref="633518934"/>
-							<reference ref="47326841"/>
+							<reference ref="625121428"/>
 						</object>
 						<reference key="parent" ref="740075218"/>
 					</object>
@@ -1933,17 +1950,17 @@
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">552</int>
-						<reference key="object" ref="47326841"/>
+						<reference key="object" ref="625121428"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="817782448"/>
+							<reference ref="132399775"/>
 						</object>
 						<reference key="parent" ref="187214803"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">553</int>
-						<reference key="object" ref="817782448"/>
-						<reference key="parent" ref="47326841"/>
+						<reference key="object" ref="132399775"/>
+						<reference key="parent" ref="625121428"/>
 					</object>
 				</object>
 			</object>
@@ -2209,7 +2226,7 @@
 						<string key="NS.key.0">ToolTip</string>
 						<object class="IBToolTipAttribute" key="NS.object.0">
 							<string key="name">ToolTip</string>
-							<reference key="object" ref="47326841"/>
+							<reference key="object" ref="625121428"/>
 							<string key="toolTip">If your connection to the server dies, do you want Sshuttle to retry the connection right away?</string>
 						</object>
 					</object>
@@ -2233,7 +2250,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">556</int>
+			<int key="maxID">557</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">

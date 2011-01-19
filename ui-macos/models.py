@@ -85,6 +85,13 @@ class SshuttleServer(NSObject):
     def setError_(self, v):
         self._k_error = v
         config_changed()
+
+    def isValid(self):
+        if not self.host():
+            return False
+        if self.autoNets() == NET_MANUAL and not len(list(self.nets())):
+            return False
+        return True
     
     def host(self):
         return getattr(self, '_k_host', None)

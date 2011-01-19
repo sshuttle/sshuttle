@@ -215,8 +215,11 @@ class SshuttleController(NSObject):
                 host = i.host()
                 want = i.wantConnect()
                 connected = i.connected()
+                numnets = len(list(i.nets()))
                 if not host:
                     additem('Connect Untitled', None, i)
+                elif i.autoNets() == models.NET_MANUAL and not numnets:
+                    additem('Connect %s (no routes)' % host, None, i)
                 elif want:
                     any_conn = i
                     additem('Disconnect %s' % host, self.cmd_disconnect, i)
