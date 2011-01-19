@@ -2,9 +2,11 @@ import sys, os, pty
 from AppKit import *
 import my, models
 
-def sshuttle_args(host, auto_nets, auto_hosts, nets):
+def sshuttle_args(host, auto_nets, auto_hosts, nets, debug):
     argv = [my.bundle_path('sshuttle/sshuttle', ''), '-r', host]
     assert(argv[0])
+    if debug:
+        argv.append('-v')
     if auto_nets:
         argv.append('--auto-nets')
     if auto_hosts:
@@ -96,6 +98,8 @@ class Runner:
         if d:
             self.logfunc(d)
             self.buf = self.buf + d
+            if 'Connected.\r\n' in self.buf:
+                self.serverobj.setConnected_(True)
             self.buf = self.buf[-4096:]
             if self.buf.strip().endswith(':'):
                 lastline = self.buf.rstrip().split('\n')[-1]
@@ -118,6 +122,8 @@ class SshuttleApp(NSObject):
 class SshuttleController(NSObject):
     # Interface builder outlets
     startAtLoginField = objc.IBOutlet()
+    autoReconnectField = objc.IBOutlet()
+    debugField = objc.IBOutlet()
     routingField = objc.IBOutlet()
     prefsWindow = objc.IBOutlet()
     serversController = objc.IBOutlet()
@@ -149,7 +155,8 @@ class SshuttleController(NSObject):
         conn = Runner(sshuttle_args(host,
                                     auto_nets = nets_mode == models.NET_AUTO,
                                     auto_hosts = server.autoHosts(),
-                                    nets = manual_nets),
+                                    nets = manual_nets,
+                                    debug = self.debugField.state()),
                       logfunc=logfunc, promptfunc=promptfunc,
                       serverobj=server)
         self.conns[host] = conn
@@ -304,6 +311,8 @@ class SshuttleController(NSObject):
         # support this feature yet).
         self.startAtLoginField.setEnabled_(False)
         self.startAtLoginField.setState_(False)
+        self.autoReconnectField.setEnabled_(False)
+        self.autoReconnectField.setState_(False)
 
         self.load_servers()
 

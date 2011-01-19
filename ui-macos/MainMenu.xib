@@ -12,7 +12,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="227"/>
+			<integer value="236"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -68,7 +68,7 @@
 								<object class="NSTabViewItem" id="762265164">
 									<string key="NSIdentifier">1</string>
 									<object class="NSView" key="NSView" id="60314308">
-										<reference key="NSNextResponder" ref="389252804"/>
+										<nil key="NSNextResponder"/>
 										<int key="NSvFlags">256</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -683,7 +683,6 @@
 											</object>
 										</object>
 										<string key="NSFrame">{{10, 33}, {607, 327}}</string>
-										<reference key="NSSuperview" ref="389252804"/>
 										<int key="NSViewLayerContentsRedrawPolicy">2</int>
 									</object>
 									<string key="NSLabel">SSH Servers</string>
@@ -693,7 +692,7 @@
 								<object class="NSTabViewItem" id="740075218">
 									<string key="NSIdentifier">2</string>
 									<object class="NSView" key="NSView" id="187214803">
-										<nil key="NSNextResponder"/>
+										<reference key="NSNextResponder" ref="389252804"/>
 										<int key="NSvFlags">256</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -743,8 +742,32 @@
 													<int key="NSPeriodicInterval">25</int>
 												</object>
 											</object>
+											<object class="NSButton" id="47326841">
+												<reference key="NSNextResponder" ref="187214803"/>
+												<int key="NSvFlags">268</int>
+												<string key="NSFrame">{{189, 225}, {270, 29}}</string>
+												<reference key="NSSuperview" ref="187214803"/>
+												<int key="NSViewLayerContentsRedrawPolicy">2</int>
+												<bool key="NSEnabled">YES</bool>
+												<object class="NSButtonCell" key="NSCell" id="817782448">
+													<int key="NSCellFlags">67239424</int>
+													<int key="NSCellFlags2">0</int>
+													<string key="NSContents">Send debug information to log</string>
+													<reference key="NSSupport" ref="696441443"/>
+													<reference key="NSControlView" ref="47326841"/>
+													<int key="NSButtonFlags">1211912703</int>
+													<int key="NSButtonFlags2">2</int>
+													<reference key="NSNormalImage" ref="581816235"/>
+													<reference key="NSAlternateImage" ref="753862261"/>
+													<string key="NSAlternateContents"/>
+													<string key="NSKeyEquivalent"/>
+													<int key="NSPeriodicDelay">200</int>
+													<int key="NSPeriodicInterval">25</int>
+												</object>
+											</object>
 										</object>
 										<string key="NSFrame">{{10, 33}, {607, 327}}</string>
+										<reference key="NSSuperview" ref="389252804"/>
 										<int key="NSViewLayerContentsRedrawPolicy">2</int>
 									</object>
 									<string key="NSLabel">Options</string>
@@ -905,13 +928,13 @@
 									<reference key="NSTabView" ref="389252804"/>
 								</object>
 							</object>
-							<reference key="NSSelectedTabViewItem" ref="762265164"/>
+							<reference key="NSSelectedTabViewItem" ref="740075218"/>
 							<reference key="NSFont" ref="696441443"/>
 							<int key="NSTvFlags">0</int>
 							<bool key="NSDrawsBackground">YES</bool>
 							<object class="NSMutableArray" key="NSSubviews">
 								<bool key="EncodedWithXMLCoder">YES</bool>
-								<reference ref="60314308"/>
+								<reference ref="187214803"/>
 							</object>
 						</object>
 					</object>
@@ -956,6 +979,10 @@
 				<string key="NSClassName">SshuttleController</string>
 			</object>
 			<object class="NSUserDefaultsController" id="582889489">
+				<object class="NSMutableArray" key="NSDeclaredKeys">
+					<bool key="EncodedWithXMLCoder">YES</bool>
+					<string>debug</string>
+				</object>
 				<bool key="NSSharedInstance">YES</bool>
 			</object>
 			<object class="NSCustomObject" id="735871403">
@@ -1378,6 +1405,38 @@
 					</object>
 					<int key="connectionID">550</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">autoReconnectField</string>
+						<reference key="source" ref="307402018"/>
+						<reference key="destination" ref="633518934"/>
+					</object>
+					<int key="connectionID">551</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: values.debug</string>
+						<reference key="source" ref="47326841"/>
+						<reference key="destination" ref="582889489"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="47326841"/>
+							<reference key="NSDestination" ref="582889489"/>
+							<string key="NSLabel">value: values.debug</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">values.debug</string>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">555</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">debugField</string>
+						<reference key="source" ref="307402018"/>
+						<reference key="destination" ref="47326841"/>
+					</object>
+					<int key="connectionID">556</int>
+				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<object class="NSArray" key="orderedObjects">
@@ -1467,6 +1526,7 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<reference ref="625816566"/>
 							<reference ref="633518934"/>
+							<reference ref="47326841"/>
 						</object>
 						<reference key="parent" ref="740075218"/>
 					</object>
@@ -1871,6 +1931,20 @@
 						<reference key="parent" ref="0"/>
 						<string key="objectName">NetsArray</string>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">552</int>
+						<reference key="object" ref="47326841"/>
+						<object class="NSMutableArray" key="children">
+							<bool key="EncodedWithXMLCoder">YES</bool>
+							<reference ref="817782448"/>
+						</object>
+						<reference key="parent" ref="187214803"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">553</int>
+						<reference key="object" ref="817782448"/>
+						<reference key="parent" ref="47326841"/>
+					</object>
 				</object>
 			</object>
 			<object class="NSMutableDictionary" key="flattenedProperties">
@@ -1961,6 +2035,9 @@
 					<string>520.IBPluginDependency</string>
 					<string>521.IBPluginDependency</string>
 					<string>524.IBPluginDependency</string>
+					<string>552.IBAttributePlaceholdersKey</string>
+					<string>552.IBPluginDependency</string>
+					<string>553.IBPluginDependency</string>
 				</object>
 				<object class="NSMutableArray" key="dict.values">
 					<bool key="EncodedWithXMLCoder">YES</bool>
@@ -1968,9 +2045,9 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
-					<string>{{498, 387}, {611, 369}}</string>
+					<string>{{317, 387}, {611, 369}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{498, 387}, {611, 369}}</string>
+					<string>{{317, 387}, {611, 369}}</string>
 					<boolean value="YES"/>
 					<boolean value="NO"/>
 					<boolean value="YES"/>
@@ -2128,6 +2205,16 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<object class="NSMutableDictionary">
+						<string key="NS.key.0">ToolTip</string>
+						<object class="IBToolTipAttribute" key="NS.object.0">
+							<string key="name">ToolTip</string>
+							<reference key="object" ref="47326841"/>
+							<string key="toolTip">If your connection to the server dies, do you want Sshuttle to retry the connection right away?</string>
+						</object>
+					</object>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 				</object>
 			</object>
 			<object class="NSMutableDictionary" key="unlocalizedProperties">
@@ -2146,7 +2233,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">550</int>
+			<int key="maxID">556</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -2174,6 +2261,8 @@
 						<bool key="EncodedWithXMLCoder">YES</bool>
 						<object class="NSArray" key="dict.sortedKeys">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>autoReconnectField</string>
+							<string>debugField</string>
 							<string>logField</string>
 							<string>prefsWindow</string>
 							<string>routingField</string>
@@ -2182,6 +2271,8 @@
 						</object>
 						<object class="NSMutableArray" key="dict.values">
 							<bool key="EncodedWithXMLCoder">YES</bool>
+							<string>id</string>
+							<string>id</string>
 							<string>id</string>
 							<string>id</string>
 							<string>id</string>
