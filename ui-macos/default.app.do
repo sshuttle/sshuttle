@@ -12,16 +12,16 @@ cp "$TOP/Info.plist" .
 mkdir MacOS
 cp "$TOP/bits/runpython" "$TOP/bits/run" MacOS/
 
-mkdir Resources Resources/English.lproj
-cp "$TOP/MainMenu.nib" Resources/English.lproj
+mkdir Resources
 
 cd "$TOP"
 while read name newname; do
 	[ -z "$name" ] && continue
-	outname=$1.app/Contents/Resources/$name
+	: "${newname:=$name}"
+	outname=$1.app/Contents/Resources/$newname
 	outdir=$(dirname "$outname")
 	[ -d "$outdir" ] || mkdir "$outdir"
-	cp "${name-newname}" "$outname"
+	cp "${name-$newname}" "$outname"
 done <sources.list
 
 cd "$1.app"
