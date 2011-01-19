@@ -41,7 +41,7 @@ class SshuttleNet(NSObject):
         config_changed()
     @objc.accessor
     def validateSubnet_error_(self, value, error):
-        print 'validateSubnet!'
+        #print 'validateSubnet!'
         return True, _validate_ip(value), error
 
     def width(self):
@@ -51,9 +51,12 @@ class SshuttleNet(NSObject):
         config_changed()
     @objc.accessor
     def validateWidth_error_(self, value, error):
-        print 'validateWidth!'
+        #print 'validateWidth!'
         return True, _validate_width(value), error
 
+NET_ALL = 0
+NET_AUTO = 1
+NET_MANUAL = 2
 
 class SshuttleServer(NSObject):
     def init(self):
@@ -61,12 +64,27 @@ class SshuttleServer(NSObject):
         config_changed()
         return self
     
+    def wantConnect(self):
+        return getattr(self, '_k_wantconnect', False)
+    def setWantConnect_(self, v):
+        self._k_wantconnect = v
+        self.setError_(None)
+        config_changed()
+        if setconnect_callback: setconnect_callback(self)
+
     def connected(self):
         return getattr(self, '_k_connected', False)
     def setConnected_(self, v):
+        print 'setConnected of %r to %r' % (self, v)
         self._k_connected = v
+        if v: self.setError_(None)  # connected ok, so no error
         config_changed()
-        if setconnect_callback: setconnect_callback(self)
+
+    def error(self):
+        return getattr(self, '_k_error', None)
+    def setError_(self, v):
+        self._k_error = v
+        config_changed()
     
     def host(self):
         return getattr(self, '_k_host', None)
@@ -75,7 +93,7 @@ class SshuttleServer(NSObject):
         config_changed()
     @objc.accessor
     def validateHost_error_(self, value, error):
-        print 'validatehost! %r %r %r' % (self, value, error)
+        #print 'validatehost! %r %r %r' % (self, value, error)
         while value.startswith('-'):
             value = value[1:]
         return True, value, error
@@ -86,15 +104,14 @@ class SshuttleServer(NSObject):
         self._k_nets = v
         config_changed()
     def netsHidden(self):
-        print 'checking netsHidden'
-        return self.autoNets() != 2
+        #print 'checking netsHidden'
+        return self.autoNets() != NET_MANUAL
     def setNetsHidden_(self, v):
         config_changed()
-        print 'setting netsHidden to %r' % v
-        pass
+        #print 'setting netsHidden to %r' % v
         
     def autoNets(self):
-        return getattr(self, '_k_autoNets', 1)
+        return getattr(self, '_k_autoNets', NET_AUTO)
     def setAutoNets_(self, v):
         self._k_autoNets = v
         self.setNetsHidden_(-1)
@@ -105,4 +122,3 @@ class SshuttleServer(NSObject):
     def setAutoHosts_(self, v):
         self._k_autoHosts = v
         config_changed()
-

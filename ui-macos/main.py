@@ -2,12 +2,8 @@ import sys, os, pty
 from AppKit import *
 import my, models
 
-NET_ALL=0
-NET_AUTO=1
-NET_MANUAL=2
-
 def sshuttle_args(host, auto_nets, auto_hosts, nets):
-    argv = [my.bundle_path('sshuttle/sshuttle', ''), '-v', '-r', host]
+    argv = [my.bundle_path('sshuttle/sshuttle', ''), '-r', host]
     assert(argv[0])
     if auto_nets:
         argv.append('--auto-nets')
@@ -33,7 +29,7 @@ class Callback:
 
 
 class Runner:
-    def __init__(self, argv, logfunc, promptfunc):
+    def __init__(self, argv, logfunc, promptfunc, serverobj):
         print 'in __init__'
         self.id = argv
         self.rv = None
@@ -41,8 +37,10 @@ class Runner:
         self.fd = None
         self.logfunc = logfunc
         self.promptfunc = promptfunc
+        self.serverobj = serverobj
         self.buf = ''
         print 'will run: %r' % argv
+        self.serverobj.setConnected_(False)
         pid,fd = pty.fork()
         if pid == 0:
             # child
@@ -74,6 +72,8 @@ class Runner:
                     self.rv = os.WEXITSTATUS(code)
                 else:
                     self.rv = -os.WSTOPSIG(code)
+                self.serverobj.setConnected_(False)
+                self.serverobj.setError_('VPN process died')
         print 'wait_result: %r' % self.rv
         return self.rv
 
@@ -88,6 +88,7 @@ class Runner:
         print 'killing: pid=%r rv=%r' % (self.pid, self.rv)
         if self.rv == None:
             os.kill(self.pid, 15)
+            self.serverobj.setConnected_(False)
 
     def gotdata(self, notification):
         print 'gotdata!'
@@ -105,7 +106,7 @@ class Runner:
                 self.file.writeData_(my.Data(resp + '\n'))
             self.file.waitForDataInBackgroundAndNotify()
         self.poll()
-        print 'gotdata done!'
+        #print 'gotdata done!'
 
 
 class SshuttleApp(NSObject):
@@ -136,20 +137,21 @@ class SshuttleController(NSObject):
                                          .initWithString_(msg))
         def promptfunc(prompt):
             print 'prompt! %r' % prompt
-            return 'scs'
+            return 'scss'
         nets_mode = server.autoNets()
-        if nets_mode == NET_MANUAL:
+        if nets_mode == models.NET_MANUAL:
             manual_nets = ["%s/%d" % (i.subnet(), i.width())
                            for i in server.nets()]
-        elif nets_mode == NET_ALL:
+        elif nets_mode == models.NET_ALL:
             manual_nets = ['0/0']
         else:
             manual_nets = []
         conn = Runner(sshuttle_args(host,
-                                    auto_nets = nets_mode == NET_AUTO,
+                                    auto_nets = nets_mode == models.NET_AUTO,
                                     auto_hosts = server.autoHosts(),
                                     nets = manual_nets),
-                      logfunc=logfunc, promptfunc=promptfunc)
+                      logfunc=logfunc, promptfunc=promptfunc,
+                      serverobj=server)
         self.conns[host] = conn
 
     def _disconnect(self, server):
@@ -163,12 +165,12 @@ class SshuttleController(NSObject):
     @objc.IBAction
     def cmd_connect(self, sender):
         server = sender.representedObject()
-        server.setConnected_(True)
+        server.setWantConnect_(True)
 
     @objc.IBAction
     def cmd_disconnect(self, sender):
         server = sender.representedObject()
-        server.setConnected_(False)
+        server.setWantConnect_(False)
 
     @objc.IBAction
     def cmd_show(self, sender):
@@ -189,32 +191,57 @@ class SshuttleController(NSObject):
             it.setRepresentedObject_(obj)
             it.setTarget_(self)
             it.setAction_(func)
+        def addnote(name):
+            additem(name, None, None)
 
-        any_conn = False
-        err = None
+        any_inprogress = None
+        any_conn = None
+        any_err = None
         if len(self.servers):
             for i in self.servers:
                 host = i.host()
+                want = i.wantConnect()
+                connected = i.connected()
                 if not host:
                     additem('Connect Untitled', None, i)
-                elif i.connected():
+                elif want:
                     any_conn = i
                     additem('Disconnect %s' % host, self.cmd_disconnect, i)
                 else:
                     additem('Connect %s' % host, self.cmd_connect, i)
+                if not want:
+                    msg = 'Off'
+                elif i.error():
+                    msg = 'ERROR - try reconnecting'
+                    any_err = i
+                elif connected:
+                    msg = 'Connected'
+                else:
+                    msg = 'Connecting...'
+                    any_inprogress = i
+                addnote('   State: %s' % msg)
+                if i.autoNets() == 0:
+                    addnote('   Routes: All')
+                elif i.autoNets() == 2:
+                    addnote('   Routes: Auto')
+                else:
+                    addnote('   Routes: Custom')
         else:
-            additem('No servers defined yet', None, None)
+            addnote('No servers defined yet')
 
         menu.addItem_(NSMenuItem.separatorItem())
         additem('Preferences...', self.cmd_show, None)
         additem('Quit Sshuttle VPN', self.cmd_quit, None)
 
-        if err:
+        if any_err:
             self.statusitem.setImage_(self.img_err)
             self.statusitem.setTitle_('Error!')
         elif any_conn:
             self.statusitem.setImage_(self.img_running)
-            self.statusitem.setTitle_('')
+            if any_inprogress:
+                self.statusitem.setTitle_('Connecting...')
+            else:
+                self.statusitem.setTitle_('')
         else:
             self.statusitem.setImage_(self.img_idle)
             self.statusitem.setTitle_('')
@@ -296,7 +323,7 @@ class SshuttleController(NSObject):
         models.configchange_callback = my.DelayedCallback(self.save_servers)
         
         def sc(server):
-            if server.connected():
+            if server.wantConnect():
                 self._connect(server)
             else:
                 self._disconnect(server)

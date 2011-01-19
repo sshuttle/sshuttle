@@ -12,7 +12,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="302"/>
+			<integer value="227"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -68,7 +68,7 @@
 								<object class="NSTabViewItem" id="762265164">
 									<string key="NSIdentifier">1</string>
 									<object class="NSView" key="NSView" id="60314308">
-										<nil key="NSNextResponder"/>
+										<reference key="NSNextResponder" ref="389252804"/>
 										<int key="NSvFlags">256</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -683,6 +683,7 @@
 											</object>
 										</object>
 										<string key="NSFrame">{{10, 33}, {607, 327}}</string>
+										<reference key="NSSuperview" ref="389252804"/>
 										<int key="NSViewLayerContentsRedrawPolicy">2</int>
 									</object>
 									<string key="NSLabel">SSH Servers</string>
@@ -753,7 +754,7 @@
 								<object class="NSTabViewItem" id="975859087">
 									<string key="NSIdentifier">Log Messages</string>
 									<object class="NSView" key="NSView" id="311013698">
-										<reference key="NSNextResponder" ref="389252804"/>
+										<nil key="NSNextResponder"/>
 										<int key="NSvFlags">256</int>
 										<object class="NSMutableArray" key="NSSubviews">
 											<bool key="EncodedWithXMLCoder">YES</bool>
@@ -897,7 +898,6 @@
 											</object>
 										</object>
 										<string key="NSFrame">{{10, 33}, {607, 327}}</string>
-										<reference key="NSSuperview" ref="389252804"/>
 										<int key="NSViewLayerContentsRedrawPolicy">2</int>
 									</object>
 									<string key="NSLabel">Log Messages</string>
@@ -905,13 +905,13 @@
 									<reference key="NSTabView" ref="389252804"/>
 								</object>
 							</object>
-							<reference key="NSSelectedTabViewItem" ref="975859087"/>
+							<reference key="NSSelectedTabViewItem" ref="762265164"/>
 							<reference key="NSFont" ref="696441443"/>
 							<int key="NSTvFlags">0</int>
 							<bool key="NSDrawsBackground">YES</bool>
 							<object class="NSMutableArray" key="NSSubviews">
 								<bool key="EncodedWithXMLCoder">YES</bool>
-								<reference ref="311013698"/>
+								<reference ref="60314308"/>
 							</object>
 						</object>
 					</object>
@@ -956,10 +956,6 @@
 				<string key="NSClassName">SshuttleController</string>
 			</object>
 			<object class="NSUserDefaultsController" id="582889489">
-				<object class="NSMutableArray" key="NSDeclaredKeys">
-					<bool key="EncodedWithXMLCoder">YES</bool>
-					<string>autoReconnect</string>
-				</object>
 				<bool key="NSSharedInstance">YES</bool>
 			</object>
 			<object class="NSCustomObject" id="735871403">
@@ -973,7 +969,9 @@
 					<string>autoNets</string>
 					<string>nets</string>
 					<string>netsHidden</string>
-					<string>connected</string>
+					<string>wantConnect</string>
+					<string>statusMsg</string>
+					<string>status</string>
 				</object>
 				<string key="NSObjectClassName">SshuttleServer</string>
 				<bool key="NSEditable">YES</bool>
@@ -1188,22 +1186,6 @@
 					<int key="connectionID">503</int>
 				</object>
 				<object class="IBConnectionRecord">
-					<object class="IBBindingConnection" key="connection">
-						<string key="label">value: arrangedObjects.connected</string>
-						<reference key="source" ref="401421410"/>
-						<reference key="destination" ref="59237012"/>
-						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="401421410"/>
-							<reference key="NSDestination" ref="59237012"/>
-							<string key="NSLabel">value: arrangedObjects.connected</string>
-							<string key="NSBinding">value</string>
-							<string key="NSKeyPath">arrangedObjects.connected</string>
-							<int key="NSNibBindingConnectorVersion">2</int>
-						</object>
-					</object>
-					<int key="connectionID">508</int>
-				</object>
-				<object class="IBConnectionRecord">
 					<object class="IBActionConnection" key="connection">
 						<string key="label">add:</string>
 						<reference key="source" ref="958467473"/>
@@ -1379,6 +1361,22 @@
 						<reference key="destination" ref="758761310"/>
 					</object>
 					<int key="connectionID">549</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: arrangedObjects.wantConnect</string>
+						<reference key="source" ref="401421410"/>
+						<reference key="destination" ref="59237012"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="401421410"/>
+							<reference key="NSDestination" ref="59237012"/>
+							<string key="NSLabel">value: arrangedObjects.wantConnect</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">arrangedObjects.wantConnect</string>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">550</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -1945,6 +1943,7 @@
 					<string>476.IBPluginDependency</string>
 					<string>477.IBPluginDependency</string>
 					<string>486.IBPluginDependency</string>
+					<string>504.IBPluginDependency</string>
 					<string>506.IBPluginDependency</string>
 					<string>509.IBPluginDependency</string>
 					<string>510.IBPluginDependency</string>
@@ -1969,9 +1968,9 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<boolean value="YES"/>
 					<boolean value="YES"/>
-					<string>{{498, 573}, {611, 369}}</string>
+					<string>{{498, 387}, {611, 369}}</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
-					<string>{{498, 573}, {611, 369}}</string>
+					<string>{{498, 387}, {611, 369}}</string>
 					<boolean value="YES"/>
 					<boolean value="NO"/>
 					<boolean value="YES"/>
@@ -2107,6 +2106,7 @@
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
+					<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
 					<object class="NSMutableDictionary">
 						<string key="NS.key.0">ToolTip</string>
 						<object class="IBToolTipAttribute" key="NS.object.0">
@@ -2146,7 +2146,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">549</int>
+			<int key="maxID">550</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">
