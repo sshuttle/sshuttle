@@ -1,6 +1,6 @@
 import sys, os, pty
 from AppKit import *
-import my, models
+import my, models, askpass
 
 def sshuttle_args(host, auto_nets, auto_hosts, nets, debug):
     argv = [my.bundle_path('sshuttle/sshuttle', ''), '-r', host]
@@ -147,7 +147,7 @@ class SshuttleController(NSObject):
             self.logField.didChangeText()
         def promptfunc(prompt):
             print 'prompt! %r' % prompt
-            return 'scss'
+            return askpass.askpass(prompt)
         nets_mode = server.autoNets()
         if nets_mode == models.NET_MANUAL:
             manual_nets = ["%s/%d" % (i.subnet(), i.width())
