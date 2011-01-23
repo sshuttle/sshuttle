@@ -60,7 +60,7 @@ def _tty_width():
     except (IOError, ImportError):
         return _atoi(os.environ.get('WIDTH')) or 70
     (ysize,xsize,ypix,xpix) = struct.unpack('HHHH', s)
-    return xsize
+    return xsize or 70
 
 
 class Options:
