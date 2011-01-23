@@ -9,7 +9,7 @@ ln -s ../../app.icns .
 
 mkdir MacOS
 cd MacOS
-ln -s ../../../bits/runpython ../../../bits/run .
+ln -s ../../../bits/runpython Sshuttle
 
 cd ../../..
 redo-ifchange $(find debug.app -type f)

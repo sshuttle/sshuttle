@@ -1,6 +1,6 @@
 TOP=$PWD
 redo-ifchange sources.list
-redo-ifchange Info.plist bits/runpython bits/run \
+redo-ifchange Info.plist bits/runpython \
 	$(while read name newname; do echo "$name"; done <sources.list)
 
 rm -rf "$1.app"
@@ -10,7 +10,7 @@ cd "$1.app/Contents"
 cp "$TOP/Info.plist" .
 
 mkdir MacOS
-cp "$TOP/bits/runpython" "$TOP/bits/run" MacOS/
+cp "$TOP/bits/runpython" MacOS/Sshuttle
 
 mkdir Resources
 

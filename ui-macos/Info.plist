@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Sshuttle VPN</string>
 	<key>CFBundleExecutable</key>
-	<string>run</string>
+	<string>Sshuttle</string>
 	<key>CFBundleIconFile</key>
 	<string>app.icns</string>
 	<key>CFBundleIdentifier</key>

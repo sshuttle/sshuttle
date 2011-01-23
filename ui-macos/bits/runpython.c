@@ -7,8 +7,17 @@
  * goes wrong if your interpreter is /usr/bin/python.
  */
 #include <Python.h>
+#include <string.h>
+#include <unistd.h>
 
 int main(int argc, char **argv)
 {
-    return Py_Main(argc, argv);
+    char *path = strdup(argv[0]), *cptr;
+    char *args[] = {argv[0], "../Resources/main.py", NULL};
+    cptr = strrchr(path, '/');
+    if (cptr)
+	*cptr = 0;
+    chdir(path);
+    free(path);
+    return Py_Main(2, args);
 }
