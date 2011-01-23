@@ -1,0 +1,8 @@
+*.pyc
+*~
+/*.nib
+/debug.app
+/sources.list
+/Sshuttle VPN.app
+/*.tar.gz
+/*.zip

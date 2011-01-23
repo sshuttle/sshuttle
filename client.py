@@ -226,6 +226,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
         raise Fatal('expected server init string %r; got %r'
                         % (expected, initstring))
     debug1('connected.\n')
+    print 'Connected.'
+    sys.stdout.flush()
     if daemon:
         daemonize()
         log('daemonizing (%s).\n' % _pidname)
