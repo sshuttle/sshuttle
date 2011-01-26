@@ -1,7 +1,10 @@
-import re, errno
+import re, errno, socket, select, struct
 import compat.ssubprocess as ssubprocess
 import helpers, ssyslog
 from helpers import *
+
+# python doesn't have a definition for this
+IPPROTO_DIVERT = 254
 
 
 def ipt_chain_exists(name):
@@ -98,8 +101,7 @@ def ipfw_rule_exists(n):
     found = False
     for line in p.stdout:
         if line.startswith('%05d ' % n):
-            if not ('ipttl 42 setup keep-state' in line
-                    or 'ipttl 42 keep-state' in line
+            if not ('ipttl 42' in line
                     or ('skipto %d' % (n+1)) in line
                     or 'check-state' in line):
                 log('non-sshuttle ipfw rule: %r\n' % line.strip())
@@ -146,6 +148,39 @@ def sysctl_set(name, val):
     if val != oldval:
         _changedctls.append(name)
         return _sysctl_set(name, val)
+
+
+def _udp_unpack(p):
+    src = (socket.inet_ntoa(p[12:16]), struct.unpack('!H', p[20:22])[0])
+    dst = (socket.inet_ntoa(p[16:20]), struct.unpack('!H', p[22:24])[0])
+    return src, dst
+
+
+def _udp_repack(p, src, dst):
+    addrs = socket.inet_aton(src[0]) + socket.inet_aton(dst[0])
+    ports = struct.pack('!HH', src[1], dst[1])
+    return p[:12] + addrs + ports + p[24:]
+
+
+_real_dns_server = [None]
+def _handle_diversion(divertsock, dnsport):
+    p,tag = divertsock.recvfrom(4096)
+    src,dst = _udp_unpack(p)
+    debug3('got diverted packet from %r to %r\n' % (src, dst))
+    if dst[1] == 53:
+        # outgoing DNS
+        debug3('...packet is a DNS request.\n')
+        _real_dns_server[0] = dst
+        dst = ('127.0.0.1', dnsport)
+    elif src[1] == dnsport:
+        if islocal(src[0]):
+            debug3('...packet is a DNS response.\n')
+            src = _real_dns_server[0]
+    else:
+        log('weird?! unexpected divert from %r to %r\n' % (src, dst))
+        assert(0)
+    newp = _udp_repack(p, src, dst)
+    divertsock.sendto(newp, tag)
     
 
 def ipfw(*args):
@@ -189,13 +224,64 @@ def do_ipfw(port, dnsport, subnets):
                      'from', 'any', 'to', '%s/%s' % (snet,swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
+    # This part is much crazier than it is on Linux, because MacOS (at least
+    # 10.6, and probably other versions, and maybe FreeBSD too) doesn't
+    # correctly fixup the dstip/dstport for UDP packets when it puts them
+    # through a 'fwd' rule.  It also doesn't fixup the srcip/srcport in the
+    # response packet.  In Linux iptables, all that happens magically for us,
+    # so we just redirect the packets and relax.
+    #
+    # On MacOS, we have to fix the ports ourselves.  For that, we use a
+    # 'divert' socket, which receives raw packets and lets us mangle them.
+    #
+    # Here's how it works.  Let's say the local DNS server is 1.1.1.1:53,
+    # and the remote DNS server is 2.2.2.2:53, and the local transproxy port
+    # is 10.0.0.1:12300, and a client machine is making a request from
+    # 10.0.0.5:9999. We see a packet like this:
+    #    10.0.0.5:9999 -> 1.1.1.1:53
+    # Since the destip:port matches one of our local nameservers, it will
+    # match a 'fwd' rule, thus grabbing it on the local machine.  However,
+    # the local kernel will then see a packet addressed to *:53 and
+    # not know what to do with it; there's nobody listening on port 53.  Thus,
+    # we divert it, rewriting it into this:
+    #    10.0.0.5:9999 -> 10.0.0.1:12300
+    # This gets proxied out to the server, which sends it to 2.2.2.2:53,
+    # and the answer comes back, and the proxy sends it back out like this:
+    #    10.0.0.1:12300 -> 10.0.0.5:9999
+    # But that's wrong!  The original machine expected an answer from
+    # 1.1.1.1:53, so we have to divert the *answer* and rewrite it:
+    #    1.1.1.1:53 -> 10.0.0.5:9999
+    #
+    # See?  Easy stuff.
     if dnsport:
+        divertsock = socket.socket(socket.AF_INET, socket.SOCK_RAW,
+                                   IPPROTO_DIVERT)
+        divertsock.bind(('0.0.0.0', port)) # IP field is ignored
+
         nslist = resolvconf_nameservers()
         for ip in nslist:
-            ipfw('add', sport, 'fwd', '127.0.0.1,%d' % dnsport,
+            # relabel and then catch outgoing DNS requests
+            ipfw('add', sport, 'divert', sport,
                  'log', 'udp',
                  'from', 'any', 'to', '%s/32' % ip, '53',
-                 'not', 'ipttl', '42', 'keep-state')
+                 'not', 'ipttl', '42')
+        # relabel DNS responses
+        ipfw('add', sport, 'divert', sport,
+             'log', 'udp',
+             'from', 'any', str(dnsport), 'to', 'any',
+             'not', 'ipttl', '42')
+
+        def do_wait():
+            while 1:
+                r,w,x = select.select([sys.stdin, divertsock], [], [])
+                if divertsock in r:
+                    _handle_diversion(divertsock, dnsport)
+                if sys.stdin in r:
+                    return
+    else:
+        do_wait = None
+        
+    return do_wait
 
 
 def program_exists(name):
@@ -314,7 +400,7 @@ def main(port, dnsport, syslog):
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
-            do_it(port, dnsport, subnets)
+            do_wait = do_it(port, dnsport, subnets)
             sys.stdout.write('STARTED\n')
         
         try:
@@ -328,6 +414,7 @@ def main(port, dnsport, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
+            if do_wait: do_wait()
             line = sys.stdin.readline(128)
             if line.startswith('HOST '):
                 (name,ip) = line[5:].strip().split(',', 1)
