@@ -114,7 +114,7 @@ class DnsProxy(Handler):
         self.mux = mux
         self.chan = chan
         self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        self.sock.connect(('192.168.42.1', 53))
+        self.sock.connect((resolvconf_random_nameserver(), 53))
         self.sock.send(request)
 
     def callback(self):

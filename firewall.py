@@ -82,11 +82,13 @@ def do_iptables(port, dnsport, subnets):
                         '--to-ports', str(port))
                 
     if dnsport:
-        ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                '--dest', '192.168.42.1/32',
-                '-p', 'udp',
-                '--dport', '53',
-                '--to-ports', str(dnsport))
+        nslist = resolvconf_nameservers()
+        for ip in nslist:
+            ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                    '--dest', '%s/32' % ip,
+                    '-p', 'udp',
+                    '--dport', '53',
+                    '--to-ports', str(dnsport))
 
 
 def ipfw_rule_exists(n):
