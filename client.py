@@ -330,8 +330,6 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
             return 5
     debug1('Starting sshuttle proxy.\n')
     
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if listenip[1]:
         ports = [listenip[1]]
     else:
@@ -341,8 +339,13 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     debug2('Binding:')
     for port in ports:
         debug2(' %d' % port)
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        dnslistener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dnslistener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             listener.bind((listenip[0], port))
+            dnslistener.bind((listenip[0], port))
             bound = True
             break
         except socket.error, e:
@@ -355,14 +358,14 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
-    dnsport = 0
-    dnslistener = None
     if dns:
-        dnslistener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        dnslistener.bind((listenip[0], 0))
         dnsip = dnslistener.getsockname()
         debug1('DNS listening on %r.\n' % (dnsip,))
         dnsport = dnsip[1]
+    else:
+        dnsport = 0
+        dnslistener = None
+        dnslistener.bind((listenip[0], 0))
 
     fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
     
