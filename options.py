@@ -122,8 +122,8 @@ class Options:
                     defval = None
                 flagl = flags.split(',')
                 flagl_nice = []
-                for f in flagl:
-                    f,dvi = _remove_negative_kv(f, _intify(defval))
+                for _f in flagl:
+                    f,dvi = _remove_negative_kv(_f, _intify(defval))
                     self._aliases[f] = _remove_negative_k(flagl[0])
                     self._hasparms[f] = has_parm
                     self._defaults[f] = dvi
@@ -135,7 +135,7 @@ class Options:
                         self._aliases[f_nice] = _remove_negative_k(flagl[0])
                         self._longopts.append(f + (has_parm and '=' or ''))
                         self._longopts.append('no-' + f)
-                        flagl_nice.append('--' + f)
+                        flagl_nice.append('--' + _f)
                 flags_nice = ', '.join(flagl_nice)
                 if has_parm:
                     flags_nice += ' ...'
