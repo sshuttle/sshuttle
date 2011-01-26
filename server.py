@@ -111,6 +111,7 @@ def main():
         helpers.logprefix = ' s: '
     else:
         helpers.logprefix = 'server: '
+    debug1('latency control setting = %r\n' % latency_control)
 
     routes = list(list_routes())
     debug1('available routes:\n')
@@ -172,5 +173,6 @@ def main():
                 raise Fatal('hostwatch exited unexpectedly: code 0x%04x\n' % rv)
         
         ssnet.runonce(handlers, mux)
-        mux.check_fullness()
+        if latency_control:
+            mux.check_fullness()
         mux.callback()

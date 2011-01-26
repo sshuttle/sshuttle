@@ -189,7 +189,8 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
+          seed_hosts, auto_nets,
           syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
@@ -200,7 +201,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
 
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
-                        stderr=ssyslog._p and ssyslog._p.stdin)
+                        stderr=ssyslog._p and ssyslog._p.stdin,
+                        options=dict(latency_control=latency_control))
     except socket.error, e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -300,11 +302,13 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
             raise Fatal('server died with error code %d' % rv)
         
         ssnet.runonce(handlers, mux)
+        if latency_control:
+            mux.check_fullness()
         mux.callback()
-        mux.check_fullness()
 
 
-def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+def main(listenip, ssh_cmd, remotename, python, latency_control,
+         seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
         ssyslog.start_syslog()
@@ -344,7 +348,8 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, seed_hosts, auto_nets, syslog, daemon)
+                     python, latency_control,
+                     seed_hosts, auto_nets, syslog, daemon)
     finally:
         try:
             if daemon:

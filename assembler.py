@@ -21,7 +21,6 @@ while 1:
         break
 
 verbose = verbosity
-no_fullness = no_fullness0
 sys.stderr.flush()
 sys.stdout.flush()
 main()

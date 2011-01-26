@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys, os, re
-import helpers, options, client, server, firewall, hostwatch, ssnet
+import helpers, options, client, server, firewall, hostwatch
 import compat.ssubprocess as ssubprocess
 from helpers import *
 
@@ -51,7 +51,6 @@ sshuttle --server
 sshuttle --firewall <port> <subnets...>
 sshuttle --hostwatch
 --
-f,disable-fullness turn off fullness checking (could 10x bandwidth on high latency link)
 l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
@@ -61,6 +60,7 @@ x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
 e,ssh-cmd= the command to use to connect to the remote [ssh]
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
+no-latency-control  sacrifice latency to improve bandwidth benchmarks
 D,daemon   run in the background as a daemon
 syslog     send log messages to syslog (default if you use --daemon)
 pidfile=   pidfile name (only if using --daemon) [./sshuttle.pid]
@@ -74,11 +74,12 @@ o = options.Options('sshuttle', optspec)
 if opt.daemon:
     opt.syslog = 1
 helpers.verbose = opt.verbose
-ssnet.no_fullness = opt.disable_fullness
+
 try:
     if opt.server:
         if len(extra) != 0:
             o.fatal('no arguments expected')
+        server.latency_control = opt.latency_control
         sys.exit(server.main())
     elif opt.firewall:
         if len(extra) != 1:
@@ -109,6 +110,7 @@ try:
                              opt.ssh_cmd,
                              remotename,
                              opt.python,
+                             opt.latency_control,
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),
