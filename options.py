@@ -76,9 +76,8 @@ class Options:
     By default, the parser function is getopt.gnu_getopt, and the abort
     behaviour is to exit the program.
     """
-    def __init__(self, exe, optspec, optfunc=getopt.gnu_getopt,
+    def __init__(self, optspec, optfunc=getopt.gnu_getopt,
                  onabort=_default_onabort):
-        self.exe = exe
         self.optspec = optspec
         self._onabort = onabort
         self.optfunc = optfunc

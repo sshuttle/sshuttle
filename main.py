@@ -68,7 +68,7 @@ server     (internal use only)
 firewall   (internal use only)
 hostwatch  (internal use only)
 """
-o = options.Options('sshuttle', optspec)
+o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
 if opt.daemon:
