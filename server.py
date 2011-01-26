@@ -1,4 +1,4 @@
-import re, struct, socket, select, traceback
+import re, struct, socket, select, traceback, time
 if not globals().get('skip_imports'):
     import ssnet, helpers, hostwatch
     import compat.ssubprocess as ssubprocess
@@ -111,6 +111,7 @@ class DnsProxy(Handler):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         Handler.__init__(self, [sock])
         self.sock = sock
+        self.timeout = time.time()+30
         self.mux = mux
         self.chan = chan
         self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
@@ -119,8 +120,9 @@ class DnsProxy(Handler):
 
     def callback(self):
         data = self.sock.recv(4096)
-        debug2('dns response: %d bytes\n' % len(data))
+        debug2('DNS response: %d bytes\n' % len(data))
         self.mux.send(self.chan, ssnet.CMD_DNS_RESPONSE, data)
+        self.ok = False
 
 
 def main():
@@ -184,7 +186,7 @@ def main():
 
     dnshandlers = {}
     def dns_req(channel, data):
-        debug1('got dns request!\n')
+        debug2('Incoming DNS request.\n')
         h = DnsProxy(mux, channel, data)
         handlers.append(h)
         dnshandlers[channel] = h
@@ -201,3 +203,10 @@ def main():
         if latency_control:
             mux.check_fullness()
         mux.callback()
+
+        if dnshandlers:
+            now = time.time()
+            for channel,h in dnshandlers.items():
+                if h.timeout < now or not h.ok:
+                    del dnshandlers[channel]
+                    h.ok = False

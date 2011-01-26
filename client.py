@@ -1,4 +1,4 @@
-import struct, socket, select, errno, re, signal
+import struct, socket, select, errno, re, signal, time
 import compat.ssubprocess as ssubprocess
 import helpers, ssnet, ssh, ssyslog
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
@@ -293,22 +293,27 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
 
-    dnspeers = {}
+    dnsreqs = {}
     def dns_done(chan, data):
-        peer = dnspeers.get(chan)
-        debug1('dns_done: channel=%r peer=%r\n' % (chan, peer))
+        peer,timeout = dnsreqs.get(chan)
+        debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
         if peer:
-            del dnspeers[chan]
-            debug1('doing sendto %r\n' % (peer,))
+            del dnsreqs[chan]
+            debug3('doing sendto %r\n' % (peer,))
             dnslistener.sendto(data, peer)
     def ondns():
         pkt,peer = dnslistener.recvfrom(4096)
+        now = time.time()
         if pkt:
-            debug1('Got DNS request from %r: %d bytes\n' % (peer, len(pkt)))
+            debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
             chan = mux.next_channel()
-            dnspeers[chan] = peer
+            dnsreqs[chan] = peer,now+30
             mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
             mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
+        for chan,(peer,timeout) in dnsreqs.items():
+            if timeout < now:
+                del dnsreqs[chan]
+        debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
     if dnslistener:
         handlers.append(Handler([dnslistener], ondns))
 
