@@ -59,12 +59,13 @@ def do_iptables(port, dnsport, subnets):
         ipt('-F', chain)
         ipt('-X', chain)
 
-    if subnets:
+    if subnets or dnsport:
         ipt('-N', chain)
         ipt('-F', chain)
         ipt('-I', 'OUTPUT', '1', '-j', chain)
         ipt('-I', 'PREROUTING', '1', '-j', chain)
 
+    if subnets:
         # create new subnet entries.  Note that we're sorting in a very
         # particular order: we need to go from most-specific (largest swidth)
         # to least-specific, and at any given level of specificity, we want
@@ -98,6 +99,7 @@ def ipfw_rule_exists(n):
     for line in p.stdout:
         if line.startswith('%05d ' % n):
             if not ('ipttl 42 setup keep-state' in line
+                    or 'ipttl 42 keep-state' in line
                     or ('skipto %d' % (n+1)) in line
                     or 'check-state' in line):
                 log('non-sshuttle ipfw rule: %r\n' % line.strip())
@@ -167,13 +169,14 @@ def do_ipfw(port, dnsport, subnets):
         oldval = _oldctls[name]
         _sysctl_set(name, oldval)
 
-    if subnets:
+    if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
         sysctl_set('net.inet.ip.scopedroute', 0)
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')
-        
+
+    if subnets:
         # create new subnet entries
         for swidth,sexclude,snet in sorted(subnets, reverse=True):
             if sexclude:
@@ -186,6 +189,14 @@ def do_ipfw(port, dnsport, subnets):
                      'from', 'any', 'to', '%s/%s' % (snet,swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
+    if dnsport:
+        nslist = resolvconf_nameservers()
+        for ip in nslist:
+            ipfw('add', sport, 'fwd', '127.0.0.1,%d' % dnsport,
+                 'log', 'udp',
+                 'from', 'any', 'to', '%s/32' % ip, '53',
+                 'not', 'ipttl', '42', 'keep-state')
+
 
 def program_exists(name):
     paths = (os.getenv('PATH') or os.defpath).split(os.pathsep)
@@ -193,6 +204,7 @@ def program_exists(name):
         fn = '%s/%s' % (p, name)
         if os.path.exists(fn):
             return not os.path.isdir(fn) and os.access(fn, os.X_OK)
+
 
 hostmap = {}
 def rewrite_etc_hosts(port):
