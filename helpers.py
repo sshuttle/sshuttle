@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, socket
 
 logprefix = ''
 verbose = 0
@@ -57,4 +57,19 @@ def resolvconf_random_nameserver():
     else:
         return '127.0.0.1'
     
-    
+
+def islocal(ip):
+    sock = socket.socket()
+    try:
+        try:
+            sock.bind((ip, 0))
+        except socket.error, e:
+            if e.args[0] == errno.EADDRNOTAVAIL:
+                return False  # not a local IP
+            else:
+                raise
+    finally:
+        sock.close()
+    return True  # it's a local IP, or there would have been an error
+
+

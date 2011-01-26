@@ -6,21 +6,6 @@ from helpers import *
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
-def _islocal(ip):
-    sock = socket.socket()
-    try:
-        try:
-            sock.bind((ip, 0))
-        except socket.error, e:
-            if e.args[0] == errno.EADDRNOTAVAIL:
-                return False  # not a local IP
-            else:
-                raise
-    finally:
-        sock.close()
-    return True  # it's a local IP, or there would have been an error
-
-
 def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
@@ -283,7 +268,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
         dstip = original_dst(sock)
         debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                               dstip[0],dstip[1]))
-        if dstip[1] == listener.getsockname()[1] and _islocal(dstip[0]):
+        if dstip[1] == listener.getsockname()[1] and islocal(dstip[0]):
             debug1("-- ignored: that's my address!\n")
             sock.close()
             return
