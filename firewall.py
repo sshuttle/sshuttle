@@ -23,6 +23,27 @@ def ipt(*args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
+_no_ttl_module = False
+def ipt_ttl(*args):
+    global _no_ttl_module
+    if not _no_ttl_module:
+        # we avoid infinite loops by generating server-side connections
+        # with ttl 42.  This makes the client side not recapture those
+        # connections, in case client == server.
+        try:
+            argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '42']
+            ipt(*argsplus)
+        except Fatal:
+            ipt(*args)
+            # we only get here if the non-ttl attempt succeeds
+            log('sshuttle: warning: your iptables is missing '
+                'the ttl module.\n')
+            _no_ttl_module = True
+    else:
+        ipt(*args)
+
+
+
 # We name the chain based on the transproxy port number so that it's possible
 # to run multiple copies of sshuttle at the same time.  Of course, the
 # multiple copies shouldn't have overlapping subnets, or only the most-
@@ -55,12 +76,10 @@ def do_iptables(port, subnets):
                     '--dest', '%s/%s' % (snet,swidth),
                     '-p', 'tcp')
             else:
-                ipt('-A', chain, '-j', 'REDIRECT',
-                    '--dest', '%s/%s' % (snet,swidth),
-                    '-p', 'tcp',
-                    '--to-ports', str(port),
-                    '-m', 'ttl', '!', '--ttl', '42'  # to prevent infinite loops
-                    )
+                ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                        '--dest', '%s/%s' % (snet,swidth),
+                        '-p', 'tcp',
+                        '--to-ports', str(port))
 
 
 def ipfw_rule_exists(n):
