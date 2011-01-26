@@ -365,7 +365,6 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     else:
         dnsport = 0
         dnslistener = None
-        dnslistener.bind((listenip[0], 0))
 
     fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
     
