@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, socket
 
 logprefix = ''
 verbose = 0
@@ -35,3 +35,41 @@ def list_contains_any(l, sub):
         if i in l:
             return True
     return False
+
+
+def resolvconf_nameservers():
+    l = []
+    for line in open('/etc/resolv.conf'):
+        words = line.lower().split()
+        if len(words) >= 2 and words[0] == 'nameserver':
+            l.append(words[1])
+    return l
+
+
+def resolvconf_random_nameserver():
+    l = resolvconf_nameservers()
+    if l:
+        if len(l) > 1:
+            # don't import this unless we really need it
+            import random
+            random.shuffle(l)
+        return l[0]
+    else:
+        return '127.0.0.1'
+    
+
+def islocal(ip):
+    sock = socket.socket()
+    try:
+        try:
+            sock.bind((ip, 0))
+        except socket.error, e:
+            if e.args[0] == errno.EADDRNOTAVAIL:
+                return False  # not a local IP
+            else:
+                raise
+    finally:
+        sock.close()
+    return True  # it's a local IP, or there would have been an error
+
+
