@@ -21,6 +21,8 @@ CMD_DATA = 0x4206
 CMD_ROUTES = 0x4207
 CMD_HOST_REQ = 0x4208
 CMD_HOST_LIST = 0x4209
+CMD_DNS_REQ = 0x420a
+CMD_DNS_RESPONSE = 0x420b
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -33,6 +35,8 @@ cmd_to_name = {
     CMD_ROUTES: 'ROUTES',
     CMD_HOST_REQ: 'HOST_REQ',
     CMD_HOST_LIST: 'HOST_LIST',
+    CMD_DNS_REQ: 'DNS_REQ',
+    CMD_DNS_RESPONSE: 'DNS_RESPONSE',
 }
     
 
@@ -281,7 +285,7 @@ class Mux(Handler):
         Handler.__init__(self, [rsock, wsock])
         self.rsock = rsock
         self.wsock = wsock
-        self.new_channel = self.got_routes = None
+        self.new_channel = self.got_dns_req = self.got_routes = None
         self.got_host_req = self.got_host_list = None
         self.channels = {}
         self.chani = 0
@@ -343,6 +347,10 @@ class Mux(Handler):
             assert(not self.channels.get(channel))
             if self.new_channel:
                 self.new_channel(channel, data)
+        elif cmd == CMD_DNS_REQ:
+            assert(not self.channels.get(channel))
+            if self.got_dns_req:
+                self.got_dns_req(channel, data)
         elif cmd == CMD_ROUTES:
             if self.got_routes:
                 self.got_routes(data)

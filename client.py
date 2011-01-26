@@ -111,14 +111,15 @@ def original_dst(sock):
 
 
 class FirewallClient:
-    def __init__(self, port, subnets_include, subnets_exclude):
+    def __init__(self, port, subnets_include, subnets_exclude, dnsport):
         self.port = port
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
+        self.dnsport = dnsport
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port)])
+                    ['--firewall', str(port), str(dnsport)])
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
@@ -190,7 +191,7 @@ class FirewallClient:
 
 
 def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
-          seed_hosts, auto_nets,
+          dnslistener, seed_hosts, auto_nets,
           syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
@@ -292,6 +293,25 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
 
+    dnspeers = {}
+    def dns_done(chan, data):
+        peer = dnspeers.get(chan)
+        debug1('dns_done: channel=%r peer=%r\n' % (chan, peer))
+        if peer:
+            del dnspeers[chan]
+            debug1('doing sendto %r\n' % (peer,))
+            dnslistener.sendto(data, peer)
+    def ondns():
+        pkt,peer = dnslistener.recvfrom(4096)
+        if pkt:
+            debug1('Got DNS request from %r: %d bytes\n' % (peer, len(pkt)))
+            chan = mux.next_channel()
+            dnspeers[chan] = peer
+            mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
+            mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
+    if dnslistener:
+        handlers.append(Handler([dnslistener], ondns))
+
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
         mux.send(0, ssnet.CMD_HOST_REQ, '\n'.join(seed_hosts))
@@ -307,7 +327,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
         mux.callback()
 
 
-def main(listenip, ssh_cmd, remotename, python, latency_control,
+def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
          seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
@@ -319,6 +339,7 @@ def main(listenip, ssh_cmd, remotename, python, latency_control,
             log("%s\n" % e)
             return 5
     debug1('Starting sshuttle proxy.\n')
+    
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if listenip[1]:
@@ -344,11 +365,20 @@ def main(listenip, ssh_cmd, remotename, python, latency_control,
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
-    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude)
+    dnsport = 0
+    dnslistener = None
+    if dns:
+        dnslistener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dnslistener.bind((listenip[0], 0))
+        dnsip = dnslistener.getsockname()
+        debug1('DNS listening on %r.\n' % (dnsip,))
+        dnsport = dnsip[1]
+
+    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, latency_control,
+                     python, latency_control, dnslistener,
                      seed_hosts, auto_nets, syslog, daemon)
     finally:
         try:

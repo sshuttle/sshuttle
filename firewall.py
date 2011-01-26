@@ -49,7 +49,7 @@ def ipt_ttl(*args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables(port, subnets):
+def do_iptables(port, dnsport, subnets):
     chain = 'sshuttle-%s' % port
 
     # basic cleanup/setup of chains
@@ -80,6 +80,13 @@ def do_iptables(port, subnets):
                         '--dest', '%s/%s' % (snet,swidth),
                         '-p', 'tcp',
                         '--to-ports', str(port))
+                
+    if dnsport:
+        ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                '--dest', '192.168.42.1/32',
+                '-p', 'udp',
+                '--dport', '53',
+                '--to-ports', str(dnsport))
 
 
 def ipfw_rule_exists(n):
@@ -145,7 +152,7 @@ def ipfw(*args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def do_ipfw(port, subnets):
+def do_ipfw(port, dnsport, subnets):
     sport = str(port)
     xsport = str(port+1)
 
@@ -235,9 +242,11 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port, syslog):
+def main(port, dnsport, syslog):
     assert(port > 0)
     assert(port <= 65535)
+    assert(dnsport >= 0)
+    assert(dnsport <= 65535)
 
     if os.getuid() != 0:
         raise Fatal('you must be root (or enable su/sudo) to set the firewall')
@@ -291,7 +300,7 @@ def main(port, syslog):
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
-            do_it(port, subnets)
+            do_it(port, dnsport, subnets)
             sys.stdout.write('STARTED\n')
         
         try:
@@ -319,5 +328,5 @@ def main(port, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
-        do_it(port, [])
+        do_it(port, 0, [])
         restore_etc_hosts(port)

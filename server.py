@@ -106,6 +106,23 @@ class Hostwatch:
         self.sock = None
 
 
+class DnsProxy(Handler):
+    def __init__(self, mux, chan, request):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        Handler.__init__(self, [sock])
+        self.sock = sock
+        self.mux = mux
+        self.chan = chan
+        self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+        self.sock.connect(('192.168.42.1', 53))
+        self.sock.send(request)
+
+    def callback(self):
+        data = self.sock.recv(4096)
+        debug2('dns response: %d bytes\n' % len(data))
+        self.mux.send(self.chan, ssnet.CMD_DNS_RESPONSE, data)
+
+
 def main():
     if helpers.verbose >= 1:
         helpers.logprefix = ' s: '
@@ -164,6 +181,14 @@ def main():
         outwrap = ssnet.connect_dst(dstip,dstport)
         handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
     mux.new_channel = new_channel
+
+    dnshandlers = {}
+    def dns_req(channel, data):
+        debug1('got dns request!\n')
+        h = DnsProxy(mux, channel, data)
+        handlers.append(h)
+        dnshandlers[channel] = h
+    mux.got_dns_req = dns_req
 
     while mux.ok:
         if hw.pid:
