@@ -1,6 +1,6 @@
-% sshuttle(8) Sshuttle 0.44
+% sshuttle(8) Sshuttle 0.46
 % Avery Pennarun <apenwarr@gmail.com>
-% 2010-12-31
+% 2011-01-25
 
 # NAME
 
@@ -108,6 +108,22 @@ entire subnet to the VPN.
     for lists of local hostnames, but can speed things up
     if you use this option to give it a few names to start
     from.
+    
+--no-latency-control
+:   sacrifice latency to improve bandwidth benchmarks. ssh
+    uses really big socket buffers, which can overload the
+    connection if you start doing large file transfers,
+    thus making all your other sessions inside the same
+    tunnel go slowly. Normally, sshuttle tries to avoid
+    this problem using a "fullness check" that allows only
+    a certain amount of outstanding data to be buffered at
+    a time.  But on high-bandwidth links, this can leave a
+    lot of your bandwidth underutilized.  It also makes
+    sshuttle seem slow in bandwidth benchmarks (benchmarks
+    rarely test ping latency, which is what sshuttle is
+    trying to control).  This option disables the latency
+    control feature, maximizing bandwidth usage.  Use at
+    your own risk.
     
 -D, --daemon
 :   automatically fork into the background after connecting

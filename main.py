@@ -60,6 +60,7 @@ x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity
 e,ssh-cmd= the command to use to connect to the remote [ssh]
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
+no-latency-control  sacrifice latency to improve bandwidth benchmarks
 D,daemon   run in the background as a daemon
 syslog     send log messages to syslog (default if you use --daemon)
 pidfile=   pidfile name (only if using --daemon) [./sshuttle.pid]
@@ -67,7 +68,7 @@ server     (internal use only)
 firewall   (internal use only)
 hostwatch  (internal use only)
 """
-o = options.Options('sshuttle', optspec)
+o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
 if opt.daemon:
@@ -78,6 +79,7 @@ try:
     if opt.server:
         if len(extra) != 0:
             o.fatal('no arguments expected')
+        server.latency_control = opt.latency_control
         sys.exit(server.main())
     elif opt.firewall:
         if len(extra) != 1:
@@ -108,6 +110,7 @@ try:
                              opt.ssh_cmd,
                              remotename,
                              opt.python,
+                             opt.latency_control,
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),
