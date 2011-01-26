@@ -295,7 +295,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
 
     dnsreqs = {}
     def dns_done(chan, data):
-        peer,timeout = dnsreqs.get(chan)
+        peer,timeout = dnsreqs.get(chan) or (None,None)
         debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
         if peer:
             del dnsreqs[chan]
