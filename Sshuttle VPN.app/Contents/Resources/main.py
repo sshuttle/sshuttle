@@ -2,7 +2,8 @@ import sys, os, pty
 from AppKit import *
 import my, models, askpass
 
-def sshuttle_args(host, auto_nets, auto_hosts, nets, debug):
+def sshuttle_args(host, auto_nets, auto_hosts, dns, nets, debug,
+                  no_latency_control):
     argv = [my.bundle_path('sshuttle/sshuttle', ''), '-r', host]
     assert(argv[0])
     if debug:
@@ -11,6 +12,10 @@ def sshuttle_args(host, auto_nets, auto_hosts, nets, debug):
         argv.append('--auto-nets')
     if auto_hosts:
         argv.append('--auto-hosts')
+    if dns:
+        argv.append('--dns')
+    if no_latency_control:
+        argv.append('--no-latency-control')
     argv += nets
     return argv
 
@@ -131,6 +136,7 @@ class SshuttleController(NSObject):
     prefsWindow = objc.IBOutlet()
     serversController = objc.IBOutlet()
     logField = objc.IBOutlet()
+    noLatencyControlField = objc.IBOutlet()
     
     servers = []
     conns = {}
@@ -159,8 +165,11 @@ class SshuttleController(NSObject):
         conn = Runner(sshuttle_args(host,
                                     auto_nets = nets_mode == models.NET_AUTO,
                                     auto_hosts = server.autoHosts(),
+                                    dns = server.useDns(),
                                     nets = manual_nets,
-                                    debug = self.debugField.state()),
+                                    debug = self.debugField.state(),
+                                    no_latency_control 
+                                       = self.noLatencyControlField.state()),
                       logfunc=logfunc, promptfunc=promptfunc,
                       serverobj=server)
         self.conns[host] = conn
@@ -213,6 +222,7 @@ class SshuttleController(NSObject):
         if len(self.servers):
             for i in self.servers:
                 host = i.host()
+                title = i.title()
                 want = i.wantConnect()
                 connected = i.connected()
                 numnets = len(list(i.nets()))
@@ -222,9 +232,9 @@ class SshuttleController(NSObject):
                     additem('Connect %s (no routes)' % host, None, i)
                 elif want:
                     any_conn = i
-                    additem('Disconnect %s' % host, self.cmd_disconnect, i)
+                    additem('Disconnect %s' % title, self.cmd_disconnect, i)
                 else:
-                    additem('Connect %s' % host, self.cmd_connect, i)
+                    additem('Connect %s' % title, self.cmd_connect, i)
                 if not want:
                     msg = 'Off'
                 elif i.error():
@@ -236,12 +246,6 @@ class SshuttleController(NSObject):
                     msg = 'Connecting...'
                     any_inprogress = i
                 addnote('   State: %s' % msg)
-                if i.autoNets() == 0:
-                    addnote('   Routes: All')
-                elif i.autoNets() == 2:
-                    addnote('   Routes: Auto')
-                else:
-                    addnote('   Routes: Custom')
         else:
             addnote('No servers defined yet')
 
@@ -279,13 +283,15 @@ class SshuttleController(NSObject):
                 net.setWidth_(width)
                 nl.append(net)
             
-            autoNets = s.get('autoNets', 1)
-            autoHosts = s.get('autoHosts', 1)
+            autoNets = s.get('autoNets', models.NET_AUTO)
+            autoHosts = s.get('autoHosts', True)
+            useDns = s.get('useDns', autoNets == models.NET_ALL)
             srv = models.SshuttleServer.alloc().init()
             srv.setHost_(host)
             srv.setAutoNets_(autoNets)
             srv.setAutoHosts_(autoHosts)
             srv.setNets_(nl)
+            srv.setUseDns_(useDns)
             sl.append(srv)
         self.serversController.addObjects_(sl)
         self.serversController.setSelectionIndex_(0)
@@ -303,7 +309,8 @@ class SshuttleController(NSObject):
             d = dict(host=s.host(),
                      nets=nets,
                      autoNets=s.autoNets(),
-                     autoHosts=s.autoHosts())
+                     autoHosts=s.autoHosts(),
+                     useDns=s.useDns())
             l.append(d)
         my.Defaults().setObject_forKey_(l, 'servers')
         self.fill_menu()

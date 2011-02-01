@@ -1,25 +1,10 @@
-import struct, socket, select, errno, re, signal
+import struct, socket, select, errno, re, signal, time
 import compat.ssubprocess as ssubprocess
 import helpers, ssnet, ssh, ssyslog
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import *
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
-
-def _islocal(ip):
-    sock = socket.socket()
-    try:
-        try:
-            sock.bind((ip, 0))
-        except socket.error, e:
-            if e.args[0] == errno.EADDRNOTAVAIL:
-                return False  # not a local IP
-            else:
-                raise
-    finally:
-        sock.close()
-    return True  # it's a local IP, or there would have been an error
-
 
 def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
@@ -111,14 +96,15 @@ def original_dst(sock):
 
 
 class FirewallClient:
-    def __init__(self, port, subnets_include, subnets_exclude):
+    def __init__(self, port, subnets_include, subnets_exclude, dnsport):
         self.port = port
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
+        self.dnsport = dnsport
         argvbase = ([sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port)])
+                    ['--firewall', str(port), str(dnsport)])
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
@@ -189,7 +175,8 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
-def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
+          dnslistener, seed_hosts, auto_nets,
           syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
@@ -200,7 +187,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
 
     try:
         (serverproc, serversock) = ssh.connect(ssh_cmd, remotename, python,
-                        stderr=ssyslog._p and ssyslog._p.stdin)
+                        stderr=ssyslog._p and ssyslog._p.stdin,
+                        options=dict(latency_control=latency_control))
     except socket.error, e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -280,7 +268,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
         dstip = original_dst(sock)
         debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                               dstip[0],dstip[1]))
-        if dstip[1] == listener.getsockname()[1] and _islocal(dstip[0]):
+        if dstip[1] == listener.getsockname()[1] and islocal(dstip[0]):
             debug1("-- ignored: that's my address!\n")
             sock.close()
             return
@@ -289,6 +277,30 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
         outwrap = MuxWrapper(mux, chan)
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     handlers.append(Handler([listener], onaccept))
+
+    dnsreqs = {}
+    def dns_done(chan, data):
+        peer,timeout = dnsreqs.get(chan) or (None,None)
+        debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
+        if peer:
+            del dnsreqs[chan]
+            debug3('doing sendto %r\n' % (peer,))
+            dnslistener.sendto(data, peer)
+    def ondns():
+        pkt,peer = dnslistener.recvfrom(4096)
+        now = time.time()
+        if pkt:
+            debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
+            chan = mux.next_channel()
+            dnsreqs[chan] = peer,now+30
+            mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
+            mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
+        for chan,(peer,timeout) in dnsreqs.items():
+            if timeout < now:
+                del dnsreqs[chan]
+        debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
+    if dnslistener:
+        handlers.append(Handler([dnslistener], ondns))
 
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
@@ -300,11 +312,13 @@ def _main(listener, fw, ssh_cmd, remotename, python, seed_hosts, auto_nets,
             raise Fatal('server died with error code %d' % rv)
         
         ssnet.runonce(handlers, mux)
+        if latency_control:
+            mux.check_fullness()
         mux.callback()
-        mux.check_fullness()
 
 
-def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
+def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
+         seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
         ssyslog.start_syslog()
@@ -315,8 +329,7 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
             log("%s\n" % e)
             return 5
     debug1('Starting sshuttle proxy.\n')
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
     if listenip[1]:
         ports = [listenip[1]]
     else:
@@ -326,8 +339,13 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     debug2('Binding:')
     for port in ports:
         debug2(' %d' % port)
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        dnslistener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dnslistener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             listener.bind((listenip[0], port))
+            dnslistener.bind((listenip[0], port))
             bound = True
             break
         except socket.error, e:
@@ -340,11 +358,20 @@ def main(listenip, ssh_cmd, remotename, python, seed_hosts, auto_nets,
     listenip = listener.getsockname()
     debug1('Listening on %r.\n' % (listenip,))
 
-    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude)
+    if dns:
+        dnsip = dnslistener.getsockname()
+        debug1('DNS listening on %r.\n' % (dnsip,))
+        dnsport = dnsip[1]
+    else:
+        dnsport = 0
+        dnslistener = None
+
+    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
     
     try:
         return _main(listener, fw, ssh_cmd, remotename,
-                     python, seed_hosts, auto_nets, syslog, daemon)
+                     python, latency_control, dnslistener,
+                     seed_hosts, auto_nets, syslog, daemon)
     finally:
         try:
             if daemon:

@@ -14,14 +14,16 @@ def readfile(name):
     raise Exception("can't find file %r in any of %r" % (name, path))
 
 
-def empackage(z, filename):
+def empackage(z, filename, data=None):
     (path,basename) = os.path.split(filename)
-    content = z.compress(readfile(filename))
+    if not data:
+        data = readfile(filename)
+    content = z.compress(data)
     content += z.flush(zlib.Z_SYNC_FLUSH)
-    return '%s\n%d\n%s' % (basename,len(content), content)
+    return '%s\n%d\n%s' % (basename, len(content), content)
 
 
-def connect(ssh_cmd, rhostport, python, stderr):
+def connect(ssh_cmd, rhostport, python, stderr, options):
     main_exe = sys.argv[0]
     portl = []
 
@@ -52,7 +54,9 @@ def connect(ssh_cmd, rhostport, python, stderr):
 
     z = zlib.compressobj(1)
     content = readfile('assembler.py')
-    content2 = (empackage(z, 'helpers.py') +
+    optdata = ''.join("%s=%r\n" % (k,v) for (k,v) in options.items())
+    content2 = (empackage(z, 'cmdline_options.py', optdata) +
+                empackage(z, 'helpers.py') +
                 empackage(z, 'compat/ssubprocess.py') +
                 empackage(z, 'ssnet.py') +
                 empackage(z, 'hostwatch.py') +
