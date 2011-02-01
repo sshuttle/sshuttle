@@ -12,7 +12,7 @@
 		</object>
 		<object class="NSMutableArray" key="IBDocument.EditedObjectIDs">
 			<bool key="EncodedWithXMLCoder">YES</bool>
-			<integer value="237"/>
+			<integer value="227"/>
 		</object>
 		<object class="NSArray" key="IBDocument.PluginDependencies">
 			<bool key="EncodedWithXMLCoder">YES</bool>
@@ -681,19 +681,19 @@
 												<reference key="NSCornerView" ref="188199142"/>
 												<bytes key="NSScrollAmts">QSAAAEEgAABBmAAAQZgAAA</bytes>
 											</object>
-											<object class="NSButton" id="177719449">
+											<object class="NSButton" id="160987209">
 												<reference key="NSNextResponder" ref="60314308"/>
 												<int key="NSvFlags">268</int>
 												<string key="NSFrame">{{296, 329}, {285, 18}}</string>
 												<reference key="NSSuperview" ref="60314308"/>
 												<int key="NSViewLayerContentsRedrawPolicy">2</int>
 												<bool key="NSEnabled">YES</bool>
-												<object class="NSButtonCell" key="NSCell" id="7643217">
+												<object class="NSButtonCell" key="NSCell" id="565787077">
 													<int key="NSCellFlags">-2080244224</int>
 													<int key="NSCellFlags2">0</int>
 													<string key="NSContents">Send all DNS requests through this server</string>
 													<reference key="NSSupport" ref="696441443"/>
-													<reference key="NSControlView" ref="177719449"/>
+													<reference key="NSControlView" ref="160987209"/>
 													<int key="NSButtonFlags">1211912703</int>
 													<int key="NSButtonFlags2">2</int>
 													<reference key="NSNormalImage" ref="581816235"/>
@@ -789,19 +789,19 @@
 													<int key="NSPeriodicInterval">25</int>
 												</object>
 											</object>
-											<object class="NSButton" id="887086095">
+											<object class="NSButton" id="221951564">
 												<reference key="NSNextResponder" ref="187214803"/>
 												<int key="NSvFlags">268</int>
 												<string key="NSFrame">{{139, 287}, {347, 18}}</string>
 												<reference key="NSSuperview" ref="187214803"/>
 												<int key="NSViewLayerContentsRedrawPolicy">2</int>
 												<bool key="NSEnabled">YES</bool>
-												<object class="NSButtonCell" key="NSCell" id="148323250">
+												<object class="NSButtonCell" key="NSCell" id="13263275">
 													<int key="NSCellFlags">67239424</int>
 													<int key="NSCellFlags2">0</int>
 													<string key="NSContents">Sacrifice interactive latency to maximize bandwidth</string>
 													<reference key="NSSupport" ref="696441443"/>
-													<reference key="NSControlView" ref="887086095"/>
+													<reference key="NSControlView" ref="221951564"/>
 													<int key="NSButtonFlags">1211912703</int>
 													<int key="NSButtonFlags2">2</int>
 													<reference key="NSNormalImage" ref="581816235"/>
@@ -1050,6 +1050,7 @@
 					<string>status</string>
 					<string>isValid</string>
 					<string>useDns</string>
+					<string>title</string>
 				</object>
 				<string key="NSObjectClassName">SshuttleServer</string>
 				<bool key="NSEditable">YES</bool>
@@ -1158,35 +1159,6 @@
 						</object>
 					</object>
 					<int key="connectionID">480</int>
-				</object>
-				<object class="IBConnectionRecord">
-					<object class="IBBindingConnection" key="connection">
-						<string key="label">value: arrangedObjects.host</string>
-						<reference key="source" ref="807059746"/>
-						<reference key="destination" ref="59237012"/>
-						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="807059746"/>
-							<reference key="NSDestination" ref="59237012"/>
-							<string key="NSLabel">value: arrangedObjects.host</string>
-							<string key="NSBinding">value</string>
-							<string key="NSKeyPath">arrangedObjects.host</string>
-							<object class="NSDictionary" key="NSOptions">
-								<bool key="EncodedWithXMLCoder">YES</bool>
-								<object class="NSArray" key="dict.sortedKeys">
-									<bool key="EncodedWithXMLCoder">YES</bool>
-									<string>NSConditionallySetsEditable</string>
-									<string>NSNullPlaceholder</string>
-								</object>
-								<object class="NSMutableArray" key="dict.values">
-									<bool key="EncodedWithXMLCoder">YES</bool>
-									<boolean value="YES"/>
-									<string>Untitled</string>
-								</object>
-							</object>
-							<int key="NSNibBindingConnectorVersion">2</int>
-						</object>
-					</object>
-					<int key="connectionID">495</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
@@ -1507,10 +1479,10 @@
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
 						<string key="label">value: values.noLatencyControl</string>
-						<reference key="source" ref="887086095"/>
+						<reference key="source" ref="221951564"/>
 						<reference key="destination" ref="582889489"/>
 						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="887086095"/>
+							<reference key="NSSource" ref="221951564"/>
 							<reference key="NSDestination" ref="582889489"/>
 							<string key="NSLabel">value: values.noLatencyControl</string>
 							<string key="NSBinding">value</string>
@@ -1528,17 +1500,17 @@
 					<object class="IBOutletConnection" key="connection">
 						<string key="label">noLatencyControlField</string>
 						<reference key="source" ref="307402018"/>
-						<reference key="destination" ref="887086095"/>
+						<reference key="destination" ref="221951564"/>
 					</object>
 					<int key="connectionID">571</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
 						<string key="label">value: selection.useDns</string>
-						<reference key="source" ref="177719449"/>
+						<reference key="source" ref="160987209"/>
 						<reference key="destination" ref="59237012"/>
 						<object class="NSNibBindingConnector" key="connector">
-							<reference key="NSSource" ref="177719449"/>
+							<reference key="NSSource" ref="160987209"/>
 							<reference key="NSDestination" ref="59237012"/>
 							<string key="NSLabel">value: selection.useDns</string>
 							<string key="NSBinding">value</string>
@@ -1551,6 +1523,35 @@
 						</object>
 					</object>
 					<int key="connectionID">572</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBBindingConnection" key="connection">
+						<string key="label">value: arrangedObjects.title</string>
+						<reference key="source" ref="807059746"/>
+						<reference key="destination" ref="59237012"/>
+						<object class="NSNibBindingConnector" key="connector">
+							<reference key="NSSource" ref="807059746"/>
+							<reference key="NSDestination" ref="59237012"/>
+							<string key="NSLabel">value: arrangedObjects.title</string>
+							<string key="NSBinding">value</string>
+							<string key="NSKeyPath">arrangedObjects.title</string>
+							<object class="NSDictionary" key="NSOptions">
+								<bool key="EncodedWithXMLCoder">YES</bool>
+								<object class="NSArray" key="dict.sortedKeys">
+									<bool key="EncodedWithXMLCoder">YES</bool>
+									<string>NSConditionallySetsEditable</string>
+									<string>NSNullPlaceholder</string>
+								</object>
+								<object class="NSMutableArray" key="dict.values">
+									<bool key="EncodedWithXMLCoder">YES</bool>
+									<boolean value="YES"/>
+									<string>Untitled</string>
+								</object>
+							</object>
+							<int key="NSNibBindingConnectorVersion">2</int>
+						</object>
+					</object>
+					<int key="connectionID">573</int>
 				</object>
 			</object>
 			<object class="IBMutableOrderedSet" key="objectRecords">
@@ -1642,7 +1643,7 @@
 							<reference ref="625816566"/>
 							<reference ref="633518934"/>
 							<reference ref="625121428"/>
-							<reference ref="887086095"/>
+							<reference ref="221951564"/>
 						</object>
 						<reference key="parent" ref="740075218"/>
 					</object>
@@ -1662,7 +1663,7 @@
 							<reference ref="962924480"/>
 							<reference ref="705215911"/>
 							<reference ref="610703353"/>
-							<reference ref="177719449"/>
+							<reference ref="160987209"/>
 						</object>
 						<reference key="parent" ref="762265164"/>
 					</object>
@@ -2064,31 +2065,31 @@
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">561</int>
-						<reference key="object" ref="177719449"/>
+						<reference key="object" ref="160987209"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="7643217"/>
+							<reference ref="565787077"/>
 						</object>
 						<reference key="parent" ref="60314308"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">562</int>
-						<reference key="object" ref="7643217"/>
-						<reference key="parent" ref="177719449"/>
+						<reference key="object" ref="565787077"/>
+						<reference key="parent" ref="160987209"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">564</int>
-						<reference key="object" ref="887086095"/>
+						<reference key="object" ref="221951564"/>
 						<object class="NSMutableArray" key="children">
 							<bool key="EncodedWithXMLCoder">YES</bool>
-							<reference ref="148323250"/>
+							<reference ref="13263275"/>
 						</object>
 						<reference key="parent" ref="187214803"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">565</int>
-						<reference key="object" ref="148323250"/>
-						<reference key="parent" ref="887086095"/>
+						<reference key="object" ref="13263275"/>
+						<reference key="parent" ref="221951564"/>
 					</object>
 				</object>
 			</object>
@@ -2370,7 +2371,7 @@
 						<string key="NS.key.0">ToolTip</string>
 						<object class="IBToolTipAttribute" key="NS.object.0">
 							<string key="name">ToolTip</string>
-							<reference key="object" ref="177719449"/>
+							<reference key="object" ref="160987209"/>
 							<string key="toolTip">Search for server names on the remote end and add them to your computer's /etc/hosts file.</string>
 						</object>
 					</object>
@@ -2380,7 +2381,7 @@
 						<string key="NS.key.0">ToolTip</string>
 						<object class="IBToolTipAttribute" key="NS.object.0">
 							<string key="name">ToolTip</string>
-							<reference key="object" ref="887086095"/>
+							<reference key="object" ref="221951564"/>
 							<string key="toolTip">Search for server names on the remote end and add them to your computer's /etc/hosts file.</string>
 						</object>
 					</object>
@@ -2404,7 +2405,7 @@
 				</object>
 			</object>
 			<nil key="sourceID"/>
-			<int key="maxID">572</int>
+			<int key="maxID">573</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<object class="NSMutableArray" key="referencedPartialClassDescriptions">

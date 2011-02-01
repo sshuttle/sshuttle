@@ -92,11 +92,28 @@ class SshuttleServer(NSObject):
         if self.autoNets() == NET_MANUAL and not len(list(self.nets())):
             return False
         return True
+
+    def title(self):
+        host = self.host()
+        if not host:
+            return host
+        an = self.autoNets()
+        suffix = ""
+        if an == NET_ALL:
+            suffix = " (all traffic)"
+        elif an == NET_MANUAL:
+            n = self.nets()
+            suffix = ' (%d subnet%s)' % (len(n), len(n)!=1 and 's' or '')
+        return self.host() + suffix
+    def setTitle_(self, v):
+        # title is always auto-generated
+        config_changed()
     
     def host(self):
         return getattr(self, '_k_host', None)
     def setHost_(self, v):
         self._k_host = v
+        self.setTitle_(None)
         config_changed()
     @objc.accessor
     def validateHost_error_(self, value, error):
@@ -109,6 +126,7 @@ class SshuttleServer(NSObject):
         return getattr(self, '_k_nets', [])
     def setNets_(self, v):
         self._k_nets = v
+        self.setTitle_(None)
         config_changed()
     def netsHidden(self):
         #print 'checking netsHidden'
@@ -123,6 +141,7 @@ class SshuttleServer(NSObject):
         self._k_autoNets = v
         self.setNetsHidden_(-1)
         self.setUseDns_(v == NET_ALL)
+        self.setTitle_(None)
         config_changed()
 
     def autoHosts(self):

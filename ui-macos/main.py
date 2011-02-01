@@ -222,6 +222,7 @@ class SshuttleController(NSObject):
         if len(self.servers):
             for i in self.servers:
                 host = i.host()
+                title = i.title()
                 want = i.wantConnect()
                 connected = i.connected()
                 numnets = len(list(i.nets()))
@@ -231,9 +232,9 @@ class SshuttleController(NSObject):
                     additem('Connect %s (no routes)' % host, None, i)
                 elif want:
                     any_conn = i
-                    additem('Disconnect %s' % host, self.cmd_disconnect, i)
+                    additem('Disconnect %s' % title, self.cmd_disconnect, i)
                 else:
-                    additem('Connect %s' % host, self.cmd_connect, i)
+                    additem('Connect %s' % title, self.cmd_connect, i)
                 if not want:
                     msg = 'Off'
                 elif i.error():
@@ -245,12 +246,6 @@ class SshuttleController(NSObject):
                     msg = 'Connecting...'
                     any_inprogress = i
                 addnote('   State: %s' % msg)
-                if i.autoNets() == 0:
-                    addnote('   Routes: All')
-                elif i.autoNets() == 2:
-                    addnote('   Routes: Auto')
-                else:
-                    addnote('   Routes: Custom')
         else:
             addnote('No servers defined yet')
 
