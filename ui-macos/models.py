@@ -122,10 +122,17 @@ class SshuttleServer(NSObject):
     def setAutoNets_(self, v):
         self._k_autoNets = v
         self.setNetsHidden_(-1)
+        self.setUseDns_(v == NET_ALL)
         config_changed()
 
     def autoHosts(self):
         return getattr(self, '_k_autoHosts', True)
     def setAutoHosts_(self, v):
         self._k_autoHosts = v
+        config_changed()
+
+    def useDns(self):
+        return getattr(self, '_k_useDns', False)
+    def setUseDns_(self, v):
+        self._k_useDns = v
         config_changed()
