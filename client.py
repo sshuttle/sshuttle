@@ -273,6 +273,10 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
             sock.close()
             return
         chan = mux.next_channel()
+        if not chan:
+            log('warning: too many open channels.  Discarded connection.\n')
+            sock.close()
+            return
         mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
         outwrap = MuxWrapper(mux, chan)
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
