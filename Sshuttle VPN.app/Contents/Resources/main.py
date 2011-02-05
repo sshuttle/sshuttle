@@ -136,7 +136,7 @@ class SshuttleController(NSObject):
     prefsWindow = objc.IBOutlet()
     serversController = objc.IBOutlet()
     logField = objc.IBOutlet()
-    noLatencyControlField = objc.IBOutlet()
+    latencyControlField = objc.IBOutlet()
     
     servers = []
     conns = {}
@@ -162,14 +162,14 @@ class SshuttleController(NSObject):
             manual_nets = ['0/0']
         else:
             manual_nets = []
+        noLatencyControl = (server.latencyControl() != models.LAT_INTERACTIVE)
         conn = Runner(sshuttle_args(host,
                                     auto_nets = nets_mode == models.NET_AUTO,
                                     auto_hosts = server.autoHosts(),
                                     dns = server.useDns(),
                                     nets = manual_nets,
                                     debug = self.debugField.state(),
-                                    no_latency_control 
-                                       = self.noLatencyControlField.state()),
+                                    no_latency_control = noLatencyControl),
                       logfunc=logfunc, promptfunc=promptfunc,
                       serverobj=server)
         self.conns[host] = conn
@@ -286,12 +286,14 @@ class SshuttleController(NSObject):
             autoNets = s.get('autoNets', models.NET_AUTO)
             autoHosts = s.get('autoHosts', True)
             useDns = s.get('useDns', autoNets == models.NET_ALL)
+            latencyControl = s.get('latencyControl', models.LAT_INTERACTIVE)
             srv = models.SshuttleServer.alloc().init()
             srv.setHost_(host)
             srv.setAutoNets_(autoNets)
             srv.setAutoHosts_(autoHosts)
             srv.setNets_(nl)
             srv.setUseDns_(useDns)
+            srv.setLatencyControl_(latencyControl)
             sl.append(srv)
         self.serversController.addObjects_(sl)
         self.serversController.setSelectionIndex_(0)
@@ -310,7 +312,8 @@ class SshuttleController(NSObject):
                      nets=nets,
                      autoNets=s.autoNets(),
                      autoHosts=s.autoHosts(),
-                     useDns=s.useDns())
+                     useDns=s.useDns(),
+                     latencyControl=s.latencyControl())
             l.append(d)
         my.Defaults().setObject_forKey_(l, 'servers')
         self.fill_menu()
@@ -321,6 +324,11 @@ class SshuttleController(NSObject):
         tf('Send all traffic through this server')
         tf('Determine automatically')
         tf('Custom...')
+
+        self.latencyControlField.removeAllItems()
+        tf = self.latencyControlField.addItemWithTitle_
+        tf('Fast transfer')
+        tf('Low latency')
 
         # Hmm, even when I mark this as !enabled in the .nib, it still comes
         # through as enabled.  So let's just disable it here (since we don't

@@ -58,6 +58,9 @@ NET_ALL = 0
 NET_AUTO = 1
 NET_MANUAL = 2
 
+LAT_BANDWIDTH = 0
+LAT_INTERACTIVE = 1
+
 class SshuttleServer(NSObject):
     def init(self):
         self = super(SshuttleServer, self).init()
@@ -154,4 +157,10 @@ class SshuttleServer(NSObject):
         return getattr(self, '_k_useDns', False)
     def setUseDns_(self, v):
         self._k_useDns = v
+        config_changed()
+
+    def latencyControl(self):
+        return getattr(self, '_k_latencyControl', LAT_INTERACTIVE)
+    def setLatencyControl_(self, v):
+        self._k_latencyControl = v
         config_changed()

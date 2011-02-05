@@ -1,6 +1,8 @@
 import struct, socket, errno, select
 if not globals().get('skip_imports'):
     from helpers import *
+
+MAX_CHANNEL = 65535
     
 # these don't exist in the socket module in python 2.3!
 SHUT_RD = 0
@@ -300,7 +302,7 @@ class Mux(Handler):
         # channel 0 is special, so we never allocate it
         for timeout in xrange(1024):
             self.chani += 1
-            if self.chani > 65535:
+            if self.chani > MAX_CHANNEL:
                 self.chani = 1
             if not self.channels.get(self.chani):
                 return self.chani

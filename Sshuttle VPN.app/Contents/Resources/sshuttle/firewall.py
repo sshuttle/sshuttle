@@ -131,11 +131,11 @@ def _fill_oldctls(prefix):
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
+    return ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
 
 
 _changedctls = []
-def sysctl_set(name, val):
+def sysctl_set(name, val, permanent=False):
     PREFIX = 'net.inet.ip'
     assert(name.startswith(PREFIX + '.'))
     val = str(val)
@@ -146,8 +146,16 @@ def sysctl_set(name, val):
         return
     oldval = _oldctls[name]
     if val != oldval:
-        _changedctls.append(name)
-        return _sysctl_set(name, val)
+        rv = _sysctl_set(name, val)
+        if rv==0 and permanent:
+            debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
+            f = open('/etc/sysctl.conf', 'a')
+            f.write('\n'
+                    '# Added by sshuttle\n'
+                    '%s=%s\n' % (name, val))
+            f.close()
+        else:
+            _changedctls.append(name)
 
 
 def _udp_unpack(p):
@@ -206,7 +214,7 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
-        sysctl_set('net.inet.ip.scopedroute', 0)
+        sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')
