@@ -54,7 +54,7 @@ l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
-python=    path to python interpreter on the remote server [python]
+python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
 v,verbose  increase debug message verbosity

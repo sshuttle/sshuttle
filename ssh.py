@@ -73,16 +73,23 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
 
         
     if not rhost:
-        argv = [python, '-c', pyscript]
+        # ignore the --python argument when running locally; we already know
+        # which python version works.
+        argv = [sys.argv[1], '-c', pyscript]
     else:
         if ssh_cmd:
             sshl = ssh_cmd.split(' ')
         else:
             sshl = ['ssh']
+        if python:
+            pycmd = "'%s' -c '%s'" % (python, pyscript)
+        else:
+            pycmd = ("P=python2; $P -V 2>/dev/null || P=python; "
+                     "\"$P\" -c '%s'") % pyscript
         argv = (sshl + 
                 portl + 
                 ipv6flag + 
-                [rhost, '--', "'%s' -c '%s'" % (python, pyscript)])
+                [rhost, '--', pycmd])
     (s1,s2) = socket.socketpair()
     def setup():
         # runs in the child process
