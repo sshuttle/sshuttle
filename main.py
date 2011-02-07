@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import sys, os, re
 import helpers, options, client, server, firewall, hostwatch
 import compat.ssubprocess as ssubprocess
@@ -71,7 +70,7 @@ firewall   (internal use only)
 hostwatch  (internal use only)
 """
 o = options.Options(optspec)
-(opt, flags, extra) = o.parse(sys.argv[1:])
+(opt, flags, extra) = o.parse(sys.argv[2:])
 
 if opt.daemon:
     opt.syslog = 1

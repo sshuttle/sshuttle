@@ -1,1 +1,7 @@
-main.py
+#!/bin/sh
+DIR=$(dirname "$0")
+if python2 -V 2>/dev/null; then
+	exec python2 "$DIR/main.py" python2 "$@"
+else
+	exec python "$DIR/main.py" python "$@"
+fi
