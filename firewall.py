@@ -7,6 +7,13 @@ from helpers import *
 IPPROTO_DIVERT = 254
 
 
+def nonfatal(func, *args):
+    try:
+        func(*args)
+    except Fatal, e:
+        log('error: %s\n' % e)
+
+
 def ipt_chain_exists(name):
     argv = ['iptables', '-t', 'nat', '-nL']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
@@ -57,9 +64,9 @@ def do_iptables(port, dnsport, subnets):
 
     # basic cleanup/setup of chains
     if ipt_chain_exists(chain):
-        ipt('-D', 'OUTPUT', '-j', chain)
-        ipt('-D', 'PREROUTING', '-j', chain)
-        ipt('-F', chain)
+        nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
+        nonfatal(ipt, '-D', 'PREROUTING', '-j', chain)
+        nonfatal(ipt, '-F', chain)
         ipt('-X', chain)
 
     if subnets or dnsport:
