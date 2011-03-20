@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys, os, socket, select, struct, time
 
 listener = socket.socket()

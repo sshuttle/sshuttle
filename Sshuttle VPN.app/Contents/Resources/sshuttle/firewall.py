@@ -7,6 +7,13 @@ from helpers import *
 IPPROTO_DIVERT = 254
 
 
+def nonfatal(func, *args):
+    try:
+        func(*args)
+    except Fatal, e:
+        log('error: %s\n' % e)
+
+
 def ipt_chain_exists(name):
     argv = ['iptables', '-t', 'nat', '-nL']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
@@ -57,9 +64,9 @@ def do_iptables(port, dnsport, subnets):
 
     # basic cleanup/setup of chains
     if ipt_chain_exists(chain):
-        ipt('-D', 'OUTPUT', '-j', chain)
-        ipt('-D', 'PREROUTING', '-j', chain)
-        ipt('-F', chain)
+        nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
+        nonfatal(ipt, '-D', 'PREROUTING', '-j', chain)
+        nonfatal(ipt, '-F', chain)
         ipt('-X', chain)
 
     if subnets or dnsport:
@@ -143,7 +150,7 @@ def sysctl_set(name, val, permanent=False):
         _fill_oldctls(PREFIX)
     if not (name in _oldctls):
         debug1('>> No such sysctl: %r\n' % name)
-        return
+        return False
     oldval = _oldctls[name]
     if val != oldval:
         rv = _sysctl_set(name, val)
@@ -156,6 +163,7 @@ def sysctl_set(name, val, permanent=False):
             f.close()
         else:
             _changedctls.append(name)
+        return True
 
 
 def _udp_unpack(p):
@@ -214,7 +222,18 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
-        sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
+        changed = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
+        if changed:
+            log("\n"
+                "        WARNING: ONE-TIME NETWORK DISRUPTION:\n"
+                "        =====================================\n"
+                "sshuttle has changed a MacOS kernel setting to work around\n"
+                "a bug in MacOS 10.6.  This will cause your network to drop\n"
+                "within 5-10 minutes unless you restart your network\n"
+                "interface (change wireless networks or unplug/plug the\n"
+                "ethernet port) NOW, then restart sshuttle.  The fix is\n"
+                "permanent; you only have to do this once.\n\n")
+            sys.exit(1)
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')

@@ -102,7 +102,7 @@ class FirewallClient:
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.dnsport = dnsport
-        argvbase = ([sys.argv[0]] +
+        argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port), str(dnsport)])
         if ssyslog._p:

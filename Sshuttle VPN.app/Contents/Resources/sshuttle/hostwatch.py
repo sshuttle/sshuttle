@@ -13,7 +13,11 @@ _nmb_ok = True
 _smb_ok = True
 hostnames = {}
 queue = {}
-null = open('/dev/null', 'rb+')
+try:
+    null = open('/dev/null', 'wb')
+except IOError, e:
+    log('warning: %s\n' % e)
+    null = os.popen("sh -c 'while read x; do :; done'", 'wb', 4096)
 
 
 def _is_ip(s):
