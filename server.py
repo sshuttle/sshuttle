@@ -119,7 +119,14 @@ class DnsProxy(Handler):
         self.sock.send(request)
 
     def callback(self):
-        data = self.sock.recv(4096)
+        try:
+            data = self.sock.recv(4096)
+        except socket.error, e:
+            if e.args[0] == errno.ECONNREFUSED:
+                debug2('DNS response: ignoring ECONNREFUSED.\n')
+                return  # might have been spurious; wait for a real answer
+            else:
+                raise
         debug2('DNS response: %d bytes\n' % len(data))
         self.mux.send(self.chan, ssnet.CMD_DNS_RESPONSE, data)
         self.ok = False
