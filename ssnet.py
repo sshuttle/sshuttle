@@ -130,6 +130,16 @@ class SockWrapper:
             self.connect_to = None
         except socket.error, e:
             debug3('%r: connect result: %s\n' % (self, e))
+            if e.args[0] == errno.EINVAL:
+                # this is what happens when you call connect() on a socket
+                # that is now connected but returned EINPROGRESS last time,
+                # on BSD, on python pre-2.5.1.  We need to use getsockopt()
+                # to get the "real" error.  Later pythons do this
+                # automatically, so this code won't run.
+                realerr = self.rsock.getsockopt(socket.SOL_SOCKET,
+                                                socket.SO_ERROR)
+                e = socket.error(realerr, os.strerror(realerr))
+                debug3('%r: fixed connect result: %s\n' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
             elif e.args[0] == errno.EISCONN:
