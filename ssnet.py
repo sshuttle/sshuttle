@@ -86,7 +86,7 @@ class SockWrapper:
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
         global _swcount
         _swcount += 1
-        debug3('creating new SockWrapper (%d now exist\n)' % _swcount)
+        debug3('creating new SockWrapper (%d now exist)\n' % _swcount)
         self.exc = None
         self.rsock = rsock
         self.wsock = wsock
@@ -101,7 +101,7 @@ class SockWrapper:
         _swcount -= 1
         debug1('%r: deleting (%d remain)\n' % (self, _swcount))
         if self.exc:
-            debug1('%r: error was: %r\n' % (self, self.exc))
+            debug1('%r: error was: %s\n' % (self, self.exc))
 
     def __repr__(self):
         if self.rsock == self.wsock:
@@ -129,7 +129,7 @@ class SockWrapper:
             # connected successfully (Linux)
             self.connect_to = None
         except socket.error, e:
-            debug3('%r: connect result: %r\n' % (self, e))
+            debug3('%r: connect result: %s\n' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
             elif e.args[0] == errno.EISCONN:
