@@ -110,23 +110,51 @@ class DnsProxy(Handler):
     def __init__(self, mux, chan, request):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         Handler.__init__(self, [sock])
-        self.sock = sock
         self.timeout = time.time()+30
         self.mux = mux
         self.chan = chan
+        self.tries = 0
+        self.peer = None
+        self.request = request
+        self.sock = sock
         self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        self.sock.connect((resolvconf_random_nameserver(), 53))
-        self.sock.send(request)
+        self.try_send()
+
+    def try_send(self):
+        if self.tries >= 3:
+            return
+        self.tries += 1
+        self.peer = resolvconf_random_nameserver()
+        self.sock.connect((self.peer, 53))
+        debug2('DNS: sending to %r\n' % self.peer)
+        try:
+            self.sock.send(self.request)
+        except socket.error, e:
+            if e.args[0] in [errno.ECONNREFUSED, errno.EHOSTUNREACH]:
+                # might have been spurious; try again.
+                # Note: these errors sometimes are reported by recv(),
+                # and sometimes by send().  We have to catch both.
+                debug2('DNS send to %r: %s\n' % (self.peer, e))
+                self.try_send()
+                return
+            else:
+                log('DNS send to %r: %s\n' % (self.peer, e))
+                return
 
     def callback(self):
         try:
             data = self.sock.recv(4096)
         except socket.error, e:
-            if e.args[0] == errno.ECONNREFUSED:
-                debug2('DNS response: ignoring ECONNREFUSED.\n')
-                return  # might have been spurious; wait for a real answer
+            if e.args[0] in [errno.ECONNREFUSED, errno.EHOSTUNREACH]:
+                # might have been spurious; try again.
+                # Note: these errors sometimes are reported by recv(),
+                # and sometimes by send().  We have to catch both.
+                debug2('DNS recv from %r: %s\n' % (self.peer, e))
+                self.try_send()
+                return
             else:
-                raise
+                log('DNS recv from %r: %s\n' % (self.peer, e))
+                return
         debug2('DNS response: %d bytes\n' % len(data))
         self.mux.send(self.chan, ssnet.CMD_DNS_RESPONSE, data)
         self.ok = False
