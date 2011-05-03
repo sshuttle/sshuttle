@@ -40,7 +40,11 @@ cmd_to_name = {
     CMD_DNS_REQ: 'DNS_REQ',
     CMD_DNS_RESPONSE: 'DNS_RESPONSE',
 }
-    
+
+
+NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
+            errno.EHOSTUNREACH, errno.ENETUNREACH,
+            errno.EHOSTDOWN, errno.ENETDOWN]
 
 
 def _add(l, elem):
@@ -86,7 +90,7 @@ class SockWrapper:
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
         global _swcount
         _swcount += 1
-        debug3('creating new SockWrapper (%d now exist\n)' % _swcount)
+        debug3('creating new SockWrapper (%d now exist)\n' % _swcount)
         self.exc = None
         self.rsock = rsock
         self.wsock = wsock
@@ -101,7 +105,7 @@ class SockWrapper:
         _swcount -= 1
         debug1('%r: deleting (%d remain)\n' % (self, _swcount))
         if self.exc:
-            debug1('%r: error was: %r\n' % (self, self.exc))
+            debug1('%r: error was: %s\n' % (self, self.exc))
 
     def __repr__(self):
         if self.rsock == self.wsock:
@@ -124,20 +128,34 @@ class SockWrapper:
             return  # already connected
         self.rsock.setblocking(False)
         debug3('%r: trying connect to %r\n' % (self, self.connect_to))
+        if socket.inet_aton(self.connect_to[0])[0] == '\0':
+            self.seterr(Exception("Can't connect to %r: "
+                                  "IP address starts with zero\n"
+                                  % (self.connect_to,)))
+            self.connect_to = None
+            return
         try:
             self.rsock.connect(self.connect_to)
             # connected successfully (Linux)
             self.connect_to = None
         except socket.error, e:
-            debug3('%r: connect result: %r\n' % (self, e))
+            debug3('%r: connect result: %s\n' % (self, e))
+            if e.args[0] == errno.EINVAL:
+                # this is what happens when you call connect() on a socket
+                # that is now connected but returned EINPROGRESS last time,
+                # on BSD, on python pre-2.5.1.  We need to use getsockopt()
+                # to get the "real" error.  Later pythons do this
+                # automatically, so this code won't run.
+                realerr = self.rsock.getsockopt(socket.SOL_SOCKET,
+                                                socket.SO_ERROR)
+                e = socket.error(realerr, os.strerror(realerr))
+                debug3('%r: fixed connect result: %s\n' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
             elif e.args[0] == errno.EISCONN:
                 # connected successfully (BSD)
                 self.connect_to = None
-            elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT,
-                               errno.EHOSTUNREACH, errno.ENETUNREACH,
-                               errno.EACCES, errno.EPERM]:
+            elif e.args[0] in NET_ERRS + [errno.EACCES, errno.EPERM]:
                 # a "normal" kind of error
                 self.connect_to = None
                 self.seterr(e)
