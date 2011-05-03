@@ -173,7 +173,7 @@ def main():
         debug1('  %s/%d\n' % r)
         
     # synchronization header
-    sys.stdout.write('SSHUTTLE0001')
+    sys.stdout.write('\0\0SSHUTTLE0001')
     sys.stdout.flush()
 
     handlers = []

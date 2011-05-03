@@ -198,7 +198,14 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
     handlers.append(mux)
 
     expected = 'SSHUTTLE0001'
+    
     try:
+        v = 'x'
+        while v and v != '\0':
+            v = serversock.recv(1)
+        v = 'x'
+        while v and v != '\0':
+            v = serversock.recv(1)
         initstring = serversock.recv(len(expected))
     except socket.error, e:
         if e.args[0] == errno.ECONNRESET:
