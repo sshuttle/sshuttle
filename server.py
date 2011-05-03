@@ -130,7 +130,7 @@ class DnsProxy(Handler):
         try:
             self.sock.send(self.request)
         except socket.error, e:
-            if e.args[0] in [errno.ECONNREFUSED, errno.EHOSTUNREACH]:
+            if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
                 # and sometimes by send().  We have to catch both.
@@ -145,7 +145,7 @@ class DnsProxy(Handler):
         try:
             data = self.sock.recv(4096)
         except socket.error, e:
-            if e.args[0] in [errno.ECONNREFUSED, errno.EHOSTUNREACH]:
+            if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
                 # and sometimes by send().  We have to catch both.

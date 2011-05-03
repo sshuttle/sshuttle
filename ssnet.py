@@ -40,7 +40,11 @@ cmd_to_name = {
     CMD_DNS_REQ: 'DNS_REQ',
     CMD_DNS_RESPONSE: 'DNS_RESPONSE',
 }
-    
+
+
+NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
+            errno.EHOSTUNREACH, errno.ENETUNREACH,
+            errno.EHOSTDOWN, errno.ENETDOWN]
 
 
 def _add(l, elem):
@@ -151,9 +155,7 @@ class SockWrapper:
             elif e.args[0] == errno.EISCONN:
                 # connected successfully (BSD)
                 self.connect_to = None
-            elif e.args[0] in [errno.ECONNREFUSED, errno.ETIMEDOUT,
-                               errno.EHOSTUNREACH, errno.ENETUNREACH,
-                               errno.EACCES, errno.EPERM]:
+            elif e.args[0] in NET_ERRS + [errno.EACCES, errno.EPERM]:
                 # a "normal" kind of error
                 self.connect_to = None
                 self.seterr(e)
