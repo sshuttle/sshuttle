@@ -8,14 +8,14 @@
 #
 
 # By default, no output coloring.
-GREEN=""
-BOLD=""
-PLAIN=""
+green=""
+bold=""
+plain=""
 
 if [ -n "$TERM" -a "$TERM" != "dumb" ] && tty <&2 >/dev/null 2>&1; then
-	GREEN="$(printf '\033[32m')"
-	BOLD="$(printf '\033[1m')"
-	PLAIN="$(printf '\033[m')"
+	green="$(printf '\033[32m')"
+	bold="$(printf '\033[1m')"
+	plain="$(printf '\033[m')"
 fi
 
 _dirsplit()
@@ -23,6 +23,13 @@ _dirsplit()
 	base=${1##*/}
 	dir=${1%$base}
 }
+
+dirname()
+(
+	_dirsplit "$1"
+	dir=${dir%/}
+	echo "${dir:-.}"
+)
 
 _dirsplit "$0"
 export REDO=$(cd "${dir:-.}" && echo "$PWD/$base")
@@ -54,79 +61,95 @@ fi
 
 _find_dofile_pwd()
 {
-	DOFILE=default.$1.do
+	dofile=default.$1.do
 	while :; do
-		DOFILE=default.${DOFILE#default.*.}
-		[ -e "$DOFILE" -o "$DOFILE" = default.do ] && break
+		dofile=default.${dofile#default.*.}
+		[ -e "$dofile" -o "$dofile" = default.do ] && break
 	done
-	EXT=${DOFILE#default}
-	EXT=${EXT%.do}
-	BASE=${1%$EXT}
+	ext=${dofile#default}
+	ext=${ext%.do}
+	base=${1%$ext}
 }
 
 
 _find_dofile()
 {
-	PREFIX=
+	local prefix=
 	while :; do
 		_find_dofile_pwd "$1"
-		[ -e "$DOFILE" ] && break
+		[ -e "$dofile" ] && break
 		[ "$PWD" = "/" ] && break
-		TARGET=${PWD##*/}/$TARGET
-		PREFIX=${PWD##*/}/$PREFIX
+		target=${PWD##*/}/$target
+		tmp=${PWD##*/}/$tmp
+		prefix=${PWD##*/}/$prefix
 		cd ..
 	done
-	BASE=$PREFIX$BASE
+	base=$prefix$base
 }
 
 
 _run_dofile()
 {
 	export DO_DEPTH="$DO_DEPTH  "
-	export REDO_TARGET=$PWD/$TARGET
+	export REDO_TARGET=$PWD/$target
+	local line1
 	set -e
-	read line1 <"$PWD/$DOFILE"
+	read line1 <"$PWD/$dofile"
 	cmd=${line1#"#!/"}
 	if [ "$cmd" != "$line1" ]; then
-		/$cmd "$PWD/$DOFILE" "$@" >"$TARGET.tmp2"
+		/$cmd "$PWD/$dofile" "$@" >"$tmp.tmp2"
 	else
-		. "$PWD/$DOFILE" >"$TARGET.tmp2"
+		:; . "$PWD/$dofile" >"$tmp.tmp2"
 	fi
 }
 
 
 _do()
 {
-	DIR=$1
-	TARGET=$2
-	if [ ! -e "$TARGET" ] || [ -e "$TARGET/." -a ! -e "$TARGET.did" ]; then
+	local dir=$1 target=$2 tmp=$3
+	if [ ! -e "$target" ] || [ -d "$target" -a ! -e "$target.did" ]; then
 		printf '%sdo  %s%s%s%s\n' \
-			"$GREEN" "$DO_DEPTH" "$BOLD" "$DIR$TARGET" "$PLAIN" >&2
-		echo "$PWD/$TARGET" >>"$DO_BUILT"
-		DOFILE=$TARGET.do
-		BASE=$TARGET
-		EXT=
-		[ -e "$TARGET.do" ] || _find_dofile "$TARGET"
-		if [ ! -e "$DOFILE" ]; then
-			echo "do: $TARGET: no .do file" >&2
+			"$green" "$DO_DEPTH" "$bold" "$dir$target" "$plain" >&2
+		echo "$PWD/$target" >>"$DO_BUILT"
+		dofile=$target.do
+		base=$target
+		ext=
+		[ -e "$target.do" ] || _find_dofile "$target"
+		if [ ! -e "$dofile" ]; then
+			echo "do: $target: no .do file" >&2
 			return 1
 		fi
-		[ ! -e "$DO_BUILD" ] || : >>"$TARGET.did"
-		( _run_dofile "$BASE" "$EXT" "$TARGET.tmp" )
-		RV=$?
-		if [ $RV != 0 ]; then
+		[ ! -e "$DO_BUILT" ] || [ ! -d "$(dirname "$target")" ] ||
+		: >>"$target.did"
+		( _run_dofile "$base" "$ext" "$tmp.tmp" )
+		rv=$?
+		if [ $rv != 0 ]; then
 			printf "do: %s%s\n" "$DO_DEPTH" \
-				"$DIR$TARGET: got exit code $RV" >&2
-			rm -f "$TARGET.tmp" "$TARGET.tmp2"
-			return $RV
+				"$dir$target: got exit code $rv" >&2
+			rm -f "$tmp.tmp" "$tmp.tmp2"
+			return $rv
 		fi
-		mv "$TARGET.tmp" "$TARGET" 2>/dev/null ||
-		! test -s "$TARGET.tmp2" ||
-		mv "$TARGET.tmp2" "$TARGET" 2>/dev/null
-		rm -f "$TARGET.tmp2"
+		mv "$tmp.tmp" "$target" 2>/dev/null ||
+		! test -s "$tmp.tmp2" ||
+		mv "$tmp.tmp2" "$target" 2>/dev/null
+		rm -f "$tmp.tmp2"
 	else
-		echo "do  $DO_DEPTH$TARGET exists." >&2
+		echo "do  $DO_DEPTH$target exists." >&2
 	fi
+}
+
+
+# Make corrections for directories that don't actually exist yet.
+_dir_shovel()
+{
+	local dir base
+	xdir=$1 xbase=$2 xbasetmp=$2
+	while [ ! -d "$xdir" -a -n "$xdir" ]; do
+		_dirsplit "${xdir%/}"
+		xbasetmp=${base}__$xbase
+		xdir=$dir xbase=$base/$xbase
+		echo "xbasetmp='$xbasetmp'" >&2
+	done
 }
 
 
@@ -134,7 +157,9 @@ redo()
 {
 	for i in "$@"; do
 		_dirsplit "$i"
-		( cd "$dir" && _do "$dir" "$base" ) || return 1
+		_dir_shovel "$dir" "$base"
+		dir=$xdir base=$xbase basetmp=$xbasetmp
+		( cd "$dir" && _do "$dir" "$base" "$basetmp" ) || return 1
 	done
 }
 
