@@ -72,7 +72,7 @@ This is how you use it:
 
  - If you would also like your DNS queries to be proxied
    through the DNS server of the server you are connect to:
-   <tt>./sshuttle --dns -rvv username@sshserver 0/0</tt>
+   <tt>./sshuttle --dns -vvr username@sshserver 0/0</tt>
 
    The above is probably what you want to use to prevent
    local network attacks such as Firesheep and friends.
