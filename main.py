@@ -54,6 +54,8 @@ l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
+dns-domains= comma seperated list of DNS domains for DNS forwarding
+dns-to=    forward any DNS requests that don't match domains to this address
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
@@ -110,12 +112,26 @@ try:
             sh = []
         else:
             sh = None
+        if opt.dns and opt.dns_domains:
+            dns_domains = opt.dns_domains.split(",")
+            if opt.dns_to:
+                addr,colon,port = opt.dns_to.rpartition(":")
+                if colon == ":":
+                    dns_to = ( addr, int(port) )
+                else:
+                    dns_to = ( port, 53 )
+            else:
+                o.fatal('--dns-to=ip is required with --dns-domains=list')
+        else:
+            dns_domains = None
+            dns_to = None
+
         sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
                              opt.ssh_cmd,
                              remotename,
                              opt.python,
                              opt.latency_control,
-                             opt.dns,
+                             opt.dns, dns_domains, dns_to,
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),
