@@ -1,4 +1,4 @@
-import sys, os, socket
+import sys, os, socket, errno
 
 logprefix = ''
 verbose = 0
