@@ -152,6 +152,17 @@ class SockWrapper:
                 debug3('%r: fixed connect result: %s\n' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
+            elif e.args[0] == 0:
+                # connected successfully (weird Linux bug?)
+                # Sometimes Linux seems to return EINVAL when it isn't
+                # invalid.  This *may* be caused by a race condition
+                # between connect() and getsockopt(SO_ERROR) (ie. it
+                # finishes connecting in between the two, so there is no
+                # longer an error).  However, I'm not sure of that.
+                #
+                # I did get at least one report that the problem went away
+                # when we added this, however.
+                self.connect_to = None
             elif e.args[0] == errno.EISCONN:
                 # connected successfully (BSD)
                 self.connect_to = None
