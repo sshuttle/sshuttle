@@ -291,22 +291,22 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
 
     dnsreqs = {}
     def dns_done(chan, data):
-        peer,timeout = dnsreqs.get(chan) or (None,None)
+        peer,sock,timeout = dnsreqs.get(chan) or (None,None,None)
         debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
         if peer:
             del dnsreqs[chan]
             debug3('doing sendto %r\n' % (peer,))
-            dnslistener.sendto(data, peer)
+            sock.sendto(data, peer)
     def ondns(listener_sock):
         pkt,peer = listener_sock.recvfrom(4096)
         now = time.time()
         if pkt:
             debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
             chan = mux.next_channel()
-            dnsreqs[chan] = peer,now+30
+            dnsreqs[chan] = peer,listener_sock,now+30
             mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
             mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
-        for chan,(peer,timeout) in dnsreqs.items():
+        for chan,(peer,sock,timeout) in dnsreqs.items():
             if timeout < now:
                 del dnsreqs[chan]
         debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
