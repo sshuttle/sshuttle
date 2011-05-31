@@ -175,6 +175,65 @@ class FirewallClient:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 
+def onaccept(listener, mux, handlers):
+    global _extra_fd
+    try:
+        sock,srcip = listener.accept()
+    except socket.error, e:
+        if e.args[0] in [errno.EMFILE, errno.ENFILE]:
+            debug1('Rejected incoming connection: too many open files!\n')
+            # free up an fd so we can eat the connection
+            os.close(_extra_fd)
+            try:
+                sock,srcip = listener.accept()
+                sock.close()
+            finally:
+                _extra_fd = os.open('/dev/null', os.O_RDONLY)
+            return
+        else:
+            raise
+    dstip = original_dst(sock)
+    debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
+                                          dstip[0],dstip[1]))
+    if dstip[1] == listener.getsockname()[1] and islocal(dstip[0]):
+        debug1("-- ignored: that's my address!\n")
+        sock.close()
+        return
+    chan = mux.next_channel()
+    if not chan:
+        log('warning: too many open channels.  Discarded connection.\n')
+        sock.close()
+        return
+    mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
+    outwrap = MuxWrapper(mux, chan)
+    handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
+
+
+dnsreqs = {}
+def dns_done(chan, data):
+    peer,sock,timeout = dnsreqs.get(chan) or (None,None,None)
+    debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
+    if peer:
+        del dnsreqs[chan]
+        debug3('doing sendto %r\n' % (peer,))
+        sock.sendto(data, peer)
+
+
+def ondns(listener, mux, handlers):
+    pkt,peer = listener.recvfrom(4096)
+    now = time.time()
+    if pkt:
+        debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
+        chan = mux.next_channel()
+        dnsreqs[chan] = peer,listener,now+30
+        mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
+        mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
+    for chan,(peer,sock,timeout) in dnsreqs.items():
+        if timeout < now:
+            del dnsreqs[chan]
+    debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
+
+
 def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
           dnslistener, seed_hosts, auto_nets,
           syslog, daemon):
@@ -255,63 +314,10 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
-    def onaccept(listener_sock):
-        global _extra_fd
-        try:
-            sock,srcip = listener_sock.accept()
-        except socket.error, e:
-            if e.args[0] in [errno.EMFILE, errno.ENFILE]:
-                debug1('Rejected incoming connection: too many open files!\n')
-                # free up an fd so we can eat the connection
-                os.close(_extra_fd)
-                try:
-                    sock,srcip = listener_sock.accept()
-                    sock.close()
-                finally:
-                    _extra_fd = os.open('/dev/null', os.O_RDONLY)
-                return
-            else:
-                raise
-        dstip = original_dst(sock)
-        debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
-                                              dstip[0],dstip[1]))
-        if dstip[1] == listener.getsockname()[1] and islocal(dstip[0]):
-            debug1("-- ignored: that's my address!\n")
-            sock.close()
-            return
-        chan = mux.next_channel()
-        if not chan:
-            log('warning: too many open channels.  Discarded connection.\n')
-            sock.close()
-            return
-        mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
-        outwrap = MuxWrapper(mux, chan)
-        handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
-    handlers.append(Handler([listener], lambda: onaccept(listener)))
+    handlers.append(Handler([listener], lambda: onaccept(listener, mux, handlers)))
 
-    dnsreqs = {}
-    def dns_done(chan, data):
-        peer,sock,timeout = dnsreqs.get(chan) or (None,None,None)
-        debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
-        if peer:
-            del dnsreqs[chan]
-            debug3('doing sendto %r\n' % (peer,))
-            sock.sendto(data, peer)
-    def ondns(listener_sock):
-        pkt,peer = listener_sock.recvfrom(4096)
-        now = time.time()
-        if pkt:
-            debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
-            chan = mux.next_channel()
-            dnsreqs[chan] = peer,listener_sock,now+30
-            mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
-            mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
-        for chan,(peer,sock,timeout) in dnsreqs.items():
-            if timeout < now:
-                del dnsreqs[chan]
-        debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
     if dnslistener:
-        handlers.append(Handler([dnslistener], lambda: ondns(dnslistener)))
+        handlers.append(Handler([dnslistener], lambda: ondns(dnslistener, mux, handlers)))
 
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
