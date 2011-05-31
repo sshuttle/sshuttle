@@ -255,17 +255,17 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
-    def onaccept():
+    def onaccept(listener_sock):
         global _extra_fd
         try:
-            sock,srcip = listener.accept()
+            sock,srcip = listener_sock.accept()
         except socket.error, e:
             if e.args[0] in [errno.EMFILE, errno.ENFILE]:
                 debug1('Rejected incoming connection: too many open files!\n')
                 # free up an fd so we can eat the connection
                 os.close(_extra_fd)
                 try:
-                    sock,srcip = listener.accept()
+                    sock,srcip = listener_sock.accept()
                     sock.close()
                 finally:
                     _extra_fd = os.open('/dev/null', os.O_RDONLY)
@@ -287,7 +287,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
         mux.send(chan, ssnet.CMD_CONNECT, '%s,%s' % dstip)
         outwrap = MuxWrapper(mux, chan)
         handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
-    handlers.append(Handler([listener], onaccept))
+    handlers.append(Handler([listener], lambda: onaccept(listener)))
 
     dnsreqs = {}
     def dns_done(chan, data):
@@ -297,8 +297,8 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
             del dnsreqs[chan]
             debug3('doing sendto %r\n' % (peer,))
             dnslistener.sendto(data, peer)
-    def ondns():
-        pkt,peer = dnslistener.recvfrom(4096)
+    def ondns(listener_sock):
+        pkt,peer = listener_sock.recvfrom(4096)
         now = time.time()
         if pkt:
             debug1('DNS request from %r: %d bytes\n' % (peer, len(pkt)))
@@ -311,7 +311,7 @@ def _main(listener, fw, ssh_cmd, remotename, python, latency_control,
                 del dnsreqs[chan]
         debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
     if dnslistener:
-        handlers.append(Handler([dnslistener], ondns))
+        handlers.append(Handler([dnslistener], lambda: ondns(dnslistener)))
 
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
