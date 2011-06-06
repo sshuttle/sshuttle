@@ -220,10 +220,11 @@ def onaccept_tcp(listener, mux, handlers):
     expire_connections(time.time(), mux)
 
 
-def dns_done(chan, data):
+def dns_done(chan, mux, data):
     peer,sock,timeout = dnsreqs.get(chan) or (None,None,None)
     debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
     if peer:
+        del mux.channels[chan]
         del dnsreqs[chan]
         debug3('doing sendto %r\n' % (peer,))
         sock.sendto(data, peer)
@@ -237,7 +238,7 @@ def ondns(listener, mux, handlers):
         chan = mux.next_channel()
         dnsreqs[chan] = peer,listener,now+30
         mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
-        mux.channels[chan] = lambda cmd,data: dns_done(chan,data)
+        mux.channels[chan] = lambda cmd,data: dns_done(chan, mux, data)
     expire_connections(now, mux)
 
 
