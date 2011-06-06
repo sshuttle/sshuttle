@@ -128,7 +128,8 @@ class SockWrapper:
             return  # already connected
         self.rsock.setblocking(False)
         debug3('%r: trying connect to %r\n' % (self, self.connect_to))
-        if socket.inet_aton(self.connect_to[0])[0] == '\0':
+        family = self.rsock.family
+        if family==socket.AF_INET and socket.inet_pton(family, self.connect_to[0])[0] == '\0':
             self.seterr(Exception("Can't connect to %r: "
                                   "IP address starts with zero\n"
                                   % (self.connect_to,)))
