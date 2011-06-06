@@ -1,4 +1,4 @@
-import sys, os, re
+import sys, os, re, socket
 import helpers, options, client, server, firewall, hostwatch
 import compat.ssubprocess as ssubprocess
 from helpers import *
@@ -22,7 +22,7 @@ def parse_subnets(subnets_str):
             raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
         if width > 32:
             raise Fatal('*/%d is greater than the maximum of 32' % width)
-        subnets.append(('%d.%d.%d.%d' % (a,b,c,d), width))
+        subnets.append((socket.AF_INET, '%d.%d.%d.%d' % (a,b,c,d), width))
     return subnets
 
 

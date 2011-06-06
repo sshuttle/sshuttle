@@ -180,10 +180,10 @@ class FirewallClient:
 
     def start(self):
         self.pfile.write('ROUTES\n')
-        for (ip,width) in self.subnets_include+self.auto_nets:
-            self.pfile.write('%d,0,%s\n' % (width, ip))
-        for (ip,width) in self.subnets_exclude:
-            self.pfile.write('%d,1,%s\n' % (width, ip))
+        for (family,ip,width) in self.subnets_include+self.auto_nets:
+            self.pfile.write('%d,%d,0,%s\n' % (family, width, ip))
+        for (family,ip,width) in self.subnets_exclude:
+            self.pfile.write('%d,%d,1,%s\n' % (family, width, ip))
         self.pfile.write('GO\n')
         self.pfile.flush()
         line = self.pfile.readline()
@@ -234,7 +234,7 @@ def onaccept_tcp(listener, mux, handlers):
     dstip = original_dst(sock)
     debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                           dstip[0],dstip[1]))
-    if dstip[1] == listener.getsockname()[1] and islocal(dstip[0]):
+    if dstip[1] == listener.getsockname()[1] and islocal(dstip[0], sock.family):
         debug1("-- ignored: that's my address!\n")
         sock.close()
         return
@@ -243,7 +243,7 @@ def onaccept_tcp(listener, mux, handlers):
         log('warning: too many open channels.  Discarded connection.\n')
         sock.close()
         return
-    mux.send(chan, ssnet.CMD_TCP_CONNECT, '%s,%s' % dstip)
+    mux.send(chan, ssnet.CMD_TCP_CONNECT, '%d,%s,%s' % (sock.family, dstip[0], dstip[1]))
     outwrap = MuxWrapper(mux, chan)
     handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     expire_connections(time.time(), mux)
@@ -329,8 +329,8 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
     def onroutes(routestr):
         if auto_nets:
             for line in routestr.strip().split('\n'):
-                (ip,width) = line.split(',', 1)
-                fw.auto_nets.append((ip,int(width)))
+                (family,ip,width) = line.split(',', 2)
+                fw.auto_nets.append((family,ip,int(width)))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!

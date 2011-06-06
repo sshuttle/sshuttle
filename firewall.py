@@ -14,8 +14,12 @@ def nonfatal(func, *args):
         log('error: %s\n' % e)
 
 
-def ipt_chain_exists(name):
-    argv = ['iptables', '-t', 'nat', '-nL']
+def ipt_chain_exists(family, name):
+    if family == socket.AF_INET:
+        cmd = 'iptables'
+    else:
+        raise Exception('Unsupported family "%s"'%family_to_string(family))
+    argv = [cmd, '-t', 'nat', '-nL']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
     for line in p.stdout:
         if line.startswith('Chain %s ' % name):
@@ -25,8 +29,11 @@ def ipt_chain_exists(name):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def ipt(*args):
-    argv = ['iptables', '-t', 'nat'] + list(args)
+def _ipt(family, *args):
+    if family == socket.AF_INET:
+        argv = ['iptables', '-t', 'nat'] + list(args)
+    else:
+        raise Exception('Unsupported family "%s"'%family_to_string(family))
     debug1('>> %s\n' % ' '.join(argv))
     rv = ssubprocess.call(argv)
     if rv:
@@ -34,7 +41,7 @@ def ipt(*args):
 
 
 _no_ttl_module = False
-def ipt_ttl(*args):
+def _ipt_ttl(family, *args):
     global _no_ttl_module
     if not _no_ttl_module:
         # we avoid infinite loops by generating server-side connections
@@ -42,16 +49,15 @@ def ipt_ttl(*args):
         # connections, in case client == server.
         try:
             argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '42']
-            ipt(*argsplus)
+            _ipt(family, *argsplus)
         except Fatal:
-            ipt(*args)
+            _ipt(family, *args)
             # we only get here if the non-ttl attempt succeeds
             log('sshuttle: warning: your iptables is missing '
                 'the ttl module.\n')
             _no_ttl_module = True
     else:
-        ipt(*args)
-
+        _ipt(family, *args)
 
 
 # We name the chain based on the transproxy port number so that it's possible
@@ -59,11 +65,20 @@ def ipt_ttl(*args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables(port, dnsport, subnets):
+def do_iptables(port, dnsport, family, subnets):
+    # only ipv4 supported with NAT
+    if family != socket.AF_INET:
+        raise Exception('Address family "%s" unsupported by nat method'%family_to_string(family))
+
+    def ipt(*args):
+        return _ipt(family, *args)
+    def ipt_ttl(*args):
+        return _ipt_ttl(family, *args)
+
     chain = 'sshuttle-%s' % port
 
     # basic cleanup/setup of chains
-    if ipt_chain_exists(chain):
+    if ipt_chain_exists(family, chain):
         nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
         nonfatal(ipt, '-D', 'PREROUTING', '-j', chain)
         nonfatal(ipt, '-F', chain)
@@ -81,7 +96,7 @@ def do_iptables(port, dnsport, subnets):
         # to least-specific, and at any given level of specificity, we want
         # excludes to come first.  That's why the columns are in such a non-
         # intuitive order.
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipt('-A', chain, '-j', 'RETURN',
                     '--dest', '%s/%s' % (snet,swidth),
@@ -207,7 +222,11 @@ def ipfw(*args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def do_ipfw(port, dnsport, subnets):
+def do_ipfw(port, dnsport, family, subnets):
+    # IPv6 not supported
+    if family not in [socket.AF_INET, ]:
+        raise Exception('Address family "%s" unsupported by ipfw method'%family_to_string(family))
+
     sport = str(port)
     xsport = str(port+1)
 
@@ -240,7 +259,7 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets:
         # create new subnet entries
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipfw('add', sport, 'skipto', xsport,
                      'log', 'tcp',
@@ -419,15 +438,21 @@ def main(port, dnsport, syslog):
         elif line == 'GO\n':
             break
         try:
-            (width,exclude,ip) = line.strip().split(',', 2)
+            (family,width,exclude,ip) = line.strip().split(',', 3)
         except:
             raise Fatal('firewall: expected route or GO but got %r' % line)
-        subnets.append((int(width), bool(int(exclude)), ip))
+        subnets.append((int(family), int(width), bool(int(exclude)), ip))
         
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
-            do_wait = do_it(port, dnsport, subnets)
+
+            subnets_v4 = filter(lambda i: i[0]==socket.AF_INET, subnets)
+            if port:
+                do_wait = do_it(port, dnsport, socket.AF_INET, subnets_v4)
+            elif len(subnets_v4) > 0:
+                debug1('IPv4 subnets defined but IPv4 disabled\n')
+
             sys.stdout.write('STARTED\n')
         
         try:
@@ -456,5 +481,6 @@ def main(port, dnsport, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
-        do_it(port, 0, [])
+        if port:
+            do_it(port, 0, socket.AF_INET, [])
         restore_etc_hosts(port)

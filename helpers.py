@@ -58,8 +58,8 @@ def resolvconf_random_nameserver():
         return '127.0.0.1'
     
 
-def islocal(ip):
-    sock = socket.socket()
+def islocal(ip,family):
+    sock = socket.socket(family)
     try:
         try:
             sock.bind((ip, 0))
@@ -72,4 +72,12 @@ def islocal(ip):
         sock.close()
     return True  # it's a local IP, or there would have been an error
 
+
+def family_to_string(family):
+    if family == socket.AF_INET6:
+        return "AF_INET6"
+    elif family == socket.AF_INET:
+        return "AF_INET"
+    else:
+        return str(family)
 

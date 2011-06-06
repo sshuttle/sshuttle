@@ -59,7 +59,7 @@ def _list_routes():
         mask = _maskbits(maskw)   # returns 32 if maskw is null
         width = min(ipw[1], mask)
         ip = ipw[0] & _shl(_shl(1, width) - 1, 32-width)
-        routes.append((socket.inet_ntoa(struct.pack('!I', ip)), width))
+        routes.append((socket.AF_INET, socket.inet_ntoa(struct.pack('!I', ip)), width))
     rv = p.wait()
     if rv != 0:
         log('WARNING: %r returned %d\n' % (argv, rv))
@@ -68,9 +68,9 @@ def _list_routes():
 
 
 def list_routes():
-    for (ip,width) in _list_routes():
+    for (family, ip,width) in _list_routes():
         if not ip.startswith('0.') and not ip.startswith('127.'):
-            yield (ip,width)
+            yield (family, ip,width)
 
 
 def _exc_dump():
@@ -170,7 +170,7 @@ def main():
     routes = list(list_routes())
     debug1('available routes:\n')
     for r in routes:
-        debug1('  %s/%d\n' % r)
+        debug1('  %d/%s/%d\n' % r)
         
     # synchronization header
     sys.stdout.write('\0\0SSHUTTLE0001')
@@ -184,7 +184,7 @@ def main():
     handlers.append(mux)
     routepkt = ''
     for r in routes:
-        routepkt += '%s,%d\n' % r
+        routepkt += '%d,%s,%d\n' % r
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
     hw = Hostwatch()
@@ -213,9 +213,10 @@ def main():
     mux.got_host_req = got_host_req
 
     def new_channel(channel, data):
-        (dstip,dstport) = data.split(',', 1)
+        (family,dstip,dstport) = data.split(',', 2)
+        family = int(family)
         dstport = int(dstport)
-        outwrap = ssnet.connect_dst(dstip,dstport)
+        outwrap = ssnet.connect_dst(family, dstip, dstport)
         handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
     mux.new_channel = new_channel
 
