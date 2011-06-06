@@ -389,11 +389,11 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port, dnsport, syslog):
-    assert(port > 0)
-    assert(port <= 65535)
-    assert(dnsport >= 0)
-    assert(dnsport <= 65535)
+def main(port_v4, dnsport_v4, syslog):
+    assert(port_v4 > 0)
+    assert(port_v4 <= 65535)
+    assert(dnsport_v4 >= 0)
+    assert(dnsport_v4 <= 65535)
 
     if os.getuid() != 0:
         raise Fatal('you must be root (or enable su/sudo) to set the firewall')
@@ -449,8 +449,8 @@ def main(port, dnsport, syslog):
             debug1('firewall manager: starting transproxy.\n')
 
             subnets_v4 = filter(lambda i: i[0]==socket.AF_INET, subnets)
-            if port:
-                do_wait = do_it(port, dnsport, socket.AF_INET, subnets_v4)
+            if port_v4:
+                do_wait = do_it(port_v4, dnsport_v4, socket.AF_INET, subnets_v4)
             elif len(subnets_v4) > 0:
                 debug1('IPv4 subnets defined but IPv4 disabled\n')
 
@@ -472,7 +472,7 @@ def main(port, dnsport, syslog):
             if line.startswith('HOST '):
                 (name,ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
-                rewrite_etc_hosts(port)
+                rewrite_etc_hosts(port_v4)
             elif line:
                 raise Fatal('expected EOF, got %r' % line)
             else:
@@ -482,6 +482,6 @@ def main(port, dnsport, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
-        if port:
-            do_it(port, 0, socket.AF_INET, [])
-        restore_etc_hosts(port)
+        if port_v4:
+            do_it(port_v4, 0, socket.AF_INET, [])
+        restore_etc_hosts(port_v4)

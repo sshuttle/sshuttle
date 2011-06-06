@@ -415,12 +415,12 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     if dns:
         dnsip = dns_listener.v4.getsockname()
         debug1('DNS listening on %r.\n' % (dnsip,))
-        dnsport = dnsip[1]
+        dnsport_v4 = dnsip[1]
     else:
-        dnsport = 0
+        dnsport_v4 = 0
         dns_listener = None
 
-    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
+    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport_v4)
     
     try:
         return _main(tcp_listener, fw, ssh_cmd, remotename,
