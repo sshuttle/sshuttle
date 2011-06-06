@@ -242,7 +242,7 @@ def ondns(listener, mux, handlers):
 
 
 def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
-          dnslistener, seed_hosts, auto_nets,
+          dns_listener, seed_hosts, auto_nets,
           syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
@@ -323,8 +323,8 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
 
     handlers.append(Handler([tcp_listener], lambda: onaccept(tcp_listener, mux, handlers)))
 
-    if dnslistener:
-        handlers.append(Handler([dnslistener], lambda: ondns(dnslistener, mux, handlers)))
+    if dns_listener:
+        handlers.append(Handler([dns_listener], lambda: ondns(dns_listener, mux, handlers)))
 
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
@@ -365,11 +365,11 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
         debug2(' %d' % port)
         tcp_listener = socket.socket()
         tcp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        dnslistener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        dnslistener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        dns_listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dns_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             tcp_listener.bind((listenip[0], port))
-            dnslistener.bind((listenip[0], port))
+            dns_listener.bind((listenip[0], port))
             bound = True
             break
         except socket.error, e:
@@ -383,18 +383,18 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
     debug1('Listening on %r.\n' % (listenip,))
 
     if dns:
-        dnsip = dnslistener.getsockname()
+        dnsip = dns_listener.getsockname()
         debug1('DNS listening on %r.\n' % (dnsip,))
         dnsport = dnsip[1]
     else:
         dnsport = 0
-        dnslistener = None
+        dns_listener = None
 
     fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport)
     
     try:
         return _main(tcp_listener, fw, ssh_cmd, remotename,
-                     python, latency_control, dnslistener,
+                     python, latency_control, dns_listener,
                      seed_hosts, auto_nets, syslog, daemon)
     finally:
         try:
