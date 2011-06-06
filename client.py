@@ -185,7 +185,7 @@ def expire_connections(now, mux):
     debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
 
 
-def onaccept(listener, mux, handlers):
+def onaccept_tcp(listener, mux, handlers):
     global _extra_fd
     try:
         sock,srcip = listener.accept()
@@ -321,7 +321,7 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
-    handlers.append(Handler([tcp_listener], lambda: onaccept(tcp_listener, mux, handlers)))
+    handlers.append(Handler([tcp_listener], lambda: onaccept_tcp(tcp_listener, mux, handlers)))
 
     if dns_listener:
         handlers.append(Handler([dns_listener], lambda: ondns(dns_listener, mux, handlers)))
