@@ -14,12 +14,12 @@ def nonfatal(func, *args):
         log('error: %s\n' % e)
 
 
-def ipt_chain_exists(family, name):
+def ipt_chain_exists(family, table, name):
     if family == socket.AF_INET:
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"'%family_to_string(family))
-    argv = [cmd, '-t', 'nat', '-nL']
+    argv = [cmd, '-t', table, '-nL']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
     for line in p.stdout:
         if line.startswith('Chain %s ' % name):
@@ -29,9 +29,9 @@ def ipt_chain_exists(family, name):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def _ipt(family, *args):
+def _ipt(family, table, *args):
     if family == socket.AF_INET:
-        argv = ['iptables', '-t', 'nat'] + list(args)
+        argv = ['iptables', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"'%family_to_string(family))
     debug1('>> %s\n' % ' '.join(argv))
@@ -70,15 +70,16 @@ def do_iptables(port, dnsport, family, subnets):
     if family != socket.AF_INET:
         raise Exception('Address family "%s" unsupported by nat method'%family_to_string(family))
 
+    table = "nat"
     def ipt(*args):
-        return _ipt(family, *args)
+        return _ipt(family, table, *args)
     def ipt_ttl(*args):
-        return _ipt_ttl(family, *args)
+        return _ipt_ttl(family, table, *args)
 
     chain = 'sshuttle-%s' % port
 
     # basic cleanup/setup of chains
-    if ipt_chain_exists(family, chain):
+    if ipt_chain_exists(family, table, chain):
         nonfatal(ipt, '-D', 'OUTPUT', '-j', chain)
         nonfatal(ipt, '-D', 'PREROUTING', '-j', chain)
         nonfatal(ipt, '-F', chain)
