@@ -16,10 +16,10 @@ HDR_LEN = 8
 CMD_EXIT = 0x4200
 CMD_PING = 0x4201
 CMD_PONG = 0x4202
-CMD_CONNECT = 0x4203
-CMD_STOP_SENDING = 0x4204
-CMD_EOF = 0x4205
-CMD_DATA = 0x4206
+CMD_TCP_CONNECT = 0x4203
+CMD_TCP_STOP_SENDING = 0x4204
+CMD_TCP_EOF = 0x4205
+CMD_TCP_DATA = 0x4206
 CMD_ROUTES = 0x4207
 CMD_HOST_REQ = 0x4208
 CMD_HOST_LIST = 0x4209
@@ -30,10 +30,10 @@ cmd_to_name = {
     CMD_EXIT: 'EXIT',
     CMD_PING: 'PING',
     CMD_PONG: 'PONG',
-    CMD_CONNECT: 'CONNECT',
-    CMD_STOP_SENDING: 'STOP_SENDING',
-    CMD_EOF: 'EOF',
-    CMD_DATA: 'DATA',
+    CMD_TCP_CONNECT: 'TCP_CONNECT',
+    CMD_TCP_STOP_SENDING: 'TCP_STOP_SENDING',
+    CMD_TCP_EOF: 'TCP_EOF',
+    CMD_TCP_DATA: 'TCP_DATA',
     CMD_ROUTES: 'ROUTES',
     CMD_HOST_REQ: 'HOST_REQ',
     CMD_HOST_LIST: 'HOST_LIST',
@@ -374,7 +374,7 @@ class Mux(Handler):
             self.fullness = 0
         elif cmd == CMD_EXIT:
             self.ok = False
-        elif cmd == CMD_CONNECT:
+        elif cmd == CMD_TCP_CONNECT:
             assert(not self.channels.get(channel))
             if self.new_channel:
                 self.new_channel(channel, data)
@@ -478,13 +478,13 @@ class MuxWrapper(SockWrapper):
     def noread(self):
         if not self.shut_read:
             self.shut_read = True
-            self.mux.send(self.channel, CMD_STOP_SENDING, '')
+            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, '')
             self.maybe_close()
 
     def nowrite(self):
         if not self.shut_write:
             self.shut_write = True
-            self.mux.send(self.channel, CMD_EOF, '')
+            self.mux.send(self.channel, CMD_TCP_EOF, '')
             self.maybe_close()
 
     def maybe_close(self):
@@ -501,7 +501,7 @@ class MuxWrapper(SockWrapper):
             return 0  # too much already enqueued
         if len(buf) > 2048:
             buf = buf[:2048]
-        self.mux.send(self.channel, CMD_DATA, buf)
+        self.mux.send(self.channel, CMD_TCP_DATA, buf)
         return len(buf)
 
     def uread(self):
@@ -511,11 +511,11 @@ class MuxWrapper(SockWrapper):
             return None  # no data available right now
 
     def got_packet(self, cmd, data):
-        if cmd == CMD_EOF:
+        if cmd == CMD_TCP_EOF:
             self.noread()
-        elif cmd == CMD_STOP_SENDING:
+        elif cmd == CMD_TCP_STOP_SENDING:
             self.nowrite()
-        elif cmd == CMD_DATA:
+        elif cmd == CMD_TCP_DATA:
             self.buf.append(data)
         else:
             raise Exception('unknown command %d (%d bytes)' 
