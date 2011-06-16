@@ -371,7 +371,7 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
         mux.callback()
 
 
-def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
+def main(listenip_v4, ssh_cmd, remotename, python, latency_control, dns,
          seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
@@ -383,44 +383,86 @@ def main(listenip, ssh_cmd, remotename, python, latency_control, dns,
             log("%s\n" % e)
             return 5
     debug1('Starting sshuttle proxy.\n')
-    
-    if listenip[1]:
-        ports = [listenip[1]]
+
+    if listenip_v4 and listenip_v4[1]:
+        # if both ports given, no need to search for a spare port
+        ports = [ 0, ]
     else:
+        # if at least one port missing, we have to search
         ports = xrange(12300,9000,-1)
+
+    # search for free ports and try to bind
     last_e = None
+    redirectport_v4 = 0
     bound = False
-    debug2('Binding:')
+    debug2('Binding redirector:')
     for port in ports:
         debug2(' %d' % port)
         tcp_listener = MultiListener()
         tcp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        dns_listener = MultiListener(socket.SOCK_DGRAM)
-        dns_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        if listenip_v4 and listenip_v4[1]:
+            lv4 = listenip_v4
+            redirectport_v4 = lv4[1]
+        elif listenip_v4:
+            lv4 = (listenip_v4[0],port)
+            redirectport_v4 = port
+        else:
+            lv4 = None
+            redirectport_v4 = 0
+
         try:
-            tcp_listener.bind((listenip[0], port))
-            dns_listener.bind((listenip[0], port))
+            tcp_listener.bind(lv4)
             bound = True
             break
         except socket.error, e:
-            last_e = e
+            if e.errno == errno.EADDRINUSE:
+                last_e = e
+            else:
+                raise e
     debug2('\n')
     if not bound:
         assert(last_e)
         raise last_e
     tcp_listener.listen(10)
-    listenip = tcp_listener.v4.getsockname()
-    debug1('Listening on %r.\n' % (listenip,))
+    tcp_listener.print_listening("TCP redirector")
 
+    bound = False
     if dns:
-        dnsip = dns_listener.v4.getsockname()
-        debug1('DNS listening on %r.\n' % (dnsip,))
-        dnsport_v4 = dnsip[1]
+        # search for spare port for DNS
+        debug2('Binding DNS:')
+        ports = xrange(12300,9000,-1)
+        for port in ports:
+            debug2(' %d' % port)
+            dns_listener = MultiListener(socket.SOCK_DGRAM)
+            dns_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+            if listenip_v4:
+                lv4 = (listenip_v4[0],port)
+                dnsport_v4 = port
+            else:
+                lv4 = None
+                dnsport_v4 = 0
+
+            try:
+                dns_listener.bind(lv4)
+                bound = True
+                break
+            except socket.error, e:
+                if e.errno == errno.EADDRINUSE:
+                    last_e = e
+                else:
+                    raise e
+        debug2('\n')
+        dns_listener.print_listening("DNS")
+        if not bound:
+            assert(last_e)
+            raise last_e
     else:
         dnsport_v4 = 0
         dns_listener = None
 
-    fw = FirewallClient(listenip[1], subnets_include, subnets_exclude, dnsport_v4)
+    fw = FirewallClient(redirectport_v4, subnets_include, subnets_exclude, dnsport_v4)
     
     try:
         return _main(tcp_listener, fw, ssh_cmd, remotename,
