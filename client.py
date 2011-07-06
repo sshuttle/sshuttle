@@ -104,9 +104,9 @@ class MultiListener:
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
-    def add_handler(self, handlers, callback, mux):
+    def add_handler(self, handlers, callback, method, mux):
         if self.v4:
-            handlers.append(Handler([self.v4], lambda: callback(self.v4, mux, handlers)))
+            handlers.append(Handler([self.v4], lambda: callback(self.v4, method, mux, handlers)))
 
     def listen(self, backlog):
         if self.v4:
@@ -125,7 +125,7 @@ class MultiListener:
 
 
 class FirewallClient:
-    def __init__(self, port, subnets_include, subnets_exclude, dnsport):
+    def __init__(self, port, subnets_include, subnets_exclude, dnsport, method):
         self.port = port
         self.auto_nets = []
         self.subnets_include = subnets_include
@@ -133,7 +133,9 @@ class FirewallClient:
         self.dnsport = dnsport
         argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port), str(dnsport)])
+                    ['--firewall', str(port),
+                                   str(dnsport),
+                                   method])
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
@@ -170,8 +172,9 @@ class FirewallClient:
             raise Fatal(e)
         line = self.pfile.readline()
         self.check()
-        if line != 'READY\n':
+        if line[0:5] != 'READY':
             raise Fatal('%r expected READY, got %r' % (self.argv, line))
+        self.method = line[6:-1]
 
     def check(self):
         rv = self.p.poll()
@@ -214,7 +217,7 @@ def expire_connections(now, mux):
     debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
 
 
-def onaccept_tcp(listener, mux, handlers):
+def onaccept_tcp(listener, method, mux, handlers):
     global _extra_fd
     try:
         sock,srcip = listener.accept()
@@ -249,7 +252,7 @@ def onaccept_tcp(listener, mux, handlers):
     expire_connections(time.time(), mux)
 
 
-def dns_done(chan, mux, data):
+def dns_done(chan, mux, data, method):
     peer,sock,timeout = dnsreqs.get(chan) or (None,None,None)
     debug3('dns_done: channel=%r peer=%r\n' % (chan, peer))
     if peer:
@@ -259,7 +262,7 @@ def dns_done(chan, mux, data):
         sock.sendto(data, peer)
 
 
-def ondns(listener, mux, handlers):
+def ondns(listener, method, mux, handlers):
     pkt,peer = listener.recvfrom(4096)
     now = time.time()
     if pkt:
@@ -267,12 +270,12 @@ def ondns(listener, mux, handlers):
         chan = mux.next_channel()
         dnsreqs[chan] = peer,listener,now+30
         mux.send(chan, ssnet.CMD_DNS_REQ, pkt)
-        mux.channels[chan] = lambda cmd,data: dns_done(chan, mux, data)
+        mux.channels[chan] = lambda cmd,data: dns_done(chan, mux, data, method)
     expire_connections(now, mux)
 
 
 def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
-          dns_listener, seed_hosts, auto_nets,
+          dns_listener, method, seed_hosts, auto_nets,
           syslog, daemon):
     handlers = []
     if helpers.verbose >= 1:
@@ -351,10 +354,10 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
-    tcp_listener.add_handler(handlers, onaccept_tcp, mux)
+    tcp_listener.add_handler(handlers, onaccept_tcp, method, mux)
 
     if dns_listener:
-        dns_listener.add_handler(handlers, ondns, mux)
+        dns_listener.add_handler(handlers, ondns, method, mux)
 
     if seed_hosts != None:
         debug1('seed_hosts: %r\n' % seed_hosts)
@@ -371,8 +374,9 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
         mux.callback()
 
 
-def main(listenip_v4, ssh_cmd, remotename, python, latency_control, dns,
-         seed_hosts, auto_nets,
+def main(listenip_v4,
+         ssh_cmd, remotename, python, latency_control, dns,
+         method, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
     if syslog:
         ssyslog.start_syslog()
@@ -462,12 +466,13 @@ def main(listenip_v4, ssh_cmd, remotename, python, latency_control, dns,
         dnsport_v4 = 0
         dns_listener = None
 
-    fw = FirewallClient(redirectport_v4, subnets_include, subnets_exclude, dnsport_v4)
-    
+    fw = FirewallClient(redirectport_v4, subnets_include, subnets_exclude, dnsport_v4, method)
+
     try:
         return _main(tcp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,
-                     seed_hosts, auto_nets, syslog, daemon)
+                     fw.method, seed_hosts, auto_nets, syslog,
+                     daemon)
     finally:
         try:
             if daemon:

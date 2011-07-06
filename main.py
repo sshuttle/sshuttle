@@ -54,6 +54,7 @@ l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
+method=    auto, nat, or ipfw
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
@@ -86,9 +87,10 @@ try:
         server.latency_control = opt.latency_control
         sys.exit(server.main())
     elif opt.firewall:
-        if len(extra) != 2:
-            o.fatal('exactly two arguments expected')
-        sys.exit(firewall.main(int(extra[0]), int(extra[1]), opt.syslog))
+        if len(extra) != 3:
+            o.fatal('exactly three arguments expected')
+        sys.exit(firewall.main(int(extra[0]), int(extra[1]),
+                                extra[2], opt.syslog))
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:
@@ -110,12 +112,20 @@ try:
             sh = []
         else:
             sh = None
-        sys.exit(client.main(parse_ipport(opt.listen or '0.0.0.0:0'),
+        if not opt.method:
+            method = "auto"
+        elif opt.method in [ "auto", "nat", "ipfw" ]:
+            method = opt.method
+        else:
+            o.fatal("method %s not supported"%opt.method)
+        ipport_v4 = parse_ipport(opt.listen or '0.0.0.0:0')
+        sys.exit(client.main(ipport_v4,
                              opt.ssh_cmd,
                              remotename,
                              opt.python,
                              opt.latency_control,
                              opt.dns,
+                             method,
                              sh,
                              opt.auto_nets,
                              parse_subnets(includes),

@@ -65,7 +65,7 @@ def _ipt_ttl(family, *args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables(port, dnsport, family, subnets):
+def do_iptables_nat(port, dnsport, family, subnets):
     # only ipv4 supported with NAT
     if family != socket.AF_INET:
         raise Exception('Address family "%s" unsupported by nat method'%family_to_string(family))
@@ -389,7 +389,7 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port_v4, dnsport_v4, syslog):
+def main(port_v4, dnsport_v4, method, syslog):
     assert(port_v4 > 0)
     assert(port_v4 <= 65535)
     assert(dnsport_v4 >= 0)
@@ -398,12 +398,20 @@ def main(port_v4, dnsport_v4, syslog):
     if os.getuid() != 0:
         raise Fatal('you must be root (or enable su/sudo) to set the firewall')
 
-    if program_exists('ipfw'):
+    if method == "auto":
+        if program_exists('ipfw'):
+            method = "ipfw"
+        elif program_exists('iptables'):
+            method = "nat"
+        else:
+            raise Fatal("can't find either ipfw or iptables; check your PATH")
+
+    if method == "nat":
+        do_it = do_iptables_nat
+    elif method == "ipfw":
         do_it = do_ipfw
-    elif program_exists('iptables'):
-        do_it = do_iptables
     else:
-        raise Fatal("can't find either ipfw or iptables; check your PATH")
+        raise Exception('Unknown method "%s"'%method)
 
     # because of limitations of the 'su' command, the *real* stdin/stdout
     # are both attached to stdout initially.  Clone stdout into stdin so we
@@ -414,8 +422,8 @@ def main(port_v4, dnsport_v4, syslog):
         ssyslog.start_syslog()
         ssyslog.stderr_to_syslog()
 
-    debug1('firewall manager ready.\n')
-    sys.stdout.write('READY\n')
+    debug1('firewall manager ready method %s.\n'%method)
+    sys.stdout.write('READY %s\n'%method)
     sys.stdout.flush()
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
