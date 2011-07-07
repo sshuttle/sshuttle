@@ -71,6 +71,10 @@ entire subnet to the VPN.
     are taken automatically from the server's routing
     table.
     
+--dns
+:   capture local DNS requests and forward to the remote DNS
+    server.
+    
 --python
 :   specify the name/path of the remote python interpreter. 
     The default is just `python`, which means to use the
