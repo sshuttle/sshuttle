@@ -99,41 +99,55 @@ def original_dst(sock):
 class MultiListener:
 
     def __init__(self, type=socket.SOCK_STREAM, proto=0):
+        self.v6 = socket.socket(socket.AF_INET6, type, proto)
         self.v4 = socket.socket(socket.AF_INET, type, proto)
 
     def setsockopt(self, level, optname, value):
+        if self.v6:
+            self.v6.setsockopt(level, optname, value)
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
+        if self.v6:
+            handlers.append(Handler([self.v6], lambda: callback(self.v6, method, mux, handlers)))
         if self.v4:
             handlers.append(Handler([self.v4], lambda: callback(self.v4, method, mux, handlers)))
 
     def listen(self, backlog):
+        if self.v6:
+            self.v6.listen(backlog)
         if self.v4:
             self.v4.listen(backlog)
 
-    def bind(self, address_v4):
+    def bind(self, address_v6, address_v4):
+        if address_v6 and self.v6:
+            self.v6.bind(address_v6)
+        else:
+            self.v6 = None
         if address_v4 and self.v4:
             self.v4.bind(address_v4)
         else:
             self.v4 = None
 
     def print_listening(self, what):
+        if self.v6:
+            listenip = self.v6.getsockname()
+            debug1('%s listening on %r.\n' % (what, listenip))
         if self.v4:
             listenip = self.v4.getsockname()
             debug1('%s listening on %r.\n' % (what, listenip))
 
 
 class FirewallClient:
-    def __init__(self, port_v4, subnets_include, subnets_exclude, dnsport_v4, method):
+    def __init__(self, port_v6, port_v4, subnets_include, subnets_exclude, dnsport_v6, dnsport_v4, method):
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port_v4),
-                                   str(dnsport_v4),
+                    ['--firewall', str(port_v6), str(port_v4),
+                                   str(dnsport_v6), str(dnsport_v4),
                                    method])
         if ssyslog._p:
             argvbase += ['--syslog']
@@ -376,7 +390,7 @@ def _main(tcp_listener, fw, ssh_cmd, remotename, python, latency_control,
         mux.callback()
 
 
-def main(listenip_v4,
+def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns,
          method, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
@@ -390,7 +404,7 @@ def main(listenip_v4,
             return 5
     debug1('Starting sshuttle proxy.\n')
 
-    if listenip_v4 and listenip_v4[1]:
+    if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
         ports = [ 0, ]
     else:
@@ -399,6 +413,7 @@ def main(listenip_v4,
 
     # search for free ports and try to bind
     last_e = None
+    redirectport_v6 = 0
     redirectport_v4 = 0
     bound = False
     debug2('Binding redirector:')
@@ -406,6 +421,16 @@ def main(listenip_v4,
         debug2(' %d' % port)
         tcp_listener = MultiListener()
         tcp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        if listenip_v6 and listenip_v6[1]:
+            lv6 = listenip_v6
+            redirectport_v6 = lv6[1]
+        elif listenip_v6:
+            lv6 = (listenip_v6[0],port)
+            redirectport_v6 = port
+        else:
+            lv6 = None
+            redirectport_v6 = 0
 
         if listenip_v4 and listenip_v4[1]:
             lv4 = listenip_v4
@@ -418,7 +443,7 @@ def main(listenip_v4,
             redirectport_v4 = 0
 
         try:
-            tcp_listener.bind(lv4)
+            tcp_listener.bind(lv6, lv4)
             bound = True
             break
         except socket.error, e:
@@ -443,6 +468,13 @@ def main(listenip_v4,
             dns_listener = MultiListener(socket.SOCK_DGRAM)
             dns_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
+            if listenip_v6:
+                lv6 = (listenip_v6[0],port)
+                dnsport_v6 = port
+            else:
+                lv6 = None
+                dnsport_v6 = 0
+
             if listenip_v4:
                 lv4 = (listenip_v4[0],port)
                 dnsport_v4 = port
@@ -451,7 +483,7 @@ def main(listenip_v4,
                 dnsport_v4 = 0
 
             try:
-                dns_listener.bind(lv4)
+                dns_listener.bind(lv6, lv4)
                 bound = True
                 break
             except socket.error, e:
@@ -465,10 +497,11 @@ def main(listenip_v4,
             assert(last_e)
             raise last_e
     else:
+        dnsport_v6 = 0
         dnsport_v4 = 0
         dns_listener = None
 
-    fw = FirewallClient(redirectport_v4, subnets_include, subnets_exclude, dnsport_v4, method)
+    fw = FirewallClient(redirectport_v6, redirectport_v4, subnets_include, subnets_exclude, dnsport_v6, dnsport_v4, method)
 
     if fw.method == "tproxy":
         tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)

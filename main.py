@@ -22,12 +22,31 @@ def parse_subnet4(s):
     return(socket.AF_INET, '%d.%d.%d.%d' % (a,b,c,d), width)
 
 
+# 1:2::3/64 or just 1:2::3
+def parse_subnet6(s):
+    m = re.match(r'(?:([a-fA-F\d:]+))?(?:/(\d+))?$', s)
+    if not m:
+        raise Fatal('%r is not a valid IP subnet format' % s)
+    (net,width) = m.groups()
+    if width == None:
+        width = 128
+    else:
+        width = int(width)
+    if width > 128:
+        raise Fatal('*/%d is greater than the maximum of 128' % width)
+    return(socket.AF_INET6, net, width)
+
+
 # list of:
 # 1.2.3.4/5 or just 1.2.3.4
+# 1:2::3/64 or just 1:2::3
 def parse_subnets(subnets_str):
     subnets = []
     for s in subnets_str:
-        subnet = parse_subnet4(s)
+        if ':' in s:
+            subnet = parse_subnet6(s)
+        else:
+            subnet = parse_subnet4(s)
         subnets.append(subnet)
     return subnets
 
@@ -50,13 +69,24 @@ def parse_ipport4(s):
     return ('%d.%d.%d.%d' % (a,b,c,d), port)
 
 
+# [1:2::3]:456 or [1:2::3] or 456
+def parse_ipport6(s):
+    s = str(s)
+    m = re.match(r'(?:\[([^]]*)])?(?::)?(?:(\d+))?$', s)
+    if not m:
+        raise Fatal('%s is not a valid IP:port format' % s)
+    (ip,port) = m.groups()
+    (ip,port) = (ip or '::', int(port or 0))
+    return (ip, port)
+
+
 optspec = """
 sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
 sshuttle --server
 sshuttle --firewall <port> <subnets...>
 sshuttle --hostwatch
 --
-l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
+l,listen=  transproxy to this ip address and port number
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
@@ -93,10 +123,11 @@ try:
         server.latency_control = opt.latency_control
         sys.exit(server.main())
     elif opt.firewall:
-        if len(extra) != 3:
-            o.fatal('exactly three arguments expected')
+        if len(extra) != 5:
+            o.fatal('exactly five arguments expected')
         sys.exit(firewall.main(int(extra[0]), int(extra[1]),
-                                extra[2], opt.syslog))
+                               int(extra[2]), int(extra[3]),
+                                extra[4], opt.syslog))
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:
@@ -124,8 +155,22 @@ try:
             method = opt.method
         else:
             o.fatal("method %s not supported"%opt.method)
-        ipport_v4 = parse_ipport4(opt.listen or '0.0.0.0:0')
-        sys.exit(client.main(ipport_v4,
+        if not opt.listen:
+            if opt.method == "tproxy":
+                ipport_v6 = parse_ipport6('[::1]:0')
+            else:
+                ipport_v6 = None
+            ipport_v4 = parse_ipport4('127.0.0.1:0')
+        else:
+            ipport_v6 = None
+            ipport_v4 = None
+            list = opt.listen.split(",")
+            for ip in list:
+                if '[' in ip and ']' in ip and opt.method == "tproxy":
+                    ipport_v6 = parse_ipport6(ip)
+                else:
+                    ipport_v4 = parse_ipport4(ip)
+        sys.exit(client.main(ipport_v6, ipport_v4,
                              opt.ssh_cmd,
                              remotename,
                              opt.python,

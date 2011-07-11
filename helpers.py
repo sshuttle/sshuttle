@@ -42,7 +42,10 @@ def resolvconf_nameservers():
     for line in open('/etc/resolv.conf'):
         words = line.lower().split()
         if len(words) >= 2 and words[0] == 'nameserver':
-            l.append(words[1])
+            if ':' in words[1]:
+                l.append((socket.AF_INET6,words[1]))
+            else:
+                l.append((socket.AF_INET,words[1]))
     return l
 
 
@@ -55,7 +58,7 @@ def resolvconf_random_nameserver():
             random.shuffle(l)
         return l[0]
     else:
-        return '127.0.0.1'
+        return (socket.AF_INET,'127.0.0.1')
     
 
 def islocal(ip,family):

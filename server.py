@@ -108,6 +108,7 @@ class Hostwatch:
 
 class DnsProxy(Handler):
     def __init__(self, mux, chan, request):
+        # FIXME! IPv4 specific
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         Handler.__init__(self, [sock])
         self.timeout = time.time()+30
@@ -117,6 +118,7 @@ class DnsProxy(Handler):
         self.peer = None
         self.request = request
         self.sock = sock
+        # FIXME! IPv4 specific
         self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         self.try_send()
 
@@ -124,7 +126,8 @@ class DnsProxy(Handler):
         if self.tries >= 3:
             return
         self.tries += 1
-        self.peer = resolvconf_random_nameserver()
+        # FIXME! Support IPv6 nameservers
+        self.peer = resolvconf_random_nameserver()[1]
         self.sock.connect((self.peer, 53))
         debug2('DNS: sending to %r\n' % self.peer)
         try:

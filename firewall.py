@@ -15,7 +15,9 @@ def nonfatal(func, *args):
 
 
 def ipt_chain_exists(family, table, name):
-    if family == socket.AF_INET:
+    if family == socket.AF_INET6:
+        cmd = 'ip6tables'
+    elif family == socket.AF_INET:
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"'%family_to_string(family))
@@ -30,7 +32,9 @@ def ipt_chain_exists(family, table, name):
 
 
 def _ipt(family, table, *args):
-    if family == socket.AF_INET:
+    if family == socket.AF_INET6:
+        argv = ['ip6tables', '-t', table] + list(args)
+    elif family == socket.AF_INET:
         argv = ['iptables', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"'%family_to_string(family))
@@ -110,7 +114,7 @@ def do_iptables_nat(port, dnsport, family, subnets):
                 
     if dnsport:
         nslist = resolvconf_nameservers()
-        for ip in nslist:
+        for f,ip in filter(lambda i: i[0]==family, nslist):
             ipt_ttl('-A', chain, '-j', 'REDIRECT',
                     '--dest', '%s/32' % ip,
                     '-p', 'udp',
@@ -119,7 +123,7 @@ def do_iptables_nat(port, dnsport, family, subnets):
 
 
 def do_iptables_tproxy(port, dnsport, family, subnets):
-    if family not in [socket.AF_INET]:
+    if family not in [socket.AF_INET, socket.AF_INET6]:
         raise Exception('Address family "%s" unsupported by tproxy method'%family_to_string(family))
 
     table = "mangle"
@@ -367,7 +371,7 @@ def do_ipfw(port, dnsport, family, subnets):
         divertsock.bind(('0.0.0.0', port)) # IP field is ignored
 
         nslist = resolvconf_nameservers()
-        for ip in nslist:
+        for f,ip in filter(lambda i: i[0]==family, nslist):
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
                  'log', 'udp',
@@ -450,9 +454,13 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port_v4, dnsport_v4, method, syslog):
-    assert(port_v4 > 0)
+def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, syslog):
+    assert(port_v6 >= 0)
+    assert(port_v6 <= 65535)
+    assert(port_v4 >= 0)
     assert(port_v4 <= 65535)
+    assert(dnsport_v6 >= 0)
+    assert(dnsport_v6 <= 65535)
     assert(dnsport_v4 >= 0)
     assert(dnsport_v4 <= 65535)
 
@@ -519,6 +527,12 @@ def main(port_v4, dnsport_v4, method, syslog):
         if line:
             debug1('firewall manager: starting transproxy.\n')
 
+            subnets_v6 = filter(lambda i: i[0]==socket.AF_INET6, subnets)
+            if port_v6:
+                do_wait = do_it(port_v6, dnsport_v6, socket.AF_INET6, subnets_v6)
+            elif len(subnets_v6) > 0:
+                debug1("IPv6 subnets defined but IPv6 disabled\n")
+
             subnets_v4 = filter(lambda i: i[0]==socket.AF_INET, subnets)
             if port_v4:
                 do_wait = do_it(port_v4, dnsport_v4, socket.AF_INET, subnets_v4)
@@ -543,7 +557,7 @@ def main(port_v4, dnsport_v4, method, syslog):
             if line.startswith('HOST '):
                 (name,ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
-                rewrite_etc_hosts(port_v4)
+                rewrite_etc_hosts(port_v6 or port_v4)
             elif line:
                 raise Fatal('expected EOF, got %r' % line)
             else:
@@ -555,4 +569,4 @@ def main(port_v4, dnsport_v4, method, syslog):
             pass
         if port_v4:
             do_it(port_v4, 0, socket.AF_INET, [])
-        restore_etc_hosts(port_v4)
+        restore_etc_hosts(port_v6 or port_v4)
