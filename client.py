@@ -125,16 +125,14 @@ class MultiListener:
 
 
 class FirewallClient:
-    def __init__(self, port, subnets_include, subnets_exclude, dnsport, method):
-        self.port = port
+    def __init__(self, port_v4, subnets_include, subnets_exclude, dnsport_v4, method):
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
-        self.dnsport = dnsport
         argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port),
-                                   str(dnsport),
+                    ['--firewall', str(port_v4),
+                                   str(dnsport_v4),
                                    method])
         if ssyslog._p:
             argvbase += ['--syslog']

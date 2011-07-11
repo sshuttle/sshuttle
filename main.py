@@ -4,30 +4,36 @@ import compat.ssubprocess as ssubprocess
 from helpers import *
 
 
+# 1.2.3.4/5 or just 1.2.3.4
+def parse_subnet4(s):
+    m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
+    if not m:
+        raise Fatal('%r is not a valid IP subnet format' % s)
+    (a,b,c,d,width) = m.groups()
+    (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
+    if width == None:
+        width = 32
+    else:
+        width = int(width)
+    if a > 255 or b > 255 or c > 255 or d > 255:
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+    if width > 32:
+        raise Fatal('*/%d is greater than the maximum of 32' % width)
+    return(socket.AF_INET, '%d.%d.%d.%d' % (a,b,c,d), width)
+
+
 # list of:
 # 1.2.3.4/5 or just 1.2.3.4
 def parse_subnets(subnets_str):
     subnets = []
     for s in subnets_str:
-        m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
-        if not m:
-            raise Fatal('%r is not a valid IP subnet format' % s)
-        (a,b,c,d,width) = m.groups()
-        (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
-        if width == None:
-            width = 32
-        else:
-            width = int(width)
-        if a > 255 or b > 255 or c > 255 or d > 255:
-            raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
-        if width > 32:
-            raise Fatal('*/%d is greater than the maximum of 32' % width)
-        subnets.append((socket.AF_INET, '%d.%d.%d.%d' % (a,b,c,d), width))
+        subnet = parse_subnet4(s)
+        subnets.append(subnet)
     return subnets
 
 
 # 1.2.3.4:567 or just 1.2.3.4 or just 567
-def parse_ipport(s):
+def parse_ipport4(s):
     s = str(s)
     m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
     if not m:
@@ -118,7 +124,7 @@ try:
             method = opt.method
         else:
             o.fatal("method %s not supported"%opt.method)
-        ipport_v4 = parse_ipport(opt.listen or '0.0.0.0:0')
+        ipport_v4 = parse_ipport4(opt.listen or '0.0.0.0:0')
         sys.exit(client.main(ipport_v4,
                              opt.ssh_cmd,
                              remotename,
