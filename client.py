@@ -12,6 +12,7 @@ def got_signal(signum, frame):
 
 
 _pidname = None
+IP_TRANSPARENT = 19
 def check_daemon(pidfile):
     global _pidname
     _pidname = os.path.abspath(pidfile)
@@ -232,8 +233,11 @@ def onaccept_tcp(listener, method, mux, handlers):
             return
         else:
             raise
-    dstip = original_dst(sock)
-    debug1('Accept: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
+    if method == "tproxy":
+        dstip = sock.getsockname();
+    else:
+        dstip = original_dst(sock)
+    debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                           dstip[0],dstip[1]))
     if dstip[1] == listener.getsockname()[1] and islocal(dstip[0], sock.family):
         debug1("-- ignored: that's my address!\n")
@@ -465,6 +469,9 @@ def main(listenip_v4,
         dns_listener = None
 
     fw = FirewallClient(redirectport_v4, subnets_include, subnets_exclude, dnsport_v4, method)
+
+    if fw.method == "tproxy":
+        tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
 
     try:
         return _main(tcp_listener, fw, ssh_cmd, remotename,

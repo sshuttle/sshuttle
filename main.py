@@ -60,7 +60,7 @@ l,listen=  transproxy to this ip address and port number [127.0.0.1:0]
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
-method=    auto, nat, or ipfw
+method=    auto, nat, tproxy, or ipfw
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
@@ -120,7 +120,7 @@ try:
             sh = None
         if not opt.method:
             method = "auto"
-        elif opt.method in [ "auto", "nat", "ipfw" ]:
+        elif opt.method in [ "auto", "nat", "tproxy", "ipfw" ]:
             method = opt.method
         else:
             o.fatal("method %s not supported"%opt.method)

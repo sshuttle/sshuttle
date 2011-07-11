@@ -118,6 +118,67 @@ def do_iptables_nat(port, dnsport, family, subnets):
                     '--to-ports', str(dnsport))
 
 
+def do_iptables_tproxy(port, dnsport, family, subnets):
+    if family not in [socket.AF_INET]:
+        raise Exception('Address family "%s" unsupported by tproxy method'%family_to_string(family))
+
+    table = "mangle"
+    def ipt(*args):
+        return _ipt(family, table, *args)
+    def ipt_ttl(*args):
+        return _ipt_ttl(family, table, *args)
+
+    mark_chain   = 'sshuttle-m-%s' % port
+    tproxy_chain = 'sshuttle-t-%s' % port
+    divert_chain = 'sshuttle-d-%s' % port
+
+    # basic cleanup/setup of chains
+    if ipt_chain_exists(family, table, mark_chain):
+        ipt('-D', 'OUTPUT', '-j', mark_chain)
+        ipt('-F', mark_chain)
+        ipt('-X', mark_chain)
+
+    if ipt_chain_exists(family, table, tproxy_chain):
+        ipt('-D', 'PREROUTING', '-j', tproxy_chain)
+        ipt('-F', tproxy_chain)
+        ipt('-X', tproxy_chain)
+
+    if ipt_chain_exists(family, table, divert_chain):
+        ipt('-F', divert_chain)
+        ipt('-X', divert_chain)
+
+    if subnets or dnsport:
+        ipt('-N', mark_chain)
+        ipt('-F', mark_chain)
+        ipt('-N', divert_chain)
+        ipt('-F', divert_chain)
+        ipt('-N', tproxy_chain)
+        ipt('-F', tproxy_chain)
+        ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
+        ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
+        ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
+        ipt('-A', divert_chain, '-j', 'ACCEPT')
+        ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
+             '-m', 'tcp', '-p', 'tcp')
+    if subnets:
+        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
+            if sexclude:
+                ipt('-A', mark_chain, '-j', 'RETURN',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-m', 'tcp', '-p', 'tcp')
+                ipt('-A', tproxy_chain, '-j', 'RETURN',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-m', 'tcp', '-p', 'tcp')
+            else:
+                ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                     '--dest', '%s/%s' % (snet,swidth),
+                     '-m', 'tcp', '-p', 'tcp')
+                ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
+                     '--dest', '%s/%s' % (snet,swidth),
+                     '-m', 'tcp', '-p', 'tcp',
+                     '--on-port', str(port))
+
+
 def ipfw_rule_exists(n):
     argv = ['ipfw', 'list']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
@@ -408,6 +469,8 @@ def main(port_v4, dnsport_v4, method, syslog):
 
     if method == "nat":
         do_it = do_iptables_nat
+    elif method == "tproxy":
+        do_it = do_iptables_tproxy
     elif method == "ipfw":
         do_it = do_ipfw
     else:
