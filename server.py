@@ -163,6 +163,35 @@ class DnsProxy(Handler):
         self.ok = False
 
 
+class UdpProxy(Handler):
+    def __init__(self, mux, chan, family):
+        sock = socket.socket(family, socket.SOCK_DGRAM)
+        Handler.__init__(self, [sock])
+        self.timeout = time.time()+30
+        self.mux = mux
+        self.chan = chan
+        self.sock = sock
+        if family == socket.AF_INET:
+            self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+
+    def send(self, dstip, data):
+        debug2('UDP: sending to %r port %d\n' % dstip)
+        try:
+            self.sock.sendto(data,dstip)
+        except socket.error, e:
+            log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
+            return
+
+    def callback(self):
+        try:
+            data,peer = self.sock.recvfrom(4096)
+        except socket.error, e:
+            log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
+            return
+        debug2('UDP response: %d bytes\n' % len(data))
+        hdr = "%s,%r,"%(peer[0], peer[1])
+        self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr+data)
+
 def main():
     if helpers.verbose >= 1:
         helpers.logprefix = ' s: '
@@ -231,6 +260,34 @@ def main():
         dnshandlers[channel] = h
     mux.got_dns_req = dns_req
 
+    udphandlers = {}
+    def udp_req(channel, cmd, data):
+        debug2('Incoming UDP request channel=%d, cmd=%d\n' % (channel,cmd))
+        if cmd == ssnet.CMD_UDP_DATA:
+            (dstip,dstport,data) = data.split(",",2)
+            dstport = int(dstport)
+            debug2('is incoming UDP data. %r %d.\n' % (dstip,dstport))
+            h = udphandlers[channel]
+            h.send((dstip,dstport),data)
+        elif cmd == ssnet.CMD_UDP_CLOSE:
+            debug2('is incoming UDP close\n')
+            h = udphandlers[channel]
+            h.ok = False
+            del mux.channels[channel]
+
+    def udp_open(channel, data):
+        debug2('Incoming UDP open.\n')
+        family = int(data)
+        mux.channels[channel] = lambda cmd, data: udp_req(channel, cmd, data)
+        if channel in udphandlers:
+            raise Fatal('UDP connection channel %d already open'%channel)
+        else:
+            h = UdpProxy(mux, channel, family)
+            handlers.append(h)
+            udphandlers[channel] = h
+    mux.got_udp_open = udp_open
+
+
     while mux.ok:
         if hw.pid:
             assert(hw.pid > 0)
@@ -249,4 +306,9 @@ def main():
                 if h.timeout < now or not h.ok:
                     debug3('expiring dnsreqs channel=%d\n' % channel)
                     del dnshandlers[channel]
+                    h.ok = False
+            for channel,h in udphandlers.items():
+                if not h.ok:
+                    debug3('expiring UDP channel=%d\n' % channel)
+                    del udphandlers[channel]
                     h.ok = False

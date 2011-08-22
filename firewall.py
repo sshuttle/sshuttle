@@ -69,10 +69,12 @@ def _ipt_ttl(family, *args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables_nat(port, dnsport, family, subnets):
+def do_iptables_nat(port, dnsport, family, subnets, udp):
     # only ipv4 supported with NAT
     if family != socket.AF_INET:
         raise Exception('Address family "%s" unsupported by nat method'%family_to_string(family))
+    if udp:
+        raise Exception("UDP not supported by nat method")
 
     table = "nat"
     def ipt(*args):
@@ -122,7 +124,7 @@ def do_iptables_nat(port, dnsport, family, subnets):
                     '--to-ports', str(dnsport))
 
 
-def do_iptables_tproxy(port, dnsport, family, subnets):
+def do_iptables_tproxy(port, dnsport, family, subnets, udp):
     if family not in [socket.AF_INET, socket.AF_INET6]:
         raise Exception('Address family "%s" unsupported by tproxy method'%family_to_string(family))
 
@@ -164,6 +166,21 @@ def do_iptables_tproxy(port, dnsport, family, subnets):
         ipt('-A', divert_chain, '-j', 'ACCEPT')
         ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
+    if subnets and udp:
+        ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
+             '-m', 'udp', '-p', 'udp')
+
+    if dnsport:
+        nslist = resolvconf_nameservers()
+        for f,ip in filter(lambda i: i[0]==family, nslist):
+            ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                '--dest', '%s/32' % ip,
+                '-m', 'udp', '-p', 'udp', '--dport', '53')
+            ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
+                 '--dest', '%s/32' % ip,
+                 '-m', 'udp', '-p', 'udp', '--dport', '53',
+                 '--on-port', str(dnsport))
+
     if subnets:
         for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
@@ -180,6 +197,22 @@ def do_iptables_tproxy(port, dnsport, family, subnets):
                 ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
                      '--dest', '%s/%s' % (snet,swidth),
                      '-m', 'tcp', '-p', 'tcp',
+                     '--on-port', str(port))
+
+            if sexclude and udp:
+                ipt('-A', mark_chain, '-j', 'RETURN',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-m', 'udp', '-p', 'udp')
+                ipt('-A', tproxy_chain, '-j', 'RETURN',
+                    '--dest', '%s/%s' % (snet,swidth),
+                    '-m', 'udp', '-p', 'udp')
+            elif udp:
+                ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                     '--dest', '%s/%s' % (snet,swidth),
+                     '-m', 'udp', '-p', 'udp')
+                ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
+                     '--dest', '%s/%s' % (snet,swidth),
+                     '-m', 'udp', '-p', 'udp',
                      '--on-port', str(port))
 
 
@@ -288,10 +321,12 @@ def ipfw(*args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def do_ipfw(port, dnsport, family, subnets):
+def do_ipfw(port, dnsport, family, subnets, udp):
     # IPv6 not supported
     if family not in [socket.AF_INET, ]:
         raise Exception('Address family "%s" unsupported by ipfw method'%family_to_string(family))
+    if udp:
+        raise Exception("UDP not supported by ipfw method")
 
     sport = str(port)
     xsport = str(port+1)
@@ -454,7 +489,7 @@ def restore_etc_hosts(port):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, syslog):
+def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
     assert(port_v6 >= 0)
     assert(port_v6 <= 65535)
     assert(port_v4 >= 0)
@@ -529,13 +564,13 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, syslog):
 
             subnets_v6 = filter(lambda i: i[0]==socket.AF_INET6, subnets)
             if port_v6:
-                do_wait = do_it(port_v6, dnsport_v6, socket.AF_INET6, subnets_v6)
+                do_wait = do_it(port_v6, dnsport_v6, socket.AF_INET6, subnets_v6, udp)
             elif len(subnets_v6) > 0:
                 debug1("IPv6 subnets defined but IPv6 disabled\n")
 
             subnets_v4 = filter(lambda i: i[0]==socket.AF_INET, subnets)
             if port_v4:
-                do_wait = do_it(port_v4, dnsport_v4, socket.AF_INET, subnets_v4)
+                do_wait = do_it(port_v4, dnsport_v4, socket.AF_INET, subnets_v4, udp)
             elif len(subnets_v4) > 0:
                 debug1('IPv4 subnets defined but IPv4 disabled\n')
 
@@ -567,6 +602,8 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
+        if port_v6:
+            do_it(port_v6, 0, socket.AF_INET6, [], udp)
         if port_v4:
-            do_it(port_v4, 0, socket.AF_INET, [])
+            do_it(port_v4, 0, socket.AF_INET, [], udp)
         restore_etc_hosts(port_v6 or port_v4)

@@ -123,11 +123,11 @@ try:
         server.latency_control = opt.latency_control
         sys.exit(server.main())
     elif opt.firewall:
-        if len(extra) != 5:
-            o.fatal('exactly five arguments expected')
+        if len(extra) != 6:
+            o.fatal('exactly six arguments expected')
         sys.exit(firewall.main(int(extra[0]), int(extra[1]),
                                int(extra[2]), int(extra[3]),
-                                extra[4], opt.syslog))
+                               extra[4], int(extra[5]), opt.syslog))
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:
