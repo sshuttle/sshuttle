@@ -97,7 +97,10 @@ class Runner:
         return self.rv
 
     def wait(self):
-        return self._try_wait(0)
+        rv = None
+        while rv is None:
+            self.gotdata(None)
+            rv = self._try_wait(os.WNOHANG)
 
     def poll(self):
         return self._try_wait(os.WNOHANG)
