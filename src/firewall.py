@@ -394,11 +394,11 @@ def do_ipfw(port, dnsport, family, subnets, udp):
                 in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipfw('add', sport, 'skipto', xsport,
-                     'log', 'tcp',
+                     'tcp',
                      'from', 'any', 'to', '%s/%s' % (snet, swidth))
             else:
                 ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
-                     'log', 'tcp',
+                     'tcp',
                      'from', 'any', 'to', '%s/%s' % (snet, swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
@@ -440,12 +440,12 @@ def do_ipfw(port, dnsport, family, subnets, udp):
         for f, ip in filter(lambda i: i[0] == family, nslist):
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
-                 'log', 'udp',
+                 'udp',
                  'from', 'any', 'to', '%s/32' % ip, '53',
                  'not', 'ipttl', '42')
         # relabel DNS responses
         ipfw('add', sport, 'divert', sport,
-             'log', 'udp',
+             'udp',
              'from', 'any', str(dnsport), 'to', 'any',
              'not', 'ipttl', '42')
 
