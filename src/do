@@ -121,7 +121,7 @@ _do()
 		fi
 		[ ! -e "$DO_BUILT" ] || [ ! -d "$(dirname "$target")" ] ||
 		: >>"$target.did"
-		( _run_dofile "$base" "$ext" "$tmp.tmp" )
+		( _run_dofile "$target" "$base" "$tmp.tmp" )
 		rv=$?
 		if [ $rv != 0 ]; then
 			printf "do: %s%s\n" "$DO_DEPTH" \
