@@ -1,6 +1,6 @@
-% sshuttle(8) Sshuttle 0.46
+% sshuttle(8) Sshuttle %VERSION%
 % Avery Pennarun <apenwarr@gmail.com>
-% 2011-01-25
+% %DATE%
 
 # NAME
 
