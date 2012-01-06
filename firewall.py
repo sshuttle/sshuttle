@@ -1,4 +1,4 @@
-import re, errno, socket, select, struct
+import re, errno, socket, select, signal, struct
 import compat.ssubprocess as ssubprocess
 import helpers, ssyslog
 from helpers import *
@@ -397,6 +397,11 @@ def main(port, dnsport, syslog):
     debug1('firewall manager ready.\n')
     sys.stdout.write('READY\n')
     sys.stdout.flush()
+
+    # don't disappear if our controlling terminal or stdout/stderr
+    # disappears; we still have to clean up.
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
     # I'll die automatically.
