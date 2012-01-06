@@ -1,7 +1,7 @@
 exec >&2
 UI=
 [ "$(uname)" = "Darwin" ] && UI=ui-macos/all
-redo-ifchange Documentation/all $UI
+redo-ifchange Documentation/all version/all $UI
 
 echo
 echo "What now?"
