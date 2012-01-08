@@ -6,6 +6,12 @@ from helpers import *
 # python doesn't have a definition for this
 IPPROTO_DIVERT = 254
 
+# return values from sysctl_set
+SUCCESS = 0
+SAME = 1
+FAILED = -1
+NONEXIST = -2
+
 
 def nonfatal(func, *args):
     try:
@@ -135,6 +141,48 @@ def _fill_oldctls(prefix):
         raise Fatal('%r returned no data' % (argv,))
 
 
+KERNEL_FLAGS_PATH = '/Library/Preferences/SystemConfiguration/com.apple.Boot'
+KERNEL_FLAGS_NAME = 'Kernel Flags'
+def _defaults_read_kernel_flags():
+    argv = ['defaults', 'read', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME]
+    debug1('>> %s\n' % ' '.join(argv))
+    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    flagstr = p.stdout.read().strip()
+    rv = p.wait()
+    if rv:
+        raise Fatal('%r returned %d' % (argv, rv))
+    flags = flagstr and flagstr.split(' ') or []
+    return flags
+
+
+def _defaults_write_kernel_flags(flags):
+    flagstr = ' '.join(flags)
+    argv = ['defaults', 'write', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME,
+            flagstr]
+    debug1('>> %s\n' % ' '.join(argv))
+    rv = ssubprocess.call(argv)
+    if rv:
+        raise Fatal('%r returned %d' (argv, rv))
+    argv = ['plutil', '-convert', 'xml1', KERNEL_FLAGS_PATH + '.plist']
+    debug1('>> %s\n' % ' '.join(argv))
+    rv = ssubprocess.call(argv)
+    if rv:
+        raise Fatal('%r returned %d' (argv, rv))
+    
+
+
+def defaults_write_kernel_flag(name, val):
+    flags = _defaults_read_kernel_flags()
+    found = 0
+    for i in range(len(flags)):
+        if flags[i].startswith('%s=' % name):
+            found += 1
+            flags[i] = '%s=%s' % (name, val)
+    if not found:
+        flags.insert(0, '%s=%s' % (name, val))
+    _defaults_write_kernel_flags(flags)
+
+
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
@@ -150,20 +198,24 @@ def sysctl_set(name, val, permanent=False):
         _fill_oldctls(PREFIX)
     if not (name in _oldctls):
         debug1('>> No such sysctl: %r\n' % name)
-        return False
+        return NONEXIST
     oldval = _oldctls[name]
-    if val != oldval:
-        rv = _sysctl_set(name, val)
-        if rv==0 and permanent:
-            debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
-            f = open('/etc/sysctl.conf', 'a')
-            f.write('\n'
-                    '# Added by sshuttle\n'
-                    '%s=%s\n' % (name, val))
-            f.close()
-        else:
-            _changedctls.append(name)
-        return True
+    if val == oldval:
+        return SAME
+
+    rv = _sysctl_set(name, val)
+    if rv != 0:
+        return FAILED
+    if permanent:
+        debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
+        f = open('/etc/sysctl.conf', 'a')
+        f.write('\n'
+                '# Added by sshuttle\n'
+                '%s=%s\n' % (name, val))
+        f.close()
+    else:
+        _changedctls.append(name)
+    return SUCCESS
 
 
 def _udp_unpack(p):
@@ -222,8 +274,8 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
-        changed = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
-        if changed:
+        changeflag = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
+        if changeflag == SUCCESS:
             log("\n"
                 "        WARNING: ONE-TIME NETWORK DISRUPTION:\n"
                 "        =====================================\n"
@@ -234,6 +286,18 @@ def do_ipfw(port, dnsport, subnets):
                 "ethernet port) NOW, then restart sshuttle.  The fix is\n"
                 "permanent; you only have to do this once.\n\n")
             sys.exit(1)
+        elif changeflag == FAILED:
+            log('Updating kernel boot flags.\n')
+            defaults_write_kernel_flag('net.inet.ip.scopedroute', 0)
+            log("\n"
+                "        YOU MUST REBOOT TO USE SSHUTTLE\n"
+                "        ===============================\n"
+                "sshuttle has changed a MacOS kernel boot-time setting\n"
+                "to work around a bug in MacOS 10.7 Lion.  You will need\n"
+                "to reboot before it takes effect.  You only have to\n"
+                "do this once.\n\n")
+            sys.exit(1)
+                
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')
