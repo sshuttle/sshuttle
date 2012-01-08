@@ -78,6 +78,11 @@ class Runner:
             if pid == self.pid:
                 if os.WIFEXITED(code):
                     self.rv = os.WEXITSTATUS(code)
+                    if self.rv == 111:
+                        NSRunAlertPanel('Sshuttle',
+                            'Please restart your computer to finish '
+                            'installing Sshuttle.',
+                            'Restart Later', None, None)
                 else:
                     self.rv = -os.WSTOPSIG(code)
                 self.serverobj.setConnected_(False)
