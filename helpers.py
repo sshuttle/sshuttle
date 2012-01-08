@@ -30,6 +30,11 @@ class Fatal(Exception):
     pass
 
 
+EXITCODE_NEEDS_REBOOT = 111
+class FatalNeedsReboot(Fatal):
+    pass
+
+
 def list_contains_any(l, sub):
     for i in sub:
         if i in l:

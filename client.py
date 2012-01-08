@@ -171,7 +171,9 @@ class FirewallClient:
     def done(self):
         self.pfile.close()
         rv = self.p.wait()
-        if rv:
+        if rv == EXITCODE_NEEDS_REBOOT:
+            raise FatalNeedsReboot()
+        elif rv:
             raise Fatal('cleanup: %r returned %d' % (self.argv, rv))
 
 

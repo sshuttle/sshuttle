@@ -20,6 +20,14 @@ def nonfatal(func, *args):
         log('error: %s\n' % e)
 
 
+def _call(argv):
+    debug1('>> %s\n' % ' '.join(argv))
+    rv = ssubprocess.call(argv)
+    if rv:
+        raise Fatal('%r returned %d' % (argv, rv))
+    return rv
+
+
 def ipt_chain_exists(name):
     argv = ['iptables', '-t', 'nat', '-nL']
     p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
@@ -33,10 +41,7 @@ def ipt_chain_exists(name):
 
 def ipt(*args):
     argv = ['iptables', '-t', 'nat'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+    _call(argv)
 
 
 _no_ttl_module = False
@@ -159,15 +164,9 @@ def _defaults_write_kernel_flags(flags):
     flagstr = ' '.join(flags)
     argv = ['defaults', 'write', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME,
             flagstr]
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' (argv, rv))
+    _call(argv)
     argv = ['plutil', '-convert', 'xml1', KERNEL_FLAGS_PATH + '.plist']
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' (argv, rv))
+    _call(argv)
     
 
 
@@ -253,10 +252,7 @@ def _handle_diversion(divertsock, dnsport):
 
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+    _call(argv)
 
 
 def do_ipfw(port, dnsport, subnets):
@@ -296,8 +292,7 @@ def do_ipfw(port, dnsport, subnets):
                 "to work around a bug in MacOS 10.7 Lion.  You will need\n"
                 "to reboot before it takes effect.  You only have to\n"
                 "do this once.\n\n")
-            sys.exit(1)
-                
+            sys.exit(EXITCODE_NEEDS_REBOOT)
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')

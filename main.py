@@ -126,6 +126,9 @@ try:
                              parse_subnets(includes),
                              parse_subnets(excludes),
                              opt.syslog, opt.daemon, opt.pidfile))
+except FatalNeedsReboot, e:
+    log('You must reboot before using sshuttle.\n')
+    sys.exit(EXITCODE_NEEDS_REBOOT)
 except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)
