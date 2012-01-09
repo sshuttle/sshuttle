@@ -3,6 +3,7 @@ import my
 
 
 configchange_callback = setconnect_callback = None
+objc_validator = objc.signature('@@:N^@o^@')
 
 
 def config_changed():
@@ -39,7 +40,7 @@ class SshuttleNet(NSObject):
     def setSubnet_(self, v):
         self._k_subnet = v
         config_changed()
-    @objc.accessor
+    @objc_validator
     def validateSubnet_error_(self, value, error):
         #print 'validateSubnet!'
         return True, _validate_ip(value), error
@@ -49,7 +50,7 @@ class SshuttleNet(NSObject):
     def setWidth_(self, v):
         self._k_width = v
         config_changed()
-    @objc.accessor
+    @objc_validator
     def validateWidth_error_(self, value, error):
         #print 'validateWidth!'
         return True, _validate_width(value), error
@@ -118,7 +119,7 @@ class SshuttleServer(NSObject):
         self._k_host = v
         self.setTitle_(None)
         config_changed()
-    @objc.accessor
+    @objc_validator
     def validateHost_error_(self, value, error):
         #print 'validatehost! %r %r %r' % (self, value, error)
         while value.startswith('-'):

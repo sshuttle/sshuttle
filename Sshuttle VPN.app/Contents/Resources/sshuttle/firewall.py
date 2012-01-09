@@ -1,4 +1,4 @@
-import re, errno, socket, select, struct
+import re, errno, socket, select, signal, struct
 import compat.ssubprocess as ssubprocess
 import helpers, ssyslog
 from helpers import *
@@ -6,12 +6,26 @@ from helpers import *
 # python doesn't have a definition for this
 IPPROTO_DIVERT = 254
 
+# return values from sysctl_set
+SUCCESS = 0
+SAME = 1
+FAILED = -1
+NONEXIST = -2
+
 
 def nonfatal(func, *args):
     try:
         func(*args)
     except Fatal, e:
         log('error: %s\n' % e)
+
+
+def _call(argv):
+    debug1('>> %s\n' % ' '.join(argv))
+    rv = ssubprocess.call(argv)
+    if rv:
+        raise Fatal('%r returned %d' % (argv, rv))
+    return rv
 
 
 def ipt_chain_exists(name):
@@ -27,10 +41,7 @@ def ipt_chain_exists(name):
 
 def ipt(*args):
     argv = ['iptables', '-t', 'nat'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+    _call(argv)
 
 
 _no_ttl_module = False
@@ -135,6 +146,42 @@ def _fill_oldctls(prefix):
         raise Fatal('%r returned no data' % (argv,))
 
 
+KERNEL_FLAGS_PATH = '/Library/Preferences/SystemConfiguration/com.apple.Boot'
+KERNEL_FLAGS_NAME = 'Kernel Flags'
+def _defaults_read_kernel_flags():
+    argv = ['defaults', 'read', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME]
+    debug1('>> %s\n' % ' '.join(argv))
+    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    flagstr = p.stdout.read().strip()
+    rv = p.wait()
+    if rv:
+        raise Fatal('%r returned %d' % (argv, rv))
+    flags = flagstr and flagstr.split(' ') or []
+    return flags
+
+
+def _defaults_write_kernel_flags(flags):
+    flagstr = ' '.join(flags)
+    argv = ['defaults', 'write', KERNEL_FLAGS_PATH, KERNEL_FLAGS_NAME,
+            flagstr]
+    _call(argv)
+    argv = ['plutil', '-convert', 'xml1', KERNEL_FLAGS_PATH + '.plist']
+    _call(argv)
+    
+
+
+def defaults_write_kernel_flag(name, val):
+    flags = _defaults_read_kernel_flags()
+    found = 0
+    for i in range(len(flags)):
+        if flags[i].startswith('%s=' % name):
+            found += 1
+            flags[i] = '%s=%s' % (name, val)
+    if not found:
+        flags.insert(0, '%s=%s' % (name, val))
+    _defaults_write_kernel_flags(flags)
+
+
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
@@ -150,20 +197,24 @@ def sysctl_set(name, val, permanent=False):
         _fill_oldctls(PREFIX)
     if not (name in _oldctls):
         debug1('>> No such sysctl: %r\n' % name)
-        return False
+        return NONEXIST
     oldval = _oldctls[name]
-    if val != oldval:
-        rv = _sysctl_set(name, val)
-        if rv==0 and permanent:
-            debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
-            f = open('/etc/sysctl.conf', 'a')
-            f.write('\n'
-                    '# Added by sshuttle\n'
-                    '%s=%s\n' % (name, val))
-            f.close()
-        else:
-            _changedctls.append(name)
-        return True
+    if val == oldval:
+        return SAME
+
+    rv = _sysctl_set(name, val)
+    if rv != 0:
+        return FAILED
+    if permanent:
+        debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
+        f = open('/etc/sysctl.conf', 'a')
+        f.write('\n'
+                '# Added by sshuttle\n'
+                '%s=%s\n' % (name, val))
+        f.close()
+    else:
+        _changedctls.append(name)
+    return SUCCESS
 
 
 def _udp_unpack(p):
@@ -201,10 +252,7 @@ def _handle_diversion(divertsock, dnsport):
 
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+    _call(argv)
 
 
 def do_ipfw(port, dnsport, subnets):
@@ -222,8 +270,14 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
-        changed = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
-        if changed:
+
+        # This seems to be needed on MacOS 10.6 and 10.7.  For more
+        # information, see:
+        #   http://groups.google.com/group/sshuttle/browse_thread/thread/bc32562e17987b25/6d3aa2bb30a1edab
+        # and
+        #   http://serverfault.com/questions/138622/transparent-proxying-leaves-sockets-with-syn-rcvd-in-macos-x-10-6-snow-leopard
+        changeflag = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
+        if changeflag == SUCCESS:
             log("\n"
                 "        WARNING: ONE-TIME NETWORK DISRUPTION:\n"
                 "        =====================================\n"
@@ -234,6 +288,21 @@ def do_ipfw(port, dnsport, subnets):
                 "ethernet port) NOW, then restart sshuttle.  The fix is\n"
                 "permanent; you only have to do this once.\n\n")
             sys.exit(1)
+        elif changeflag == FAILED:
+            # On MacOS 10.7, the scopedroute sysctl became read-only, so
+            # we have to fix it using a kernel boot parameter instead,
+            # which requires rebooting.  For more, see:
+            #   http://groups.google.com/group/sshuttle/browse_thread/thread/a42505ca33e1de80/e5e8f3e5a92d25f7
+            log('Updating kernel boot flags.\n')
+            defaults_write_kernel_flag('net.inet.ip.scopedroute', 0)
+            log("\n"
+                "        YOU MUST REBOOT TO USE SSHUTTLE\n"
+                "        ===============================\n"
+                "sshuttle has changed a MacOS kernel boot-time setting\n"
+                "to work around a bug in MacOS 10.7 Lion.  You will need\n"
+                "to reboot before it takes effect.  You only have to\n"
+                "do this once.\n\n")
+            sys.exit(EXITCODE_NEEDS_REBOOT)
 
         ipfw('add', sport, 'check-state', 'ip',
              'from', 'any', 'to', 'any')
@@ -243,11 +312,11 @@ def do_ipfw(port, dnsport, subnets):
         for swidth,sexclude,snet in sorted(subnets, reverse=True):
             if sexclude:
                 ipfw('add', sport, 'skipto', xsport,
-                     'log', 'tcp',
+                     'tcp',
                      'from', 'any', 'to', '%s/%s' % (snet,swidth))
             else:
                 ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
-                     'log', 'tcp',
+                     'tcp',
                      'from', 'any', 'to', '%s/%s' % (snet,swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
@@ -289,12 +358,12 @@ def do_ipfw(port, dnsport, subnets):
         for ip in nslist:
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
-                 'log', 'udp',
+                 'udp',
                  'from', 'any', 'to', '%s/32' % ip, '53',
                  'not', 'ipttl', '42')
         # relabel DNS responses
         ipfw('add', sport, 'divert', sport,
-             'log', 'udp',
+             'udp',
              'from', 'any', str(dnsport), 'to', 'any',
              'not', 'ipttl', '42')
 
@@ -397,6 +466,11 @@ def main(port, dnsport, syslog):
     debug1('firewall manager ready.\n')
     sys.stdout.write('READY\n')
     sys.stdout.flush()
+
+    # don't disappear if our controlling terminal or stdout/stderr
+    # disappears; we still have to clean up.
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
     # I'll die automatically.

@@ -1,4 +1,4 @@
-import sys, os, socket
+import sys, os, socket, errno
 
 logprefix = ''
 verbose = 0
@@ -27,6 +27,11 @@ def debug3(s):
 
 
 class Fatal(Exception):
+    pass
+
+
+EXITCODE_NEEDS_REBOOT = 111
+class FatalNeedsReboot(Fatal):
     pass
 
 

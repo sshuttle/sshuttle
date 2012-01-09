@@ -63,6 +63,7 @@ seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 no-latency-control  sacrifice latency to improve bandwidth benchmarks
 wrap=      restart counting channel numbers after this number (for testing)
 D,daemon   run in the background as a daemon
+V,version  print sshuttle's version number
 syslog     send log messages to syslog (default if you use --daemon)
 pidfile=   pidfile name (only if using --daemon) [./sshuttle.pid]
 server     (internal use only)
@@ -72,6 +73,10 @@ hostwatch  (internal use only)
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[2:])
 
+if opt.version:
+    import version
+    print version.TAG
+    sys.exit(0)
 if opt.daemon:
     opt.syslog = 1
 if opt.wrap:
@@ -121,6 +126,9 @@ try:
                              parse_subnets(includes),
                              parse_subnets(excludes),
                              opt.syslog, opt.daemon, opt.pidfile))
+except FatalNeedsReboot, e:
+    log('You must reboot before using sshuttle.\n')
+    sys.exit(EXITCODE_NEEDS_REBOOT)
 except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)

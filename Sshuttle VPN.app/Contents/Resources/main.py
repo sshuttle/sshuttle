@@ -78,6 +78,11 @@ class Runner:
             if pid == self.pid:
                 if os.WIFEXITED(code):
                     self.rv = os.WEXITSTATUS(code)
+                    if self.rv == 111:
+                        NSRunAlertPanel('Sshuttle',
+                            'Please restart your computer to finish '
+                            'installing Sshuttle.',
+                            'Restart Later', None, None)
                 else:
                     self.rv = -os.WSTOPSIG(code)
                 self.serverobj.setConnected_(False)
@@ -87,7 +92,10 @@ class Runner:
         return self.rv
 
     def wait(self):
-        return self._try_wait(0)
+        rv = None
+        while rv is None:
+            self.gotdata(None)
+            rv = self._try_wait(os.WNOHANG)
         
     def poll(self):
         return self._try_wait(os.WNOHANG)
