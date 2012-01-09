@@ -270,6 +270,12 @@ def do_ipfw(port, dnsport, subnets):
 
     if subnets or dnsport:
         sysctl_set('net.inet.ip.fw.enable', 1)
+
+        # This seems to be needed on MacOS 10.6 and 10.7.  For more
+        # information, see:
+        #   http://groups.google.com/group/sshuttle/browse_thread/thread/bc32562e17987b25/6d3aa2bb30a1edab
+        # and
+        #   http://serverfault.com/questions/138622/transparent-proxying-leaves-sockets-with-syn-rcvd-in-macos-x-10-6-snow-leopard
         changeflag = sysctl_set('net.inet.ip.scopedroute', 0, permanent=True)
         if changeflag == SUCCESS:
             log("\n"
@@ -283,6 +289,10 @@ def do_ipfw(port, dnsport, subnets):
                 "permanent; you only have to do this once.\n\n")
             sys.exit(1)
         elif changeflag == FAILED:
+            # On MacOS 10.7, the scopedroute sysctl became read-only, so
+            # we have to fix it using a kernel boot parameter instead,
+            # which requires rebooting.  For more, see:
+            #   http://groups.google.com/group/sshuttle/browse_thread/thread/a42505ca33e1de80/e5e8f3e5a92d25f7
             log('Updating kernel boot flags.\n')
             defaults_write_kernel_flag('net.inet.ip.scopedroute', 0)
             log("\n"
