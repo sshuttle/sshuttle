@@ -1,4 +1,3 @@
-from __future__ import generators # add yield for python2.2
 import re, struct, socket, select, traceback, time
 if not globals().get('skip_imports'):
     import ssnet, helpers, hostwatch
@@ -44,6 +43,11 @@ def _maskbits(netmask):
     
     
 def _shl(n, bits):
+    # we use our own implementation of left-shift because
+    # results may be different between older and newer versions
+    # of python for numbers like 1<<32.  We use long() because
+    # int(2**32) doesn't work in older python, which has limited
+    # int sizes.
     return n * long(2**bits)
 
 
@@ -69,9 +73,11 @@ def _list_routes():
 
 
 def list_routes():
+    l = []
     for (ip,width) in _list_routes():
         if not ip.startswith('0.') and not ip.startswith('127.'):
-            yield (ip,width)
+            l.append((ip,width))
+    return l
 
 
 def _exc_dump():
