@@ -57,6 +57,7 @@ dns        capture local DNS requests and forward to the remote DNS server
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
+exclude-from=  exclude the subnets in a file (whitespace separated)
 v,verbose  increase debug message verbosity
 e,ssh-cmd= the command to use to connect to the remote [ssh]
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
@@ -104,6 +105,8 @@ try:
         for k,v in flags:
             if k in ('-x','--exclude'):
                 excludes.append(v)
+            if k in ('-X', '--exclude-from'):
+                excludes += open(v).read().split()
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
