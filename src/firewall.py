@@ -570,6 +570,8 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
     # disappears; we still have to clean up.
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
     # I'll die automatically.
