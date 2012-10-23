@@ -681,12 +681,16 @@ def main(listenip_v6, listenip_v4,
         tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
         if udp_listener:
             udp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-            udp_listener.v4.setsockopt(socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
-            udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
+            if udp_listener.v4 is not None:
+                udp_listener.v4.setsockopt(socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
+            if udp_listener.v6 is not None:
+                udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
         if dns_listener:
             dns_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-            dns_listener.v4.setsockopt(socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
-            dns_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
+            if dns_listener.v4 is not None:
+                dns_listener.v4.setsockopt(socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
+            if dns_listener.v6 is not None:
+                dns_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
