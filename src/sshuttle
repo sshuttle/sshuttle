@@ -4,7 +4,8 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 	[ -L "$EXE" ] || break
 	EXE=$(readlink "$EXE")
 done
-DIR=$(dirname "$EXE")
+#DIR=$(dirname "$EXE")
+DIR=/usr/share/sshuttle
 if python2 -V 2>/dev/null; then
 	exec python2 "$DIR/main.py" python2 "$@"
 else
