@@ -8,6 +8,12 @@ just switch your wireless off and on. Sshuttle makes the
 kernel setting it changes permanent, so this won't happen
 again, even after a reboot.
 
+Required Software
+=================
+
+ - You need PyXAPI, available here:
+   http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+
 
 sshuttle: where transparent proxy meets VPN meets ssh
 =====================================================
