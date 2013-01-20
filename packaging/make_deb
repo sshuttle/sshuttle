@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# This script puts together a .deb package suitable for installing on an Ubuntu
+# system
+
+B="/tmp/sshuttle/build"
+
+if [ ! -x /usr/bin/dpkg ]; then
+	echo 'Unable to build: dpkg not found on system'
+	exit 1
+fi
+
+# Create the new directory structure
+mkdir -p ${B}/etc/sshuttle/pre-start.d
+mkdir -p ${B}/etc/sshuttle/post-stop.d
+mkdir -p ${B}/usr/share/sshuttle
+mkdir -p ${B}/usr/bin
+mkdir -p ${B}/etc/init
+mkdir -p ${B}/DEBIAN
+
+# Copy over all of the files
+cp -r ../src/* ${B}/usr/share/sshuttle
+cp ../src/sshuttle ${B}/usr/bin
+cp -r sshuttle.conf ${B}/etc/init
+cp prefixes.conf ${B}/etc/sshuttle
+cp tunnel.conf ${B}/etc/sshuttle
+
+# Copy the control file over, as well
+cp control ${B}/DEBIAN
+
+# Create the md5sum manifest
+if [ -x /usr/bin/md5sum ]; then
+	cd ${B}
+	find . -type f | egrep -v DEBIAN | sed -re 's/^..//' | xargs md5sum > ${B}/DEBIAN/md5sums
+	cd ${OLDPWD}
+fi
+
+# Build the debian package
+VERSION=$(egrep -e '^Version' control | sed -re 's/^[^:]*: //')
+dpkg --build ${B} ./sshuttle-${VERSION}.deb
+rm -rf ${B}
