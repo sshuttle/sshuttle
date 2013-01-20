@@ -37,6 +37,26 @@ def parse_subnet6(s):
     return(socket.AF_INET6, net, width)
 
 
+# Subnet file, supporting empty lines and hash-started comment lines
+def parse_subnet_file(s):
+    try:
+        handle = open(s, 'r')
+    except OSError, e:
+        raise Fatal('Unable to open subnet file: %s' % s)
+
+    raw_config_lines = handle.readlines()
+    config_lines = []
+    for line_no, line in enumerate(raw_config_lines):
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        if line[0] == '#':
+            continue
+        config_lines.append(line)
+
+    return config_lines
+
+
 # list of:
 # 1.2.3.4/5 or just 1.2.3.4
 # 1:2::3/64 or just 1:2::3
@@ -100,6 +120,7 @@ seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 no-latency-control  sacrifice latency to improve bandwidth benchmarks
 wrap=      restart counting channel numbers after this number (for testing)
 D,daemon   run in the background as a daemon
+s,subnets= file where the subnets are stored, instead of on the command line
 syslog     send log messages to syslog (default if you use --daemon)
 pidfile=   pidfile name (only if using --daemon) [./sshuttle.pid]
 server     (internal use only)
@@ -131,8 +152,8 @@ try:
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:
-        if len(extra) < 1 and not opt.auto_nets:
-            o.fatal('at least one subnet (or -N) expected')
+        if len(extra) < 1 and not opt.auto_nets and not opt.subnets:
+            o.fatal('at least one subnet, subnet file, or -N expected')
         includes = extra
         excludes = ['127.0.0.0/8']
         for k,v in flags:
@@ -149,6 +170,8 @@ try:
             sh = []
         else:
             sh = None
+        if opt.subnets:
+            includes = parse_subnet_file(opt.subnets)
         if not opt.method:
             method = "auto"
         elif opt.method in [ "auto", "nat", "tproxy", "ipfw" ]:
