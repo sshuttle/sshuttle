@@ -59,19 +59,34 @@ Prerequisites
    Linux.)
    
  - If you use MacOS or BSD on your client machine:
-   Your kernel needs to be compiled with IPFIREWALL_FORWARD
+   Your kernel needs to be compiled with `IPFIREWALL_FORWARD`
    (MacOS has this by default) and you need to have ipfw
    available. (The server doesn't need to be MacOS or BSD.)
 
 
-This is how you use it:
+Obtaining sshuttle
+------------------
+
+ - First, go get PyXAPI from the link above
+
+ - Clone github.com/jwyllie83/sshuttle/tree/local
+
+
+Usage on (Ubuntu) Linux
 -----------------------
 
- - <tt>git clone git://github.com/apenwarr/sshuttle</tt>
-    on your client machine. You'll need root or sudo
-    access, and python needs to be installed.
+ - `cd packaging; ./make_deb`
 
- - The most basic use of sshuttle looks like:
+ - `sudo dpkg -i ./sshuttle-VERSION.deb`
+
+ - Check out the files in `/etc/sshuttle`; configure them so your tunnel works
+
+ - `sudo service sshuttle start`
+
+
+Usage on other Linuxes and OSes
+-------------------------------
+
   <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
 
  - There is a shortcut for 0.0.0.0/0 for those that value
@@ -90,6 +105,9 @@ local password to become root using either sudo or su, and
 then the remote ssh password.  Or you might have sudo and ssh set
 up to not require passwords, in which case you won't be
 prompted at all.)
+
+Usage Notes
+-----------
 
 That's it!  Now your local machine can access the remote network as if you
 were right there.  And if your "client" machine is a router, everyone on
