@@ -13,6 +13,8 @@ Required Software
 
  - You need PyXAPI, available here:
    http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+ - You also need autossh, available in various package management systems
+ - Python 2.x, both locally and the remote system
 
 
 sshuttle: where transparent proxy meets VPN meets ssh
