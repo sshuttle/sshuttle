@@ -193,7 +193,7 @@ try:
                     ipport_v6 = parse_ipport6(ip)
                 else:
                     ipport_v4 = parse_ipport4(ip)
-        sys.exit(client.main(ipport_v6, ipport_v4,
+        return_code = client.main(ipport_v6, ipport_v4,
                              opt.ssh_cmd,
                              remotename,
                              opt.python,
@@ -204,7 +204,14 @@ try:
                              opt.auto_nets,
                              parse_subnets(includes),
                              parse_subnets(excludes),
-                             opt.syslog, opt.daemon, opt.pidfile))
+                             opt.syslog, opt.daemon, opt.pidfile)
+
+        if return_code == 0:
+		log('Normal exit code, exiting...')
+	else:
+		log('Abnormal exit code detected, failing...' % return_code)
+	sys.exit(return_code)
+
 except Fatal, e:
     log('fatal: %s\n' % e)
     sys.exit(99)
