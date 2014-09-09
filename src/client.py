@@ -197,7 +197,20 @@ def original_dst(sock):
         return (ip, port)
     except socket.error, e:
         if e.args[0] == errno.ENOPROTOOPT:
-            return sock.getsockname()
+            peer = sock.getpeername()
+
+            output = ssubprocess.Popen(["sudo", "-n", "/sbin/pfctl", "-s", "state"],
+                stdout=ssubprocess.PIPE,
+                stderr=ssubprocess.PIPE).communicate()[0]
+
+            spec = "%s:%s" % (peer[0], peer[1])
+            for line in output.split("\n"):
+                if "ESTABLISHED:ESTABLISHED" in line and spec in line:
+                    match = line.split()
+                    if len(match) > 4:
+                        submatch = match[4].split(":")
+                        if len(submatch) == 2:
+                            return submatch[0], int(submatch[1])
         raise
 
 
