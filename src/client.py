@@ -550,6 +550,7 @@ def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns,
          method, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
+
     if syslog:
         ssyslog.start_syslog()
     if daemon:
