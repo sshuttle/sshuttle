@@ -209,7 +209,15 @@ class MultiListener:
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
-            self.v4.listen(backlog)
+            try:
+                self.v4.listen(backlog)
+            except socket.error, e:
+                # on some systems v4 bind will fail if the v6 suceeded,
+                # in this case the v6 socket will receive v4 too.
+                if e.errno == errno.EADDRINUSE and self.v6:
+                    self.v4 = None
+                else:
+                    raise e
 
     def bind(self, address_v6, address_v4):
         if address_v6 and self.v6:
