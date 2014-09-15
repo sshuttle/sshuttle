@@ -27,9 +27,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     main_exe = sys.argv[0]
     portl = []
 
-    rhostIsIPv6 = False
     if (rhostport or '').count(':') > 1:
-        rhostIsIPv6 = True
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
             rhost = result[0].strip('[')
@@ -47,10 +45,6 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
 
     if rhost == '-':
         rhost = None
-
-    ipv6flag = []
-    if rhostIsIPv6:
-        ipv6flag = ['-6']
 
     z = zlib.compressobj(1)
     content = readfile('assembler.py')
@@ -88,7 +82,6 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                      "exec \"$P\" -c '%s'") % pyscript
         argv = (sshl + 
                 portl + 
-                ipv6flag + 
                 [rhost, '--', pycmd])
     (s1,s2) = socket.socketpair()
     def setup():
