@@ -360,7 +360,7 @@ def onaccept_tcp(listener, method, mux, handlers):
         dstip = original_dst(sock)
     debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0],srcip[1],
                                           dstip[0],dstip[1]))
-    if dstip[1] == listener.getsockname()[1] and islocal(dstip[0], sock.family):
+    if dstip[1] == sock.getsockname()[1] and islocal(dstip[0], sock.family):
         debug1("-- ignored: that's my address!\n")
         sock.close()
         return
