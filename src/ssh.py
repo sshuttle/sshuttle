@@ -1,7 +1,11 @@
-import sys, os, re, socket, zlib
+import sys
+import os
+import re
+import socket
+import zlib
 import compat.ssubprocess as ssubprocess
 import helpers
-from helpers import *
+from helpers import debug2
 
 
 def readfile(name):
@@ -15,7 +19,7 @@ def readfile(name):
 
 
 def empackage(z, filename, data=None):
-    (path,basename) = os.path.split(filename)
+    (path, basename) = os.path.split(filename)
     if not data:
         data = readfile(filename)
     content = z.compress(data)
@@ -24,7 +28,6 @@ def empackage(z, filename, data=None):
 
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
-    main_exe = sys.argv[0]
     portl = []
 
     if (rhostport or '').count(':') > 1:
@@ -35,9 +38,11 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                 result[1] = result[1].strip(':')
                 if result[1] is not '':
                     portl = ['-p', str(int(result[1]))]
-        else: # can't disambiguate IPv6 colons and a port number. pass the hostname through.
+        # can't disambiguate IPv6 colons and a port number. pass the hostname
+        # through.
+        else:
             rhost = rhostport
-    else: # IPv4
+    else:  # IPv4
         l = (rhostport or '').split(':', 1)
         rhost = l[0]
         if len(l) > 1:
@@ -48,7 +53,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
 
     z = zlib.compressobj(1)
     content = readfile('assembler.py')
-    optdata = ''.join("%s=%r\n" % (k,v) for (k,v) in options.items())
+    optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in options.items())
     content2 = (empackage(z, 'cmdline_options.py', optdata) +
                 empackage(z, 'helpers.py') +
                 empackage(z, 'compat/ssubprocess.py') +
@@ -56,7 +61,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                 empackage(z, 'hostwatch.py') +
                 empackage(z, 'server.py') +
                 "\n")
-    
+
     pyscript = r"""
                 import sys;
                 skip_imports=1;
@@ -65,7 +70,6 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
 
-        
     if not rhost:
         # ignore the --python argument when running locally; we already know
         # which python version works.
@@ -80,14 +84,15 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         else:
             pycmd = ("P=python2; $P -V 2>/dev/null || P=python; "
                      "exec \"$P\" -c '%s'") % pyscript
-        argv = (sshl + 
-                portl + 
+        argv = (sshl +
+                portl +
                 [rhost, '--', pycmd])
-    (s1,s2) = socket.socketpair()
+    (s1, s2) = socket.socketpair()
+
     def setup():
         # runs in the child process
         s2.close()
-    s1a,s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
+    s1a, s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
     debug2('executing: %r\n' % argv)
     p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,

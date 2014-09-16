@@ -1,9 +1,16 @@
 """Command-line options parser.
 With the help of an options spec string, easily parse command-line options.
 """
-import sys, os, textwrap, getopt, re, struct
+import sys
+import os
+import textwrap
+import getopt
+import re
+import struct
+
 
 class OptDict:
+
     def __init__(self):
         self._opts = {}
 
@@ -46,7 +53,8 @@ def _atoi(v):
 def _remove_negative_kv(k, v):
     if k.startswith('no-') or k.startswith('no_'):
         return k[3:], not v
-    return k,v
+    return k, v
+
 
 def _remove_negative_k(k):
     return _remove_negative_kv(k, None)[0]
@@ -55,15 +63,17 @@ def _remove_negative_k(k):
 def _tty_width():
     s = struct.pack("HHHH", 0, 0, 0, 0)
     try:
-        import fcntl, termios
+        import fcntl
+        import termios
         s = fcntl.ioctl(sys.stderr.fileno(), termios.TIOCGWINSZ, s)
     except (IOError, ImportError):
         return _atoi(os.environ.get('WIDTH')) or 70
-    (ysize,xsize,ypix,xpix) = struct.unpack('HHHH', s)
+    (ysize, xsize, ypix, xpix) = struct.unpack('HHHH', s)
     return xsize or 70
 
 
 class Options:
+
     """Option parser.
     When constructed, two strings are mandatory. The first one is the command
     name showed before error messages. The second one is a string called an
@@ -76,6 +86,7 @@ class Options:
     By default, the parser function is getopt.gnu_getopt, and the abort
     behaviour is to exit the program.
     """
+
     def __init__(self, optspec, optfunc=getopt.gnu_getopt,
                  onabort=_default_onabort):
         self.optspec = optspec
@@ -95,7 +106,8 @@ class Options:
         first_syn = True
         while lines:
             l = lines.pop()
-            if l == '--': break
+            if l == '--':
+                break
             out.append('%s: %s\n' % (first_syn and 'usage' or '   or', l))
             first_syn = False
         out.append('\n')
@@ -122,7 +134,7 @@ class Options:
                 flagl = flags.split(',')
                 flagl_nice = []
                 for _f in flagl:
-                    f,dvi = _remove_negative_kv(_f, _intify(defval))
+                    f, dvi = _remove_negative_kv(_f, _intify(defval))
                     self._aliases[f] = _remove_negative_k(flagl[0])
                     self._hasparms[f] = has_parm
                     self._defaults[f] = dvi
@@ -140,8 +152,8 @@ class Options:
                     flags_nice += ' ...'
                 prefix = '    %-20s  ' % flags_nice
                 argtext = '\n'.join(textwrap.wrap(extra, width=_tty_width(),
-                                                initial_indent=prefix,
-                                                subsequent_indent=' '*28))
+                                                  initial_indent=prefix,
+                                                  subsequent_indent=' ' * 28))
                 out.append(argtext + '\n')
                 last_was_option = True
             else:
@@ -170,17 +182,18 @@ class Options:
         and "extra" is a list of positional arguments.
         """
         try:
-            (flags,extra) = self.optfunc(args, self._shortopts, self._longopts)
+            (flags, extra) = self.optfunc(
+                args, self._shortopts, self._longopts)
         except getopt.GetoptError, e:
             self.fatal(e)
 
         opt = OptDict()
 
-        for k,v in self._defaults.iteritems():
+        for k, v in self._defaults.iteritems():
             k = self._aliases[k]
             opt[k] = v
 
-        for (k,v) in flags:
+        for (k, v) in flags:
             k = k.lstrip('-')
             if k in ('h', '?', 'help'):
                 self.usage()
@@ -195,6 +208,6 @@ class Options:
                 else:
                     v = _intify(v)
             opt[k] = v
-        for (f1,f2) in self._aliases.iteritems():
+        for (f1, f2) in self._aliases.iteritems():
             opt[f1] = opt._opts.get(f2)
-        return (opt,flags,extra)
+        return (opt, flags, extra)

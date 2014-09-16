@@ -1,7 +1,13 @@
-import sys, os, re, socket
-import helpers, options, client, server, firewall, hostwatch
-import compat.ssubprocess as ssubprocess
-from helpers import *
+import sys
+import re
+import socket
+import helpers
+import options
+import client
+import server
+import firewall
+import hostwatch
+from helpers import log, Fatal
 
 
 # 1.2.3.4/5 or just 1.2.3.4
@@ -9,17 +15,17 @@ def parse_subnet4(s):
     m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
     if not m:
         raise Fatal('%r is not a valid IP subnet format' % s)
-    (a,b,c,d,width) = m.groups()
-    (a,b,c,d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
-    if width == None:
+    (a, b, c, d, width) = m.groups()
+    (a, b, c, d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
+    if width is None:
         width = 32
     else:
         width = int(width)
     if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
     if width > 32:
         raise Fatal('*/%d is greater than the maximum of 32' % width)
-    return(socket.AF_INET, '%d.%d.%d.%d' % (a,b,c,d), width)
+    return(socket.AF_INET, '%d.%d.%d.%d' % (a, b, c, d), width)
 
 
 # 1:2::3/64 or just 1:2::3
@@ -27,8 +33,8 @@ def parse_subnet6(s):
     m = re.match(r'(?:([a-fA-F\d:]+))?(?:/(\d+))?$', s)
     if not m:
         raise Fatal('%r is not a valid IP subnet format' % s)
-    (net,width) = m.groups()
-    if width == None:
+    (net, width) = m.groups()
+    if width is None:
         width = 128
     else:
         width = int(width)
@@ -41,7 +47,7 @@ def parse_subnet6(s):
 def parse_subnet_file(s):
     try:
         handle = open(s, 'r')
-    except OSError, e:
+    except OSError:
         raise Fatal('Unable to open subnet file: %s' % s)
 
     raw_config_lines = handle.readlines()
@@ -77,16 +83,16 @@ def parse_ipport4(s):
     m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
     if not m:
         raise Fatal('%r is not a valid IP:port format' % s)
-    (a,b,c,d,port) = m.groups()
-    (a,b,c,d,port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
-                      int(port or 0))
+    (a, b, c, d, port) = m.groups()
+    (a, b, c, d, port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
+                          int(port or 0))
     if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a,b,c,d))
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
     if port > 65535:
         raise Fatal('*:%d is greater than the maximum of 65535' % port)
-    if a == None:
+    if a is None:
         a = b = c = d = 0
-    return ('%d.%d.%d.%d' % (a,b,c,d), port)
+    return ('%d.%d.%d.%d' % (a, b, c, d), port)
 
 
 # [1:2::3]:456 or [1:2::3] or 456
@@ -95,8 +101,8 @@ def parse_ipport6(s):
     m = re.match(r'(?:\[([^]]*)])?(?::)?(?:(\d+))?$', s)
     if not m:
         raise Fatal('%s is not a valid IP:port format' % s)
-    (ip,port) = m.groups()
-    (ip,port) = (ip or '::', int(port or 0))
+    (ip, port) = m.groups()
+    (ip, port) = (ip or '::', int(port or 0))
     return (ip, port)
 
 
@@ -156,8 +162,8 @@ try:
             o.fatal('at least one subnet, subnet file, or -N expected')
         includes = extra
         excludes = ['127.0.0.0/8']
-        for k,v in flags:
-            if k in ('-x','--exclude'):
+        for k, v in flags:
+            if k in ('-x', '--exclude'):
                 excludes.append(v)
         remotename = opt.remote
         if remotename == '' or remotename == '-':
@@ -174,10 +180,10 @@ try:
             includes = parse_subnet_file(opt.subnets)
         if not opt.method:
             method = "auto"
-        elif opt.method in [ "auto", "nat", "tproxy", "ipfw" ]:
+        elif opt.method in ["auto", "nat", "tproxy", "ipfw"]:
             method = opt.method
         else:
-            o.fatal("method %s not supported"%opt.method)
+            o.fatal("method %s not supported" % opt.method)
         if not opt.listen:
             if opt.method == "tproxy":
                 ipport_v6 = parse_ipport6('[::1]:0')
@@ -194,23 +200,23 @@ try:
                 else:
                     ipport_v4 = parse_ipport4(ip)
         return_code = client.main(ipport_v6, ipport_v4,
-                             opt.ssh_cmd,
-                             remotename,
-                             opt.python,
-                             opt.latency_control,
-                             opt.dns,
-                             method,
-                             sh,
-                             opt.auto_nets,
-                             parse_subnets(includes),
-                             parse_subnets(excludes),
-                             opt.syslog, opt.daemon, opt.pidfile)
+                                  opt.ssh_cmd,
+                                  remotename,
+                                  opt.python,
+                                  opt.latency_control,
+                                  opt.dns,
+                                  method,
+                                  sh,
+                                  opt.auto_nets,
+                                  parse_subnets(includes),
+                                  parse_subnets(excludes),
+                                  opt.syslog, opt.daemon, opt.pidfile)
 
         if return_code == 0:
-		log('Normal exit code, exiting...')
-	else:
-		log('Abnormal exit code detected, failing...' % return_code)
-	sys.exit(return_code)
+            log('Normal exit code, exiting...')
+        else:
+            log('Abnormal exit code detected, failing...' % return_code)
+        sys.exit(return_code)
 
 except Fatal, e:
     log('fatal: %s\n' % e)

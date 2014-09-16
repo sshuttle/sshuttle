@@ -1,8 +1,11 @@
-import sys, os
+import sys
+import os
 from compat import ssubprocess
 
 
 _p = None
+
+
 def start_syslog():
     global _p
     _p = ssubprocess.Popen(['logger',

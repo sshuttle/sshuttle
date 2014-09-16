@@ -1,7 +1,10 @@
-import sys, os, socket, errno
+import sys
+import socket
+import errno
 
 logprefix = ''
 verbose = 0
+
 
 def log(s):
     try:
@@ -13,13 +16,16 @@ def log(s):
         # our tty closes.  That sucks, but it's no reason to abort the program.
         pass
 
+
 def debug1(s):
     if verbose >= 1:
         log(s)
 
+
 def debug2(s):
     if verbose >= 2:
         log(s)
+
 
 def debug3(s):
     if verbose >= 3:
@@ -43,9 +49,9 @@ def resolvconf_nameservers():
         words = line.lower().split()
         if len(words) >= 2 and words[0] == 'nameserver':
             if ':' in words[1]:
-                l.append((socket.AF_INET6,words[1]))
+                l.append((socket.AF_INET6, words[1]))
             else:
-                l.append((socket.AF_INET,words[1]))
+                l.append((socket.AF_INET, words[1]))
     return l
 
 
@@ -58,10 +64,10 @@ def resolvconf_random_nameserver():
             random.shuffle(l)
         return l[0]
     else:
-        return (socket.AF_INET,'127.0.0.1')
-    
+        return (socket.AF_INET, '127.0.0.1')
 
-def islocal(ip,family):
+
+def islocal(ip, family):
     sock = socket.socket(family)
     try:
         try:
@@ -83,4 +89,3 @@ def family_to_string(family):
         return "AF_INET"
     else:
         return str(family)
-

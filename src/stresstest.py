@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-import sys, os, socket, select, struct, time
+import socket
+import select
+import struct
+import time
 
 listener = socket.socket()
 listener.bind(('127.0.0.1', 0))
@@ -23,7 +26,7 @@ while 1:
         if count >= 16384:
             count = 1
         print 'cli CREATING %d' % count
-        b = struct.pack('I', count) + 'x'*count
+        b = struct.pack('I', count) + 'x' * count
         remain[c] = count
         print 'cli  >> %r' % len(b)
         c.send(b)
@@ -32,13 +35,13 @@ while 1:
         r = [listener]
         time.sleep(0.1)
     else:
-        r = [listener]+servers+clients
+        r = [listener] + servers + clients
     print 'select(%d)' % len(r)
-    r,w,x = select.select(r, [], [], 5)
+    r, w, x = select.select(r, [], [], 5)
     assert(r)
     for i in r:
         if i == listener:
-            s,addr = listener.accept()
+            s, addr = listener.accept()
             servers.append(s)
         elif i in servers:
             b = i.recv(4096)
@@ -47,7 +50,7 @@ while 1:
                 assert(len(b) >= 4)
                 want = struct.unpack('I', b[:4])[0]
                 b = b[4:]
-                #i.send('y'*want)
+                # i.send('y'*want)
             else:
                 want = remain[i]
             if want < len(b):
@@ -64,7 +67,7 @@ while 1:
                 del remain[i]
             else:
                 print 'srv  >> %r' % len(b)
-                i.send('y'*len(b))
+                i.send('y' * len(b))
                 if not want:
                     i.shutdown(socket.SHUT_WR)
         elif i in clients:

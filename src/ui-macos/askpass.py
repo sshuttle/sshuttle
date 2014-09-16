@@ -1,4 +1,6 @@
-import sys, os, re, subprocess
+import re
+import subprocess
+
 
 def askpass(prompt):
     prompt = prompt.replace('"', "'")
@@ -6,7 +8,7 @@ def askpass(prompt):
     if 'yes/no' in prompt:
         return "yes"
 
-    script="""
+    script = """
         tell application "Finder"
             activate
             display dialog "%s" \

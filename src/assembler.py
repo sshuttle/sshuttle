@@ -1,4 +1,5 @@
-import sys, zlib
+import sys
+import zlib
 
 z = zlib.decompressobj()
 mainmod = sys.modules[__name__]

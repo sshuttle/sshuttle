@@ -1,4 +1,4 @@
-import sys, os
+import os
 from AppKit import *
 import PyObjCTools.AppHelper
 
@@ -44,11 +44,13 @@ def Defaults():
 #
 def DelayedCallback(func, *args, **kwargs):
     flag = [0]
+
     def _go():
         if flag[0]:
             print 'running %r (flag=%r)' % (func, flag)
             flag[0] = 0
             func(*args, **kwargs)
+
     def call():
         flag[0] += 1
         PyObjCTools.AppHelper.callAfter(_go)

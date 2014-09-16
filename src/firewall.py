@@ -1,7 +1,13 @@
-import re, errno, socket, select, struct
+import errno
+import socket
+import select
+import struct
 import compat.ssubprocess as ssubprocess
-import helpers, ssyslog
-from helpers import *
+import ssyslog
+import sys
+import os
+from helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
+    resolvconf_nameservers
 
 # python doesn't have a definition for this
 IPPROTO_DIVERT = 254
@@ -20,9 +26,9 @@ def ipt_chain_exists(family, table, name):
     elif family == socket.AF_INET:
         cmd = 'iptables'
     else:
-        raise Exception('Unsupported family "%s"'%family_to_string(family))
+        raise Exception('Unsupported family "%s"' % family_to_string(family))
     argv = [cmd, '-t', table, '-nL']
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     for line in p.stdout:
         if line.startswith('Chain %s ' % name):
             return True
@@ -37,7 +43,7 @@ def _ipt(family, table, *args):
     elif family == socket.AF_INET:
         argv = ['iptables', '-t', table] + list(args)
     else:
-        raise Exception('Unsupported family "%s"'%family_to_string(family))
+        raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('>> %s\n' % ' '.join(argv))
     rv = ssubprocess.call(argv)
     if rv:
@@ -45,6 +51,8 @@ def _ipt(family, table, *args):
 
 
 _no_ttl_module = False
+
+
 def _ipt_ttl(family, *args):
     global _no_ttl_module
     if not _no_ttl_module:
@@ -72,13 +80,17 @@ def _ipt_ttl(family, *args):
 def do_iptables_nat(port, dnsport, family, subnets, udp):
     # only ipv4 supported with NAT
     if family != socket.AF_INET:
-        raise Exception('Address family "%s" unsupported by nat method'%family_to_string(family))
+        raise Exception(
+            'Address family "%s" unsupported by nat method'
+            % family_to_string(family))
     if udp:
         raise Exception("UDP not supported by nat method")
 
     table = "nat"
+
     def ipt(*args):
         return _ipt(family, table, *args)
+
     def ipt_ttl(*args):
         return _ipt_ttl(family, table, *args)
 
@@ -103,20 +115,21 @@ def do_iptables_nat(port, dnsport, family, subnets, udp):
         # to least-specific, and at any given level of specificity, we want
         # excludes to come first.  That's why the columns are in such a non-
         # intuitive order.
-        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
+        for f, swidth, sexclude, snet \
+                in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipt('-A', chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-p', 'tcp')
             else:
                 ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                        '--dest', '%s/%s' % (snet,swidth),
+                        '--dest', '%s/%s' % (snet, swidth),
                         '-p', 'tcp',
                         '--to-ports', str(port))
-                
+
     if dnsport:
         nslist = resolvconf_nameservers()
-        for f,ip in filter(lambda i: i[0]==family, nslist):
+        for f, ip in filter(lambda i: i[0] == family, nslist):
             ipt_ttl('-A', chain, '-j', 'REDIRECT',
                     '--dest', '%s/32' % ip,
                     '-p', 'udp',
@@ -126,15 +139,19 @@ def do_iptables_nat(port, dnsport, family, subnets, udp):
 
 def do_iptables_tproxy(port, dnsport, family, subnets, udp):
     if family not in [socket.AF_INET, socket.AF_INET6]:
-        raise Exception('Address family "%s" unsupported by tproxy method'%family_to_string(family))
+        raise Exception(
+            'Address family "%s" unsupported by tproxy method'
+            % family_to_string(family))
 
     table = "mangle"
+
     def ipt(*args):
         return _ipt(family, table, *args)
+
     def ipt_ttl(*args):
         return _ipt_ttl(family, table, *args)
 
-    mark_chain   = 'sshuttle-m-%s' % port
+    mark_chain = 'sshuttle-m-%s' % port
     tproxy_chain = 'sshuttle-t-%s' % port
     divert_chain = 'sshuttle-d-%s' % port
 
@@ -165,65 +182,70 @@ def do_iptables_tproxy(port, dnsport, family, subnets, udp):
         ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
         ipt('-A', divert_chain, '-j', 'ACCEPT')
         ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
-             '-m', 'tcp', '-p', 'tcp')
+            '-m', 'tcp', '-p', 'tcp')
     if subnets and udp:
         ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
-             '-m', 'udp', '-p', 'udp')
+            '-m', 'udp', '-p', 'udp')
 
     if dnsport:
         nslist = resolvconf_nameservers()
-        for f,ip in filter(lambda i: i[0]==family, nslist):
+        for f, ip in filter(lambda i: i[0] == family, nslist):
             ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                 '--dest', '%s/32' % ip,
                 '-m', 'udp', '-p', 'udp', '--dport', '53')
             ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
-                 '--dest', '%s/32' % ip,
-                 '-m', 'udp', '-p', 'udp', '--dport', '53',
-                 '--on-port', str(dnsport))
+                '--dest', '%s/32' % ip,
+                '-m', 'udp', '-p', 'udp', '--dport', '53',
+                '--on-port', str(dnsport))
 
     if subnets:
-        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
+        for f, swidth, sexclude, snet \
+                in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipt('-A', mark_chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-m', 'tcp', '-p', 'tcp')
                 ipt('-A', tproxy_chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-m', 'tcp', '-p', 'tcp')
             else:
-                ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
-                     '--dest', '%s/%s' % (snet,swidth),
-                     '-m', 'tcp', '-p', 'tcp')
-                ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
-                     '--dest', '%s/%s' % (snet,swidth),
-                     '-m', 'tcp', '-p', 'tcp',
-                     '--on-port', str(port))
+                ipt('-A', mark_chain, '-j', 'MARK',
+                    '--set-mark', '1',
+                    '--dest', '%s/%s' % (snet, swidth),
+                    '-m', 'tcp', '-p', 'tcp')
+                ipt('-A', tproxy_chain, '-j', 'TPROXY',
+                    '--tproxy-mark', '0x1/0x1',
+                    '--dest', '%s/%s' % (snet, swidth),
+                    '-m', 'tcp', '-p', 'tcp',
+                    '--on-port', str(port))
 
             if sexclude and udp:
                 ipt('-A', mark_chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-m', 'udp', '-p', 'udp')
                 ipt('-A', tproxy_chain, '-j', 'RETURN',
-                    '--dest', '%s/%s' % (snet,swidth),
+                    '--dest', '%s/%s' % (snet, swidth),
                     '-m', 'udp', '-p', 'udp')
             elif udp:
-                ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
-                     '--dest', '%s/%s' % (snet,swidth),
-                     '-m', 'udp', '-p', 'udp')
-                ipt('-A', tproxy_chain, '-j', 'TPROXY', '--tproxy-mark', '0x1/0x1',
-                     '--dest', '%s/%s' % (snet,swidth),
-                     '-m', 'udp', '-p', 'udp',
-                     '--on-port', str(port))
+                ipt('-A', mark_chain, '-j', 'MARK',
+                    '--set-mark', '1',
+                    '--dest', '%s/%s' % (snet, swidth),
+                    '-m', 'udp', '-p', 'udp')
+                ipt('-A', tproxy_chain, '-j', 'TPROXY',
+                    '--tproxy-mark', '0x1/0x1',
+                    '--dest', '%s/%s' % (snet, swidth),
+                    '-m', 'udp', '-p', 'udp',
+                    '--on-port', str(port))
 
 
 def ipfw_rule_exists(n):
     argv = ['ipfw', 'list']
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     found = False
     for line in p.stdout:
         if line.startswith('%05d ' % n):
             if not ('ipttl 42' in line
-                    or ('skipto %d' % (n+1)) in line
+                    or ('skipto %d' % (n + 1)) in line
                     or 'check-state' in line):
                 log('non-sshuttle ipfw rule: %r\n' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
@@ -235,12 +257,14 @@ def ipfw_rule_exists(n):
 
 
 _oldctls = {}
+
+
 def _fill_oldctls(prefix):
     argv = ['sysctl', prefix]
-    p = ssubprocess.Popen(argv, stdout = ssubprocess.PIPE)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     for line in p.stdout:
         assert(line[-1] == '\n')
-        (k,v) = line[:-1].split(': ', 1)
+        (k, v) = line[:-1].split(': ', 1)
         _oldctls[k] = v
     rv = p.wait()
     if rv:
@@ -252,10 +276,12 @@ def _fill_oldctls(prefix):
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
-    return ssubprocess.call(argv, stdout = open('/dev/null', 'w'))
+    return ssubprocess.call(argv, stdout=open('/dev/null', 'w'))
 
 
 _changedctls = []
+
+
 def sysctl_set(name, val, permanent=False):
     PREFIX = 'net.inet.ip'
     assert(name.startswith(PREFIX + '.'))
@@ -268,7 +294,7 @@ def sysctl_set(name, val, permanent=False):
     oldval = _oldctls[name]
     if val != oldval:
         rv = _sysctl_set(name, val)
-        if rv==0 and permanent:
+        if rv == 0 and permanent:
             debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
             f = open('/etc/sysctl.conf', 'a')
             f.write('\n'
@@ -293,9 +319,11 @@ def _udp_repack(p, src, dst):
 
 
 _real_dns_server = [None]
+
+
 def _handle_diversion(divertsock, dnsport):
-    p,tag = divertsock.recvfrom(4096)
-    src,dst = _udp_unpack(p)
+    p, tag = divertsock.recvfrom(4096)
+    src, dst = _udp_unpack(p)
     debug3('got diverted packet from %r to %r\n' % (src, dst))
     if dst[1] == 53:
         # outgoing DNS
@@ -311,7 +339,7 @@ def _handle_diversion(divertsock, dnsport):
         assert(0)
     newp = _udp_repack(p, src, dst)
     divertsock.sendto(newp, tag)
-    
+
 
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
@@ -324,12 +352,14 @@ def ipfw(*args):
 def do_ipfw(port, dnsport, family, subnets, udp):
     # IPv6 not supported
     if family not in [socket.AF_INET, ]:
-        raise Exception('Address family "%s" unsupported by ipfw method'%family_to_string(family))
+        raise Exception(
+            'Address family "%s" unsupported by ipfw method'
+            % family_to_string(family))
     if udp:
         raise Exception("UDP not supported by ipfw method")
 
     sport = str(port)
-    xsport = str(port+1)
+    xsport = str(port + 1)
 
     # cleanup any existing rules
     if ipfw_rule_exists(port):
@@ -360,15 +390,16 @@ def do_ipfw(port, dnsport, family, subnets, udp):
 
     if subnets:
         # create new subnet entries
-        for f,swidth,sexclude,snet in sorted(subnets, key=lambda s: s[1], reverse=True):
+        for f, swidth, sexclude, snet \
+                in sorted(subnets, key=lambda s: s[1], reverse=True):
             if sexclude:
                 ipfw('add', sport, 'skipto', xsport,
                      'log', 'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth))
+                     'from', 'any', 'to', '%s/%s' % (snet, swidth))
             else:
                 ipfw('add', sport, 'fwd', '127.0.0.1,%d' % port,
                      'log', 'tcp',
-                     'from', 'any', 'to', '%s/%s' % (snet,swidth),
+                     'from', 'any', 'to', '%s/%s' % (snet, swidth),
                      'not', 'ipttl', '42', 'keep-state', 'setup')
 
     # This part is much crazier than it is on Linux, because MacOS (at least
@@ -403,10 +434,10 @@ def do_ipfw(port, dnsport, family, subnets, udp):
     if dnsport:
         divertsock = socket.socket(socket.AF_INET, socket.SOCK_RAW,
                                    IPPROTO_DIVERT)
-        divertsock.bind(('0.0.0.0', port)) # IP field is ignored
+        divertsock.bind(('0.0.0.0', port))  # IP field is ignored
 
         nslist = resolvconf_nameservers()
-        for f,ip in filter(lambda i: i[0]==family, nslist):
+        for f, ip in filter(lambda i: i[0] == family, nslist):
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
                  'log', 'udp',
@@ -420,14 +451,14 @@ def do_ipfw(port, dnsport, family, subnets, udp):
 
         def do_wait():
             while 1:
-                r,w,x = select.select([sys.stdin, divertsock], [], [])
+                r, w, x = select.select([sys.stdin, divertsock], [], [])
                 if divertsock in r:
                     _handle_diversion(divertsock, dnsport)
                 if sys.stdin in r:
                     return
     else:
         do_wait = None
-        
+
     return do_wait
 
 
@@ -440,10 +471,12 @@ def program_exists(name):
 
 
 hostmap = {}
+
+
 def rewrite_etc_hosts(port):
-    HOSTSFILE='/etc/hosts'
-    BAKFILE='%s.sbak' % HOSTSFILE
-    APPEND='# sshuttle-firewall-%d AUTOCREATED' % port
+    HOSTSFILE = '/etc/hosts'
+    BAKFILE = '%s.sbak' % HOSTSFILE
+    APPEND = '# sshuttle-firewall-%d AUTOCREATED' % port
     old_content = ''
     st = None
     try:
@@ -462,8 +495,8 @@ def rewrite_etc_hosts(port):
         if line.find(APPEND) >= 0:
             continue
         f.write('%s\n' % line)
-    for (name,ip) in sorted(hostmap.items()):
-        f.write('%-30s %s\n' % ('%s %s' % (ip,name), APPEND))
+    for (name, ip) in sorted(hostmap.items()):
+        f.write('%-30s %s\n' % ('%s %s' % (ip, name), APPEND))
     f.close()
 
     if st:
@@ -517,7 +550,7 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
     elif method == "ipfw":
         do_it = do_ipfw
     else:
-        raise Exception('Unknown method "%s"'%method)
+        raise Exception('Unknown method "%s"' % method)
 
     # because of limitations of the 'su' command, the *real* stdin/stdout
     # are both attached to stdout initially.  Clone stdout into stdin so we
@@ -528,8 +561,8 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         ssyslog.start_syslog()
         ssyslog.stderr_to_syslog()
 
-    debug1('firewall manager ready method %s.\n'%method)
-    sys.stdout.write('READY %s\n'%method)
+    debug1('firewall manager ready method %s.\n' % method)
+    sys.stdout.write('READY %s\n' % method)
     sys.stdout.flush()
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
@@ -553,29 +586,31 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         elif line == 'GO\n':
             break
         try:
-            (family,width,exclude,ip) = line.strip().split(',', 3)
+            (family, width, exclude, ip) = line.strip().split(',', 3)
         except:
             raise Fatal('firewall: expected route or GO but got %r' % line)
         subnets.append((int(family), int(width), bool(int(exclude)), ip))
-        
+
     try:
         if line:
             debug1('firewall manager: starting transproxy.\n')
 
-            subnets_v6 = filter(lambda i: i[0]==socket.AF_INET6, subnets)
+            subnets_v6 = filter(lambda i: i[0] == socket.AF_INET6, subnets)
             if port_v6:
-                do_wait = do_it(port_v6, dnsport_v6, socket.AF_INET6, subnets_v6, udp)
+                do_wait = do_it(
+                    port_v6, dnsport_v6, socket.AF_INET6, subnets_v6, udp)
             elif len(subnets_v6) > 0:
                 debug1("IPv6 subnets defined but IPv6 disabled\n")
 
-            subnets_v4 = filter(lambda i: i[0]==socket.AF_INET, subnets)
+            subnets_v4 = filter(lambda i: i[0] == socket.AF_INET, subnets)
             if port_v4:
-                do_wait = do_it(port_v4, dnsport_v4, socket.AF_INET, subnets_v4, udp)
+                do_wait = do_it(
+                    port_v4, dnsport_v4, socket.AF_INET, subnets_v4, udp)
             elif len(subnets_v4) > 0:
                 debug1('IPv4 subnets defined but IPv4 disabled\n')
 
             sys.stdout.write('STARTED\n')
-        
+
         try:
             sys.stdout.flush()
         except IOError:
@@ -587,10 +622,11 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            if do_wait: do_wait()
+            if do_wait:
+                do_wait()
             line = sys.stdin.readline(128)
             if line.startswith('HOST '):
-                (name,ip) = line[5:].strip().split(',', 1)
+                (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
                 rewrite_etc_hosts(port_v6 or port_v4)
             elif line:
