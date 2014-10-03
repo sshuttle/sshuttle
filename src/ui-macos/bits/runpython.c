@@ -6,7 +6,7 @@
  * NSApplicationMain() looks for Info.plist using the path in argv[0], which
  * goes wrong if your interpreter is /usr/bin/python.
  */
-#include <Python.h>
+#include <Python/Python.h>
 #include <string.h>
 #include <unistd.h>
 
