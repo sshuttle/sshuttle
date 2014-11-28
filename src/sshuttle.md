@@ -47,7 +47,7 @@ entire subnet to the VPN.
     not from outside machines.  If you want to accept
     connections from other machines on your network (ie. to
     run sshuttle on a router) try enabling IP Forwarding in
-    your kernel, then using `--listen 0.0.0.0:0`. 
+    your kernel, then using `--listen 0.0.0.0:0`.
 
 -H, --auto-hosts
 :   scan for remote hostnames and update the local /etc/hosts
@@ -63,26 +63,26 @@ entire subnet to the VPN.
     all running copies.  Third, if you're only routing a
     few subnets over the VPN, you probably would prefer to
     keep using your local DNS server for everything else.
-    
+
 -N, --auto-nets
 :   in addition to the subnets provided on the command
     line, ask the server which subnets it thinks we should
     route, and route those automatically.  The suggestions
     are taken automatically from the server's routing
     table.
-    
+
 --dns
 :   capture local DNS requests and forward to the remote DNS
     server.
-    
+
 --python
-:   specify the name/path of the remote python interpreter. 
+:   specify the name/path of the remote python interpreter.
     The default is just `python`, which means to use the
     default python interpreter on the remote system's PATH.
 
 -r, --remote=*[username@]sshserver[:port]*
 :   the remote hostname and optional username and ssh
-    port number to use for connecting to the remote server. 
+    port number to use for connecting to the remote server.
     For example, example.com, testuser@example.com,
     testuser@example.com:2222, or example.com:2244.
 
@@ -102,7 +102,7 @@ entire subnet to the VPN.
 :   print more information about the session.  This option
     can be used more than once for increased verbosity.  By
     default, sshuttle prints only error messages.
-    
+
 -e, --ssh-cmd
 :   the command to use to connect to the remote server. The
     default is just `ssh`.  Use this if your ssh client is
@@ -111,12 +111,12 @@ entire subnet to the VPN.
 
 --seed-hosts
 :   a comma-separated list of hostnames to use to
-    initialize the `--auto-hosts` scan algorithm. 
+    initialize the `--auto-hosts` scan algorithm.
     `--auto-hosts` does things like poll local SMB servers
     for lists of local hostnames, but can speed things up
     if you use this option to give it a few names to start
     from.
-    
+
 --no-latency-control
 :   sacrifice latency to improve bandwidth benchmarks. ssh
     uses really big socket buffers, which can overload the
@@ -132,16 +132,16 @@ entire subnet to the VPN.
     trying to control).  This option disables the latency
     control feature, maximizing bandwidth usage.  Use at
     your own risk.
-    
+
 -D, --daemon
 :   automatically fork into the background after connecting
     to the remote server.  Implies `--syslog`.
-    
+
 --syslog
 :   after connecting, send all log messages to the
     `syslog`(3) service instead of stderr.  This is
     implicit if you use `--daemon`.
-    
+
 --pidfile=*pidfilename*
 :   when using `--daemon`, save sshuttle's pid to
     *pidfilename*.  The default is `sshuttle.pid` in the
@@ -159,7 +159,7 @@ entire subnet to the VPN.
     automatically run `sudo` or `su` to start the firewall
     manager, but the core of sshuttle still runs as a
     normal user.
-    
+
 --hostwatch
 :   (internal use only) run the hostwatch daemon.  This
     process runs on the server side and collects hostnames for
@@ -176,7 +176,7 @@ Test locally by proxying all local connections, without using ssh:
 
     Starting sshuttle proxy.
     Listening on ('0.0.0.0', 12300).
-    [local sudo] Password: 
+    [local sudo] Password:
     firewall manager ready.
     c : connecting to server...
      s: available routes:
@@ -230,7 +230,7 @@ there.  Thus, you don't need to install sshuttle on the
 remote server, and there are never sshuttle version
 conflicts between client and server.
 
-Unlike most VPNs, sshuttle forwards sessions, not packets. 
+Unlike most VPNs, sshuttle forwards sessions, not packets.
 That is, it uses kernel transparent proxying (`iptables
 REDIRECT` rules on Linux, or `ipfw fwd` rules on BSD) to
 capture outgoing TCP sessions, then creates entirely
@@ -271,8 +271,14 @@ just switch your wireless off and on. Sshuttle makes the
 kernel setting it changes permanent, so this won't happen
 again, even after a reboot.
 
+On MacOS, sshuttle will set the kernel boot flag
+net.inet.ip.scopedroute to 0, which interferes with OS X
+Internet Sharing and some VPN clients. To reset this flag,
+you can remove any reference to net.inet.ip.scopedroute from
+/Library/Preferences/SystemConfiguration/com.apple.Boot.plist
+and reboot.
+
 
 # SEE ALSO
 
 `ssh`(1), `python`(1)
-
