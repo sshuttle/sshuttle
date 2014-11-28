@@ -271,6 +271,13 @@ just switch your wireless off and on. Sshuttle makes the
 kernel setting it changes permanent, so this won't happen
 again, even after a reboot.
 
+On MacOS, sshuttle will set the kernel boot flag
+net.inet.ip.scopedroute to 0, which interferes with OS X
+Internet Sharing and some VPN clients. To reset this flag,
+you can remove any reference to net.inet.ip.scopedroute from
+/Library/Preferences/SystemConfiguration/com.apple.Boot.plist
+and reboot.
+
 
 # SEE ALSO
 
