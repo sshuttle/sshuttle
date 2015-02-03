@@ -145,18 +145,18 @@ def pfctl(*arg):
         stderr = ssubprocess.PIPE)
     return p.wait()
 
-def do_pf(port, dnsport, subnets):
+def do_pf(port, dnsport, family, subnets, udp):
     exclude_set = []
     redirect_set = []
     ns_set = []
 
     if dnsport:
         nslist = resolvconf_nameservers()
-        for ip in nslist:
+        for f, ip in nslist:
             ns_set.append(ip)
 
     if subnets:
-        for swidth,sexclude,snet in sorted(subnets, reverse=True):
+        for f, swidth, sexclude, snet in sorted(subnets, reverse=True):
             if sexclude:
                 exclude_set.append("%s/%s" % (snet,swidth))
             else:
