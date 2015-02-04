@@ -137,6 +137,56 @@ def do_iptables_nat(port, dnsport, family, subnets, udp):
                     '--dport', '53',
                     '--to-ports', str(dnsport))
 
+def pfctl(*arg):
+    argv = ['sudo', 'pfctl']
+    argv.extend(arg)
+    p = ssubprocess.Popen(argv,
+        stdout = ssubprocess.PIPE,
+        stderr = ssubprocess.PIPE)
+    return p.wait()
+
+def do_pf(port, dnsport, family, subnets, udp):
+    exclude_set = []
+    redirect_set = []
+    ns_set = []
+
+    if dnsport:
+        nslist = resolvconf_nameservers()
+        for f, ip in nslist:
+            ns_set.append(ip)
+
+    if subnets:
+        for f, swidth, sexclude, snet in sorted(subnets, reverse=True):
+            if sexclude:
+                exclude_set.append("%s/%s" % (snet,swidth))
+            else:
+                redirect_set.append("%s/%s" % (snet,swidth))
+
+        ruleset = [
+            'packets = "proto tcp to {%s}"' % ','.join(redirect_set),
+            'rdr pass on lo0 $packets -> 127.0.0.1 port %s' % port,
+            'pass out route-to lo0 inet $packets keep state'
+            ]
+
+        if len(ns_set) > 0:
+            ns_ruleset = [
+                    'dnspackets = "proto udp to {%s} port 53"' % ','.join(ns_set),
+                    'rdr pass on lo0 $dnspackets -> 127.0.0.1 port %s' % port,
+                    'pass out route-to lo0 inet $dnspackets keep state'
+                ]
+            ruleset = list(sum(zip(ruleset, ns_ruleset), ()))
+
+        if len(exclude_set) > 0:
+            ruleset.append('pass out quick proto tcp to {%s}' % ','.join(exclude_set))
+
+        f = open('/etc/sshuttle.pf.conf', 'w+')
+        f.write('\n'.join(ruleset) + '\n')
+        f.close()
+
+        pfctl('-f', '/etc/sshuttle.pf.conf', '-E')
+    else:
+        pfctl('-d')
+        pfctl('-F', 'all')
 
 def do_iptables_tproxy(port, dnsport, family, subnets, udp):
     if family not in [socket.AF_INET, socket.AF_INET6]:
@@ -541,8 +591,10 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
             method = "ipfw"
         elif program_exists('iptables'):
             method = "nat"
+        elif program_exists('pfctl'):
+            method = "pf"
         else:
-            raise Fatal("can't find either ipfw or iptables; check your PATH")
+            raise Fatal("can't find either ipfw, pf, or iptables; check your PATH")
 
     if method == "nat":
         do_it = do_iptables_nat
@@ -550,6 +602,8 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         do_it = do_iptables_tproxy
     elif method == "ipfw":
         do_it = do_ipfw
+    elif method == "pf":
+        do_it = do_pf
     else:
         raise Exception('Unknown method "%s"' % method)
 
