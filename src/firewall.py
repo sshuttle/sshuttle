@@ -585,7 +585,7 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         elif program_exists('pfctl'):
             method = "pf"
         else:
-            raise Fatal("can't find either ipfw or iptables; check your PATH")
+            raise Fatal("can't find either ipfw, iptables or pfctl; check your PATH")
 
     if method == "nat":
         do_it = do_iptables_nat
