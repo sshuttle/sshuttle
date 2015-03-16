@@ -13,7 +13,7 @@ import sys
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import log, debug1, debug2, debug3, Fatal, islocal
 from fcntl import ioctl
-from ctypes import *
+from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, sizeof, addressof, memmove
 
 recvmsg = None
 try:
