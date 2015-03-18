@@ -498,7 +498,7 @@ def do_pf(port, dnsport, family, subnets, udp):
         with open(pf_config_file, 'w+') as f:
             f.write('\n'.join(tables + translating_rules + filtering_rules) + '\n')
 
-        pfctl('-ef', pf_config_file)
+        pfctl('-Ef', pf_config_file)
         os.remove(pf_config_file)
     else:
         pfctl('-dF', 'all')
