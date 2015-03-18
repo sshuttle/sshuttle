@@ -12,6 +12,8 @@ import ssyslog
 import sys
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from helpers import log, debug1, debug2, debug3, Fatal, islocal
+from fcntl import ioctl
+from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, sizeof, addressof, memmove
 
 recvmsg = None
 try:
@@ -183,6 +185,79 @@ def daemon_cleanup():
             pass
         else:
             raise
+
+
+class pf_state_xport(Union):
+    _fields_ = [("port", c_uint16),
+                ("call_id", c_uint16),
+                ("spi", c_uint32)]
+
+class pf_addr(Structure):
+    class _pfa(Union):
+        _fields_ = [("v4",            c_uint32),      # struct in_addr
+                    ("v6",            c_uint32 * 4),  # struct in6_addr
+                    ("addr8",         c_uint8 * 16),
+                    ("addr16",        c_uint16 * 8),
+                    ("addr32",        c_uint32 * 4)]
+
+    _fields_ = [("pfa",               _pfa)]
+    _anonymous_ = ("pfa",)
+
+class pfioc_natlook(Structure):
+    _fields_ = [("saddr", pf_addr),
+                ("daddr", pf_addr),
+                ("rsaddr", pf_addr),
+                ("rdaddr", pf_addr),
+                ("sxport", pf_state_xport),
+                ("dxport", pf_state_xport),
+                ("rsxport", pf_state_xport),
+                ("rdxport", pf_state_xport),
+                ("af", c_uint8),                      # sa_family_t  
+                ("proto", c_uint8),
+                ("proto_variant", c_uint8),
+                ("direction", c_uint8)]
+
+DIOCNATLOOK = ((0x40000000L | 0x80000000L) | ((sizeof(pfioc_natlook) & 0x1fff) << 16) | ((ord('D')) << 8) | (23))
+PF_OUT = 2
+
+_pf_fd = None
+
+def pf_dst(sock):
+    global _pf_fd
+    try:
+        peer = sock.getpeername()
+        proxy = sock.getsockname()
+
+        pnl = pfioc_natlook()
+        pnl.proto = socket.IPPROTO_TCP
+        pnl.direction = PF_OUT
+        if sock.family == socket.AF_INET:
+            pnl.af = socket.AF_INET
+            memmove(addressof(pnl.saddr), socket.inet_pton(socket.AF_INET, peer[0]), 4)
+            pnl.sxport.port = socket.htons(peer[1])
+            memmove(addressof(pnl.daddr), socket.inet_pton(socket.AF_INET, proxy[0]), 4)
+            pnl.dxport.port = socket.htons(proxy[1])
+        elif sock.family == socket.AF_INET6:
+            pnl.af = socket.AF_INET6
+            memmove(addressof(pnl.saddr), socket.inet_pton(socket.AF_INET6, peer[0]), 16)
+            pnl.sxport.port = socket.htons(peer[1])
+            memmove(addressof(pnl.daddr), socket.inet_pton(socket.AF_INET6, proxy[0]), 16)
+            pnl.dxport.port = socket.htons(proxy[1])
+
+        if _pf_fd == None:
+            _pf_fd = open('/dev/pf', 'r')
+
+        ioctl(_pf_fd, DIOCNATLOOK, (c_char * sizeof(pnl)).from_address(addressof(pnl)))
+
+        if pnl.af == socket.AF_INET:
+            ip = socket.inet_ntop(socket.AF_INET, (c_char * 4).from_address(addressof(pnl.rdaddr)))
+        elif pnl.af == socket.AF_INET6:
+            ip = socket.inet_ntop(socket.AF_INET6, (c_char * 16).from_address(addressof(pnl.rdaddr)))
+        port = socket.ntohs(pnl.rdxport.port)
+        return (ip, port)
+    except IOError, e:
+        return sock.getsockname()
+        raise
 
 
 def original_dst(sock):
@@ -381,6 +456,8 @@ def onaccept_tcp(listener, method, mux, handlers):
             raise
     if method == "tproxy":
         dstip = sock.getsockname()
+    elif method == "pf":
+        dstip = pf_dst(sock)
     else:
         dstip = original_dst(sock)
     debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
