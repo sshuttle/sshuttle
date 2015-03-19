@@ -9,6 +9,9 @@ import sys
 import os
 from helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
     resolvconf_nameservers
+from fcntl import ioctl
+from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, sizeof, addressof, memmove
+
 
 # python doesn't have a definition for this
 IPPROTO_DIVERT = 254
@@ -556,6 +559,68 @@ def restore_etc_hosts(port):
     rewrite_etc_hosts(port)
 
 
+# This are some classes and functions used to support pf in yosemite. 
+class pf_state_xport(Union):
+    _fields_ = [("port", c_uint16),
+                ("call_id", c_uint16),
+                ("spi", c_uint32)]
+
+class pf_addr(Structure):
+    class _pfa(Union):
+        _fields_ = [("v4",            c_uint32),      # struct in_addr
+                    ("v6",            c_uint32 * 4),  # struct in6_addr
+                    ("addr8",         c_uint8 * 16),
+                    ("addr16",        c_uint16 * 8),
+                    ("addr32",        c_uint32 * 4)]
+
+    _fields_ = [("pfa",               _pfa)]
+    _anonymous_ = ("pfa",)
+
+class pfioc_natlook(Structure):
+    _fields_ = [("saddr", pf_addr),
+                ("daddr", pf_addr),
+                ("rsaddr", pf_addr),
+                ("rdaddr", pf_addr),
+                ("sxport", pf_state_xport),
+                ("dxport", pf_state_xport),
+                ("rsxport", pf_state_xport),
+                ("rdxport", pf_state_xport),
+                ("af", c_uint8),                      # sa_family_t  
+                ("proto", c_uint8),
+                ("proto_variant", c_uint8),
+                ("direction", c_uint8)]
+
+DIOCNATLOOK = ((0x40000000L | 0x80000000L) | ((sizeof(pfioc_natlook) & 0x1fff) << 16) | ((ord('D')) << 8) | (23))
+PF_OUT = 2
+
+_pf_fd = None
+
+def query_pf_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
+    global _pf_fd
+    
+    [proto, family, src_port, dst_port] = [int(v) for v in [proto, family, src_port, dst_port]]
+    
+    length = 4 if family == socket.AF_INET else 16
+
+    pnl = pfioc_natlook()
+    pnl.proto = proto
+    pnl.direction = PF_OUT
+    pnl.af = family
+    memmove(addressof(pnl.saddr), socket.inet_pton(pnl.af, src_ip), length)
+    pnl.sxport.port = socket.htons(src_port)
+    memmove(addressof(pnl.daddr), socket.inet_pton(pnl.af, dst_ip), length)
+    pnl.dxport.port = socket.htons(dst_port)
+
+    if _pf_fd == None:
+        _pf_fd = open('/dev/pf', 'r')
+
+    ioctl(_pf_fd, DIOCNATLOOK, (c_char * sizeof(pnl)).from_address(addressof(pnl)))
+
+    ip = socket.inet_ntop(pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)))
+    port = socket.ntohs(pnl.rdxport.port)
+    return (ip, port)
+
+
 # This is some voodoo for setting up the kernel's transparent
 # proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
 # otherwise we delete it, then make them from scratch.
@@ -682,6 +747,14 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
                 (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
                 rewrite_etc_hosts(port_v6 or port_v4)
+            elif line.startswith('QUERY_PF_NAT '):
+                try:
+                    dst = query_pf_nat(*(line[13:].split(',')))
+                    sys.stdout.write('QUERY_PF_NAT_SUCCESS %s,%r\n' % dst)
+                except IOError, e:
+                    sys.stdout.write('QUERY_PF_NAT_FAILURE %s\n' % e)
+
+                sys.stdout.flush()
             elif line:
                 raise Fatal('expected EOF, got %r' % line)
             else:
