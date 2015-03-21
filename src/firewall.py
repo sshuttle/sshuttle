@@ -480,6 +480,9 @@ def do_pf(port, dnsport, family, subnets, udp):
     filtering_rules = []
 
     if subnets:
+        pf_add_anchor_rule(PF_PASS, "sshuttle")
+        pf_add_anchor_rule(PF_RDR, "sshuttle")
+
         include_subnets = filter(lambda s:not s[2], sorted(subnets, reverse=True))
         if include_subnets:
             tables.append('table <include_subnets> {%s}' % ','.join(["%s/%s" % (n[3], n[1]) for n in include_subnets]))
@@ -501,10 +504,9 @@ def do_pf(port, dnsport, family, subnets, udp):
         with open(pf_config_file, 'w+') as f:
             f.write('\n'.join(tables + translating_rules + filtering_rules) + '\n')
 
-        pfctl('-Ef', pf_config_file)
-        os.remove(pf_config_file)
+        pfctl('-E', '-a', 'sshuttle', '-f', pf_config_file)
     else:
-        pfctl('-dF', 'all')
+        pfctl('-a', 'sshuttle', '-F', 'all')
 
 
 def program_exists(name):
@@ -590,14 +592,34 @@ class pfioc_natlook(Structure):
                 ("proto_variant", c_uint8),
                 ("direction", c_uint8)]
 
+pfioc_rule = c_char * 3104  # sizeof(struct pfioc_rule)
+
+pfioc_pooladdr = c_char * 1136 # sizeof(struct pfioc_pooladdr) 
+
+MAXPATHLEN = 1024
+
 DIOCNATLOOK = ((0x40000000L | 0x80000000L) | ((sizeof(pfioc_natlook) & 0x1fff) << 16) | ((ord('D')) << 8) | (23))
+DIOCCHANGERULE = ((0x40000000L | 0x80000000L) | ((sizeof(pfioc_rule) & 0x1fff) << 16) | ((ord('D')) << 8) | (26))
+DIOCBEGINADDRS = ((0x40000000L | 0x80000000L) | ((sizeof(pfioc_pooladdr) & 0x1fff) << 16) | ((ord('D')) << 8) | (51))
+
+PF_CHANGE_ADD_TAIL = 2
+PF_CHANGE_GET_TICKET = 6
+
+PF_PASS = 0
+PF_RDR = 8
+
 PF_OUT = 2
 
 _pf_fd = None
 
-def query_pf_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
+def pf_get_dev():
     global _pf_fd
-    
+    if _pf_fd == None:
+        _pf_fd = os.open('/dev/pf', os.O_RDWR)
+
+    return _pf_fd
+
+def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     [proto, family, src_port, dst_port] = [int(v) for v in [proto, family, src_port, dst_port]]
     
     length = 4 if family == socket.AF_INET else 16
@@ -611,14 +633,32 @@ def query_pf_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     memmove(addressof(pnl.daddr), socket.inet_pton(pnl.af, dst_ip), length)
     pnl.dxport.port = socket.htons(dst_port)
 
-    if _pf_fd == None:
-        _pf_fd = open('/dev/pf', 'r')
-
-    ioctl(_pf_fd, DIOCNATLOOK, (c_char * sizeof(pnl)).from_address(addressof(pnl)))
+    ioctl(pf_get_dev(), DIOCNATLOOK, (c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)))
     port = socket.ntohs(pnl.rdxport.port)
     return (ip, port)
+
+def pf_add_anchor_rule(type, name):
+    ACTION_OFFSET = 0
+    POOL_TICKET_OFFSET = 8
+    ANCHOR_CALL_OFFSET = 1040
+    RULE_ACTION_OFFSET = 3068
+
+    pr = pfioc_rule()
+    ppa = pfioc_pooladdr()
+
+    ioctl(pf_get_dev(), DIOCBEGINADDRS, ppa)
+
+    memmove(addressof(pr) + POOL_TICKET_OFFSET, ppa[4:8], 4)  #pool_ticket
+    memmove(addressof(pr) + ANCHOR_CALL_OFFSET, name, min(MAXPATHLEN, len(name)))  #anchor_call = name
+    memmove(addressof(pr) + RULE_ACTION_OFFSET, struct.pack('I', type), 4)  #rule.action = type
+
+    memmove(addressof(pr) + ACTION_OFFSET, struct.pack('I', PF_CHANGE_GET_TICKET), 4) #action = PF_CHANGE_GET_TICKET
+    ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
+
+    memmove(addressof(pr) + ACTION_OFFSET, struct.pack('I', PF_CHANGE_ADD_TAIL), 4) #action = PF_CHANGE_ADD_TAIL
+    ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
 
 
 # This is some voodoo for setting up the kernel's transparent
@@ -749,7 +789,7 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
                 rewrite_etc_hosts(port_v6 or port_v4)
             elif line.startswith('QUERY_PF_NAT '):
                 try:
-                    dst = query_pf_nat(*(line[13:].split(',')))
+                    dst = pf_query_nat(*(line[13:].split(',')))
                     sys.stdout.write('QUERY_PF_NAT_SUCCESS %s,%r\n' % dst)
                 except IOError, e:
                     sys.stdout.write('QUERY_PF_NAT_FAILURE %s\n' % e)
