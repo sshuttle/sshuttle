@@ -470,7 +470,7 @@ def do_ipfw(port, dnsport, family, subnets, udp):
 
 def pfctl(args, stdin = None):
     argv = ['pfctl'] + list(args.split(" "))
-    debug1('>> %s' % ' '.join(argv), stdin)
+    debug1('>> %s' % ' '.join(argv))
 
     p = ssubprocess.Popen(argv, stdin = ssubprocess.PIPE, 
                                 stdout = ssubprocess.PIPE, 
