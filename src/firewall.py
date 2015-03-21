@@ -7,6 +7,7 @@ import compat.ssubprocess as ssubprocess
 import ssyslog
 import sys
 import os
+import re
 from helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
     resolvconf_nameservers
 from fcntl import ioctl
@@ -469,7 +470,7 @@ def do_ipfw(port, dnsport, family, subnets, udp):
 
 def pfctl(args, stdin = None):
     argv = ['pfctl'] + list(args.split(" "))
-    debug1('>> %s, stdin:%s\n' % (' '.join(argv), stdin))
+    debug1('>> %s' % ' '.join(argv), stdin)
 
     p = ssubprocess.Popen(argv, stdin = ssubprocess.PIPE, 
                                 stdout = ssubprocess.PIPE, 
@@ -480,7 +481,7 @@ def pfctl(args, stdin = None):
 
     return o
 
-_pf_started_by_sshuttle = False
+_pf_context = {'started_by_sshuttle': False, 'Xtoken':''}
 
 def do_pf(port, dnsport, family, subnets, udp):
     global _pf_started_by_sshuttle
@@ -513,16 +514,11 @@ def do_pf(port, dnsport, family, subnets, udp):
             pf_add_anchor_rule(PF_RDR, "sshuttle")        
         if not '\nanchor "sshuttle" all\n' in pf_status:
             pf_add_anchor_rule(PF_PASS, "sshuttle")
-        if not 'INFO:\nStatus: Enabled' in pf_status:
-            pfctl('-e')
-            _pf_started_by_sshuttle = True
 
-        pfctl('-a sshuttle -f /dev/stdin', rules)
+        o = pfctl('-a sshuttle -f /dev/stdin -E', rules)
+        _pf_context['Xtoken'] = re.search(r'Token : (.+)', o[1]).group(1)
     else:
-        pfctl('-a sshuttle -F all')
-
-        if _pf_started_by_sshuttle:
-            pfctl('-d')
+        pfctl('-a sshuttle -F all -X %s' % _pf_context['Xtoken'])
 
 
 def program_exists(name):
