@@ -10,7 +10,8 @@ import os
 from helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
     resolvconf_nameservers
 from fcntl import ioctl
-from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, sizeof, addressof, memmove
+from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
+	sizeof, addressof, memmove
 
 
 # python doesn't have a definition for this
@@ -466,23 +467,28 @@ def do_ipfw(port, dnsport, family, subnets, udp):
     return do_wait
 
 
-def pfctl(*args):
-    argv = ['pfctl'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.Popen(argv, stderr=ssubprocess.PIPE).wait()
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+def pfctl(args, stdin = None):
+    argv = ['pfctl'] + list(args.split(" "))
+    debug1('>> %s, stdin:%s\n' % (' '.join(argv), stdin))
 
+    p = ssubprocess.Popen(argv, stdin = ssubprocess.PIPE, 
+                                stdout = ssubprocess.PIPE, 
+                                stderr = ssubprocess.PIPE)
+    o = p.communicate(stdin)
+    if p.returncode:
+        raise Fatal('%r returned %d' % (argv, p.returncode))
+
+    return o
+
+_pf_started_by_sshuttle = False
 
 def do_pf(port, dnsport, family, subnets, udp):
+    global _pf_started_by_sshuttle
     tables = []
     translating_rules = []
     filtering_rules = []
 
     if subnets:
-        pf_add_anchor_rule(PF_PASS, "sshuttle")
-        pf_add_anchor_rule(PF_RDR, "sshuttle")
-
         include_subnets = filter(lambda s:not s[2], sorted(subnets, reverse=True))
         if include_subnets:
             tables.append('table <include_subnets> {%s}' % ','.join(["%s/%s" % (n[3], n[1]) for n in include_subnets]))
@@ -500,13 +506,23 @@ def do_pf(port, dnsport, family, subnets, udp):
             translating_rules.append('rdr pass on lo0 proto udp to <dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
             filtering_rules.append('pass out route-to lo0 inet proto udp to <dns_servers> port 53 keep state')
 
-        pf_config_file = '/etc/pf-sshuttle.conf'
-        with open(pf_config_file, 'w+') as f:
-            f.write('\n'.join(tables + translating_rules + filtering_rules) + '\n')
+        rules = '\n'.join(tables + translating_rules + filtering_rules) + '\n'
 
-        pfctl('-E', '-a', 'sshuttle', '-f', pf_config_file)
+        pf_status = pfctl('-s all')[0]
+        if not '\nrdr-anchor "sshuttle" all\n' in pf_status:
+            pf_add_anchor_rule(PF_RDR, "sshuttle")        
+        if not '\nanchor "sshuttle" all\n' in pf_status:
+            pf_add_anchor_rule(PF_PASS, "sshuttle")
+        if not 'INFO:\nStatus: Enabled' in pf_status:
+            pfctl('-e')
+            _pf_started_by_sshuttle = True
+
+        pfctl('-a sshuttle -f /dev/stdin', rules)
     else:
-        pfctl('-a', 'sshuttle', '-F', 'all')
+        pfctl('-a sshuttle -F all')
+
+        if _pf_started_by_sshuttle:
+            pfctl('-d')
 
 
 def program_exists(name):
