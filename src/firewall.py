@@ -470,7 +470,7 @@ def do_ipfw(port, dnsport, family, subnets, udp):
 
 def pfctl(args, stdin = None):
     argv = ['pfctl'] + list(args.split(" "))
-    debug1('>> %s' % ' '.join(argv))
+    debug1('>> %s\n' % ' '.join(argv))
 
     p = ssubprocess.Popen(argv, stdin = ssubprocess.PIPE, 
                                 stdout = ssubprocess.PIPE, 
@@ -515,10 +515,19 @@ def do_pf(port, dnsport, family, subnets, udp):
         if not '\nanchor "sshuttle" all\n' in pf_status:
             pf_add_anchor_rule(PF_PASS, "sshuttle")
 
-        o = pfctl('-a sshuttle -f /dev/stdin -E', rules)
-        _pf_context['Xtoken'] = re.search(r'Token : (.+)', o[1]).group(1)
+        pfctl('-a sshuttle -f /dev/stdin', rules)
+        if sys.platform == "darwin":
+            o = pfctl('-E')
+            _pf_context['Xtoken'] = re.search(r'Token : (.+)', o[1]).group(1)
+        elif 'INFO:\nStatus: Disabled' in pf_status: 
+            pfctl('-e')
+            _pf_context['started_by_sshuttle'] = True
     else:
-        pfctl('-a sshuttle -F all -X %s' % _pf_context['Xtoken'])
+        pfctl('-a sshuttle -F all')
+        if sys.platform == "darwin":
+            pfctl('-X %s' % _pf_context['Xtoken'])
+        elif _pf_context['started_by_sshuttle']:
+            pfctl('-d')
 
 
 def program_exists(name):
