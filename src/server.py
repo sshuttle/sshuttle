@@ -328,6 +328,7 @@ def main():
                     debug3('expiring dnsreqs channel=%d\n' % channel)
                     del dnshandlers[channel]
                     h.ok = False
+        if udphandlers:
             for channel, h in udphandlers.items():
                 if not h.ok:
                     debug3('expiring UDP channel=%d\n' % channel)
