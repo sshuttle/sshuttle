@@ -69,7 +69,7 @@ Obtaining sshuttle
 
  - First, go get PyXAPI from the link above
 
- - Clone github.com/jwyllie83/sshuttle/tree/local
+ - Clone: `git clone https://github.com/sshuttle/sshuttle.git`
 
 
 Usage on (Ubuntu) Linux
