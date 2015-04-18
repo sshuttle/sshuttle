@@ -2,7 +2,7 @@ Package: sshuttle
 Version: 0.2
 Architecture: all
 Maintainer: Jim Wyllie <jwyllie83@gmail.com>
-Depends: autossh, upstart, python (>=2.6)
+Depends: autossh, python (>=2.6)
 Section: utils
 Priority: optional
 Homepage: http://github.com/jwyllie83/sshuttle.udp
