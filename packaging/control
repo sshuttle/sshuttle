@@ -23,5 +23,5 @@ Description: "Full-featured" VPN over an SSH tunnel
     it's disabled by default on openssh servers; plus it does
     TCP-over-TCP, which has suboptimal performance
  .
- It also has hooks for more complicated setups (VPN-in-a-SSH-VPN, etc) to allow
+ It also has hooks for more complicated setups (VPN-in-a-SSH-VPN, etc.) to allow
  you to set it up as you like.
