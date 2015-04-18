@@ -2,7 +2,8 @@ Package: sshuttle
 Version: 0+git
 Architecture: all
 Maintainer: Jim Wyllie <jwyllie83@gmail.com>
-Depends: autossh, iptables, python (>= 2.6)
+Depends: iptables, python (>= 2.6)
+Suggests: autossh
 Section: net
 Priority: optional
 Homepage: http://github.com/sshuttle/sshuttle
