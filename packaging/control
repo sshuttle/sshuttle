@@ -3,7 +3,7 @@ Version: 0+git
 Architecture: all
 Maintainer: Jim Wyllie <jwyllie83@gmail.com>
 Depends: autossh, iptables, python (>= 2.6)
-Section: utils
+Section: net
 Priority: optional
 Homepage: http://github.com/sshuttle/sshuttle
 Description: "Full-featured" VPN over an SSH tunnel
