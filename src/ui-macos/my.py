@@ -1,5 +1,11 @@
 import os
-from AppKit import *
+from AppKit import (
+  NSBundle,
+  NSData,
+  NSDictionary,
+  NSImage,
+  NSUserDefaults,
+)
 import PyObjCTools.AppHelper
 
 
