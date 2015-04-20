@@ -380,11 +380,10 @@ class SshuttleController(NSObject):
         bar = NSStatusBar.systemStatusBar()
         statusitem = bar.statusItemWithLength_(NSVariableStatusItemLength)
         self.statusitem = statusitem
-        self.img_idle = my.Image('chicken-tiny-bw', 'png')
-        self.img_running = my.Image('chicken-tiny', 'png')
-        self.img_err = my.Image('chicken-tiny-err', 'png')
+        self.img_idle = NSImage.imageNamed_('ChickenIdleTemplate')
+        self.img_running = NSImage.imageNamed_('ChickenRunningTemplate')
+        self.img_err = NSImage.imageNamed_('ChickenErrorTemplate')
         statusitem.setImage_(self.img_idle)
-        statusitem.setHighlightMode_(True)
         statusitem.setMenu_(self.menu)
         self.fill_menu()
 
