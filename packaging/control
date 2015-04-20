@@ -1,14 +1,16 @@
 Package: sshuttle
-Version: 0.2
-Architecture: i386
+Version: 0+git
+Architecture: all
 Maintainer: Jim Wyllie <jwyllie83@gmail.com>
-Depends: autossh, upstart, python (>=2.6)
-Section: utils
+Depends: iptables, python (>= 2.6)
+Suggests: autossh
+Section: net
 Priority: optional
-Homepage: http://github.com/jwyllie83/sshuttle.udp
-Description: "Full-featured" VPN over an SSH tunnel, allowing full remote
- access somewhere where all you have is an SSH connection.  It works well if
- you generally find yourself in the following situation:
+Homepage: http://github.com/sshuttle/sshuttle
+Description: "Full-featured" VPN over an SSH tunnel
+ It allows full remote access somewhere where all you have is an SSH
+ connection.  It works well if you generally find yourself in the
+ following situation:
  .
  - Your client machine (or router) is Linux, FreeBSD, or MacOS.
  - You have access to a remote network via ssh.
@@ -22,5 +24,5 @@ Description: "Full-featured" VPN over an SSH tunnel, allowing full remote
     it's disabled by default on openssh servers; plus it does
     TCP-over-TCP, which has suboptimal performance
  .
- It also has hooks for more complicated setups (VPN-in-a-SSH-VPN, etc) to allow
+ It also has hooks for more complicated setups (VPN-in-a-SSH-VPN, etc.) to allow
  you to set it up as you like.

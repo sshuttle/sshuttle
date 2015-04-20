@@ -24,6 +24,11 @@ cp ../src/sshuttle ${B}/usr/bin
 cp -r sshuttle.conf ${B}/etc/init
 cp prefixes.conf ${B}/etc/sshuttle
 cp tunnel.conf ${B}/etc/sshuttle
+# Remove MacOS X stuff from .deb
+rm -r ${B}/usr/share/sshuttle/ui-macos
+
+# Fix path to main.py
+sed -e 's:^DIR=.*$:DIR=/usr/share/sshuttle/:' -i ${B}/usr/bin/sshuttle
 
 # Copy the control file over, as well
 cp control ${B}/DEBIAN
