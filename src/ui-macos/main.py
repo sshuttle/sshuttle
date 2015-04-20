@@ -231,6 +231,7 @@ class SshuttleController(NSObject):
 
     @objc.IBAction
     def cmd_quit(self, sender):
+        NSStatusBar.systemStatusBar().removeStatusItem_(self.statusitem)
         NSApp.performSelector_withObject_afterDelay_(NSApp.terminate_,
                                                      None, 0.0)
 
