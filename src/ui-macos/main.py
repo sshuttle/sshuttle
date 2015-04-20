@@ -1,7 +1,21 @@
 import sys
 import os
 import pty
-from AppKit import *
+from AppKit import (
+  objc,
+  NSApp,
+  NSApplicationMain,
+  NSAttributedString,
+  NSFileHandle,
+  NSFileHandleDataAvailableNotification,
+  NSImage,
+  NSMenu,
+  NSMenuItem,
+  NSNotificationCenter,
+  NSObject,
+  NSStatusBar,
+  NSVariableStatusItemLength,
+)
 import my
 import models
 import askpass
@@ -217,6 +231,7 @@ class SshuttleController(NSObject):
 
     @objc.IBAction
     def cmd_quit(self, sender):
+        NSStatusBar.systemStatusBar().removeStatusItem_(self.statusitem)
         NSApp.performSelector_withObject_afterDelay_(NSApp.terminate_,
                                                      None, 0.0)
 
@@ -365,11 +380,10 @@ class SshuttleController(NSObject):
         bar = NSStatusBar.systemStatusBar()
         statusitem = bar.statusItemWithLength_(NSVariableStatusItemLength)
         self.statusitem = statusitem
-        self.img_idle = my.Image('chicken-tiny-bw', 'png')
-        self.img_running = my.Image('chicken-tiny', 'png')
-        self.img_err = my.Image('chicken-tiny-err', 'png')
+        self.img_idle = NSImage.imageNamed_('ChickenIdleTemplate')
+        self.img_running = NSImage.imageNamed_('ChickenRunningTemplate')
+        self.img_err = NSImage.imageNamed_('ChickenErrorTemplate')
         statusitem.setImage_(self.img_idle)
-        statusitem.setHighlightMode_(True)
         statusitem.setMenu_(self.menu)
         self.fill_menu()
 

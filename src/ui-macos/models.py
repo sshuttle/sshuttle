@@ -1,4 +1,4 @@
-from AppKit import *
+from AppKit import (objc, NSObject)
 import my
 
 
