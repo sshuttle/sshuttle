@@ -337,7 +337,7 @@ def _handle_diversion(divertsock, dnsport):
         _real_dns_server[0] = dst
         dst = ('127.0.0.1', dnsport)
     elif src[1] == dnsport:
-        if islocal(src[0]):
+        if islocal(src[0], divertsock.family):
             debug3('...packet is a DNS response.\n')
             src = _real_dns_server[0]
     else:
