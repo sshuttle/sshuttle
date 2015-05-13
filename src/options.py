@@ -61,6 +61,8 @@ def _remove_negative_k(k):
 
 
 def _tty_width():
+    if not hasattr(sys.stderr, "fileno"):
+        return _atoi(os.environ.get('WIDTH')) or 70
     s = struct.pack("HHHH", 0, 0, 0, 0)
     try:
         import fcntl
