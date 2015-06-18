@@ -499,7 +499,7 @@ def do_pf(port, dnsport, family, subnets, udp):
         exclude_subnets = filter(lambda s:s[2], sorted(subnets, reverse=True))
         if exclude_subnets:
             tables.append('table <exclude_subnets> {%s}' % ','.join(["%s/%s" % (n[3], n[1]) for n in exclude_subnets]))
-            filtering_rules.append('pass out route-to lo0 inet proto tcp to <exclude_subnets> keep state')
+            filtering_rules.append('pass out quick proto tcp from any to <exclude_subnets> keep state')
 
         if dnsport:
             nslist = resolvconf_nameservers()
