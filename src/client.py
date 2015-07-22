@@ -554,7 +554,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         if auto_nets:
             for line in routestr.strip().split('\n'):
                 (family, ip, width) = line.split(',', 2)
-                fw.auto_nets.append((family, ip, int(width)))
+                fw.auto_nets.append((int(family), ip, int(width)))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!
