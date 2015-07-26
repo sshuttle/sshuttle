@@ -93,15 +93,15 @@ Usage on (Ubuntu) Linux
 Usage on other Linuxes and OSes
 -------------------------------
 
-  <tt>./sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
+  <tt>src/sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
 
  - There is a shortcut for 0.0.0.0/0 for those that value
    their wrists
-   <tt>./sshuttle -r username@sshserver 0/0 -vv</tt>
+   <tt>src/sshuttle -r username@sshserver 0/0 -vv</tt>
 
  - If you would also like your DNS queries to be proxied
    through the DNS server of the server you are connect to:
-   <tt>./sshuttle --dns -vvr username@sshserver 0/0</tt>
+   <tt>src/sshuttle --dns -vvr username@sshserver 0/0</tt>
 
    The above is probably what you want to use to prevent
    local network attacks such as Firesheep and friends.
