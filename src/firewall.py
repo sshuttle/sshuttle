@@ -490,16 +490,16 @@ def do_pf(port, dnsport, family, subnets, udp):
     filtering_rules = []
 
     if subnets:
-        include_subnets = filter(lambda s:not s[2], sorted(subnets, reverse=True))
-        if include_subnets:
-            tables.append('table <include_subnets> {%s}' % ','.join(["%s/%s" % (n[3], n[1]) for n in include_subnets]))
-            translating_rules.append('rdr pass on lo0 proto tcp to <include_subnets> -> 127.0.0.1 port %r' % port)
-            filtering_rules.append('pass out route-to lo0 inet proto tcp to <include_subnets> keep state')
+        includes=[]
+        # If a given subnet is both included and excluded, list the exclusion
+        # first; the table will ignore the second, opposite definition
+        for f, swidth, sexclude, snet \
+                in sorted(subnets, key=lambda s: (s[1], s[2]), reverse=True):
+                    includes.append("%s%s/%s" % ("!" if sexclude else "", snet, swidth))
 
-        exclude_subnets = filter(lambda s:s[2], sorted(subnets, reverse=True))
-        if exclude_subnets:
-            tables.append('table <exclude_subnets> {%s}' % ','.join(["%s/%s" % (n[3], n[1]) for n in exclude_subnets]))
-            filtering_rules.append('pass out quick proto tcp from any to <exclude_subnets> keep state')
+        tables.append('table <forward_subnets> {%s}' % ','.join(includes))
+        translating_rules.append('rdr pass on lo0 proto tcp to <forward_subnets> -> 127.0.0.1 port %r' % port)
+        filtering_rules.append('pass out route-to lo0 inet proto tcp to <forward_subnets> keep state')
 
         if dnsport:
             nslist = resolvconf_nameservers()
