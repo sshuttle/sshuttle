@@ -4,9 +4,9 @@ cat <<-EOF
 	app.icns
 	MainMenu.nib English.lproj/MainMenu.nib
 	UserDefaults.plist
-	chicken-tiny.png
-	chicken-tiny-bw.png
-	chicken-tiny-err.png
+	ChickenIdleTemplate.pdf
+	ChickenRunningTemplate.pdf
+	ChickenErrorTemplate.pdf
 EOF
 for d in *.py sshuttle/*.py sshuttle/sshuttle sshuttle/compat/*.py; do
 	echo $d
