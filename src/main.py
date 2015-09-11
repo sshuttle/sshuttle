@@ -7,7 +7,7 @@ import client
 import server
 import firewall
 import hostwatch
-from helpers import log, Fatal
+from helpers import family_ip_tuple, log, Fatal
 
 
 # 1.2.3.4/5 or just 1.2.3.4
@@ -105,6 +105,9 @@ def parse_ipport6(s):
     (ip, port) = (ip or '::', int(port or 0))
     return (ip, port)
 
+def parse_list(list):
+    return re.split(r'[\s,]+', list.strip()) if list else []
+
 
 optspec = """
 sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
@@ -116,6 +119,7 @@ l,listen=  transproxy to this ip address and port number
 H,auto-hosts scan for remote hostnames and update local /etc/hosts
 N,auto-nets  automatically determine subnets to route
 dns        capture local DNS requests and forward to the remote DNS server
+ns-hosts=  capture and forward remote DNS requests to the following servers
 method=    auto, nat, tproxy, pf or ipfw
 python=    path to python interpreter on the remote server
 r,remote=  ssh hostname (and optional username) of remote sshuttle server
@@ -153,8 +157,10 @@ try:
     elif opt.firewall:
         if len(extra) != 6:
             o.fatal('exactly six arguments expected')
+        port, dnsport = int(extra[0]), int(extra[1])
+        nslist = [family_ip_tuple(ns) for ns in parse_list(opt.ns_hosts)]
         sys.exit(firewall.main(int(extra[0]), int(extra[1]),
-                               int(extra[2]), int(extra[3]),
+                               int(extra[2]), int(extra[3]), nslist,
                                extra[4], int(extra[5]), opt.syslog))
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
@@ -171,6 +177,8 @@ try:
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
+        #nslist = re.split(r'[\s,]+', opt.dnshosts.strip()) if opt.dnshosts else []
+        nslist = [family_ip_tuple(ns) for ns in parse_list(opt.ns_hosts)]
         if opt.seed_hosts and not opt.auto_hosts:
             o.fatal('--seed-hosts only works if you also use -H')
         if opt.seed_hosts:
@@ -208,6 +216,7 @@ try:
                                   opt.python,
                                   opt.latency_control,
                                   opt.dns,
+                                  opt.ns_hosts,
                                   method,
                                   sh,
                                   opt.auto_nets,
