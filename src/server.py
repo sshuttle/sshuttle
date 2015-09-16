@@ -215,7 +215,6 @@ def main():
         helpers.logprefix = ' s: '
     else:
         helpers.logprefix = 'server: '
-    assert latency_control is not None
     debug1('latency control setting = %r\n' % latency_control)
 
     routes = list(list_routes())
