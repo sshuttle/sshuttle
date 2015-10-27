@@ -177,7 +177,6 @@ try:
         remotename = opt.remote
         if remotename == '' or remotename == '-':
             remotename = None
-        #nslist = re.split(r'[\s,]+', opt.dnshosts.strip()) if opt.dnshosts else []
         nslist = [family_ip_tuple(ns) for ns in parse_list(opt.ns_hosts)]
         if opt.seed_hosts and not opt.auto_hosts:
             o.fatal('--seed-hosts only works if you also use -H')
