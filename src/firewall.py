@@ -83,7 +83,7 @@ def _ipt_ttl(family, *args):
 # multiple copies shouldn't have overlapping subnets, or only the most-
 # recently-started one will win (because we use "-I OUTPUT 1" instead of
 # "-A OUTPUT").
-def do_iptables_nat(port, dnsport, family, subnets, udp):
+def do_iptables_nat(port, dnsport, nslist, family, subnets, udp):
     # only ipv4 supported with NAT
     if family != socket.AF_INET:
         raise Exception(
@@ -134,7 +134,6 @@ def do_iptables_nat(port, dnsport, family, subnets, udp):
                         '--to-ports', str(port))
 
     if dnsport:
-        nslist = resolvconf_nameservers()
         for f, ip in filter(lambda i: i[0] == family, nslist):
             ipt_ttl('-A', chain, '-j', 'REDIRECT',
                     '--dest', '%s/32' % ip,
@@ -143,7 +142,7 @@ def do_iptables_nat(port, dnsport, family, subnets, udp):
                     '--to-ports', str(dnsport))
 
 
-def do_iptables_tproxy(port, dnsport, family, subnets, udp):
+def do_iptables_tproxy(port, dnsport, nslist, family, subnets, udp):
     if family not in [socket.AF_INET, socket.AF_INET6]:
         raise Exception(
             'Address family "%s" unsupported by tproxy method'
@@ -194,7 +193,6 @@ def do_iptables_tproxy(port, dnsport, family, subnets, udp):
             '-m', 'udp', '-p', 'udp')
 
     if dnsport:
-        nslist = resolvconf_nameservers()
         for f, ip in filter(lambda i: i[0] == family, nslist):
             ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                 '--dest', '%s/32' % ip,
@@ -442,7 +440,6 @@ def do_ipfw(port, dnsport, family, subnets, udp):
                                    IPPROTO_DIVERT)
         divertsock.bind(('0.0.0.0', port))  # IP field is ignored
 
-        nslist = resolvconf_nameservers()
         for f, ip in filter(lambda i: i[0] == family, nslist):
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
@@ -483,7 +480,7 @@ def pfctl(args, stdin = None):
 
 _pf_context = {'started_by_sshuttle': False, 'Xtoken':''}
 
-def do_pf(port, dnsport, family, subnets, udp):
+def do_pf(port, dnsport, nslist, family, subnets, udp):
     global _pf_started_by_sshuttle
     tables = []
     translating_rules = []
@@ -502,7 +499,6 @@ def do_pf(port, dnsport, family, subnets, udp):
         filtering_rules.append('pass out route-to lo0 inet proto tcp to <forward_subnets> keep state')
 
         if dnsport:
-            nslist = resolvconf_nameservers()
             tables.append('table <dns_servers> {%s}' % ','.join([ns[1] for ns in nslist]))
             translating_rules.append('rdr pass on lo0 proto udp to <dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
             filtering_rules.append('pass out route-to lo0 inet proto udp to <dns_servers> port 53 keep state')
@@ -690,7 +686,7 @@ def pf_add_anchor_rule(type, name):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
+def main(port_v6, port_v4, dnsport_v6, dnsport_v4, nslist, method, udp, syslog):
     assert(port_v6 >= 0)
     assert(port_v6 <= 65535)
     assert(port_v4 >= 0)
@@ -777,14 +773,14 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
             subnets_v6 = filter(lambda i: i[0] == socket.AF_INET6, subnets)
             if port_v6:
                 do_wait = do_it(
-                    port_v6, dnsport_v6, socket.AF_INET6, subnets_v6, udp)
+                    port_v6, dnsport_v6, nslist, socket.AF_INET6, subnets_v6, udp)
             elif len(subnets_v6) > 0:
                 debug1("IPv6 subnets defined but IPv6 disabled\n")
 
             subnets_v4 = filter(lambda i: i[0] == socket.AF_INET, subnets)
             if port_v4:
                 do_wait = do_it(
-                    port_v4, dnsport_v4, socket.AF_INET, subnets_v4, udp)
+                    port_v4, dnsport_v4, nslist, socket.AF_INET, subnets_v4, udp)
             elif len(subnets_v4) > 0:
                 debug1('IPv4 subnets defined but IPv4 disabled\n')
 
@@ -826,7 +822,7 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, method, udp, syslog):
         except:
             pass
         if port_v6:
-            do_it(port_v6, 0, socket.AF_INET6, [], udp)
+            do_it(port_v6, 0, [], socket.AF_INET6, [], udp)
         if port_v4:
-            do_it(port_v4, 0, socket.AF_INET, [], udp)
+            do_it(port_v4, 0, [], socket.AF_INET, [], udp)
         restore_etc_hosts(port_v6 or port_v4)

@@ -277,15 +277,18 @@ class MultiListener:
 class FirewallClient:
 
     def __init__(self, port_v6, port_v4, subnets_include, subnets_exclude,
-                 dnsport_v6, dnsport_v4, method, udp):
+                 dnsport_v6, dnsport_v4, ns_hosts, method, udp):
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
+        self.ns_hosts = ns_hosts
         argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port_v6), str(port_v4),
                      str(dnsport_v6), str(dnsport_v4),
                      method, str(int(udp))])
+        if dnsport_v4 or dnsport_v6:
+            argvbase += ['--ns-hosts', ns_hosts]
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
@@ -599,7 +602,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 
 def main(listenip_v6, listenip_v4,
-         ssh_cmd, remotename, python, latency_control, dns,
+         ssh_cmd, remotename, python, latency_control, dns, ns_hosts,
          method, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
 
@@ -695,7 +698,9 @@ def main(listenip_v6, listenip_v4,
         udp_listener.print_listening("UDP redirector")
 
     bound = False
-    if dns:
+    if dns or ns_hosts:
+        if dns:
+            ns_hosts += resolvconf_nameservers()
         # search for spare port for DNS
         debug2('Binding DNS:')
         ports = xrange(12300, 9000, -1)
@@ -735,9 +740,11 @@ def main(listenip_v6, listenip_v4,
         dnsport_v6 = 0
         dnsport_v4 = 0
         dns_listener = None
+        ns_hosts = []
 
     fw = FirewallClient(redirectport_v6, redirectport_v4, subnets_include,
-                        subnets_exclude, dnsport_v6, dnsport_v4, method, udp)
+                        subnets_exclude, dnsport_v6, dnsport_v4, ns_hosts,
+                        method, udp)
 
     if fw.method == "tproxy":
         tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)

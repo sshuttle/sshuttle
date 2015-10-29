@@ -48,10 +48,7 @@ def resolvconf_nameservers():
     for line in open('/etc/resolv.conf'):
         words = line.lower().split()
         if len(words) >= 2 and words[0] == 'nameserver':
-            if ':' in words[1]:
-                l.append((socket.AF_INET6, words[1]))
-            else:
-                l.append((socket.AF_INET, words[1]))
+            l.append(family_ip_tuple(words[1]))
     return l
 
 
@@ -80,6 +77,13 @@ def islocal(ip, family):
     finally:
         sock.close()
     return True  # it's a local IP, or there would have been an error
+
+
+def family_ip_tuple(ip):
+    if ':' in ip:
+        return (socket.AF_INET6, ip)
+    else:
+        return (socket.AF_INET, ip)
 
 
 def family_to_string(family):
