@@ -11,7 +11,8 @@ import ssh
 import ssyslog
 import sys
 from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
-from helpers import log, debug1, debug2, debug3, Fatal, islocal
+from helpers import log, debug1, debug2, debug3, Fatal, islocal, \
+        resolvconf_nameservers
 
 recvmsg = None
 try:
@@ -277,18 +278,17 @@ class MultiListener:
 class FirewallClient:
 
     def __init__(self, port_v6, port_v4, subnets_include, subnets_exclude,
-                 dnsport_v6, dnsport_v4, ns_hosts, method, udp):
+                 dnsport_v6, dnsport_v4, nslist, method, udp):
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
-        self.ns_hosts = ns_hosts
         argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port_v6), str(port_v4),
                      str(dnsport_v6), str(dnsport_v4),
                      method, str(int(udp))])
         if dnsport_v4 or dnsport_v6:
-            argvbase += ['--ns-hosts', ns_hosts]
+            argvbase += ['--ns-hosts', ' '.join([ip for _, ip in nslist])]
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
@@ -602,7 +602,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 
 def main(listenip_v6, listenip_v4,
-         ssh_cmd, remotename, python, latency_control, dns, ns_hosts,
+         ssh_cmd, remotename, python, latency_control, dns, nslist,
          method, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
 
@@ -698,9 +698,9 @@ def main(listenip_v6, listenip_v4,
         udp_listener.print_listening("UDP redirector")
 
     bound = False
-    if dns or ns_hosts:
+    if dns or nslist:
         if dns:
-            ns_hosts += resolvconf_nameservers()
+            nslist += resolvconf_nameservers()
         # search for spare port for DNS
         debug2('Binding DNS:')
         ports = xrange(12300, 9000, -1)
@@ -740,10 +740,9 @@ def main(listenip_v6, listenip_v4,
         dnsport_v6 = 0
         dnsport_v4 = 0
         dns_listener = None
-        ns_hosts = []
 
     fw = FirewallClient(redirectport_v6, redirectport_v4, subnets_include,
-                        subnets_exclude, dnsport_v6, dnsport_v4, ns_hosts,
+                        subnets_exclude, dnsport_v6, dnsport_v4, nslist,
                         method, udp)
 
     if fw.method == "tproxy":

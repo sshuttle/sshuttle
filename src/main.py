@@ -215,7 +215,7 @@ try:
                                   opt.python,
                                   opt.latency_control,
                                   opt.dns,
-                                  opt.ns_hosts,
+                                  nslist,
                                   method,
                                   sh,
                                   opt.auto_nets,
