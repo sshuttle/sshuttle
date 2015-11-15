@@ -1,28 +1,3 @@
-
-WARNING:
-On MacOS 10.6 (at least up to 10.6.6), your network will
-stop responding about 10 minutes after the first time you
-start sshuttle, because of a MacOS kernel bug relating to
-arp and the net.inet.ip.scopedroute sysctl.  To fix it,
-just switch your wireless off and on. Sshuttle makes the
-kernel setting it changes permanent, so this won't happen
-again, even after a reboot.
-
-Required Software
-=================
-
- - You need PyXAPI, available here:
-   http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
- - Python 2.x, both locally and the remote system
-
-
-Additional Suggested Software
------------------------------
-
- - You may want to need autossh, available in various package management
-   systems
-
-
 sshuttle: where transparent proxy meets VPN meets ssh
 =====================================================
 
@@ -45,63 +20,82 @@ common case:
 
  - You hate openssh's port forwarding because it's randomly
     slow and/or stupid.
- 
+
  - You can't use openssh's PermitTunnel feature because
     it's disabled by default on openssh servers; plus it does
     TCP-over-TCP, which has terrible performance (see below).
-    
+
 
 Prerequisites
 -------------
 
  - sudo, su, or logged in as root on your client machine.
    (The server doesn't need admin access.)
-   
+
  - If you use Linux on your client machine:
    iptables installed on the client, including at
    least the iptables DNAT, REDIRECT, and ttl modules. 
    These are installed by default on most Linux distributions. 
    (The server doesn't need iptables and doesn't need to be
    Linux.)
-   
+
  - If you use MacOS or BSD on your client machine:
    Your kernel needs to be compiled with `IPFIREWALL_FORWARD`
    (MacOS has this by default) and you need to have ipfw
    available. (The server doesn't need to be MacOS or BSD.)
 
 
+ - Python 2.x, both locally and the remote system. Python 3.x is not yet supported.
+
+*WARNING*:
+On MacOS 10.6 (at least up to 10.6.6), your network will
+stop responding about 10 minutes after the first time you
+start sshuttle, because of a MacOS kernel bug relating to
+arp and the net.inet.ip.scopedroute sysctl.  To fix it,
+just switch your wireless off and on. Sshuttle makes the
+kernel setting it changes permanent, so this won't happen
+again, even after a reboot.
+
+
+Additional Suggested Software
+-----------------------------
+
+ - You may want to need autossh, available in various package management
+   systems
+
+ - For Linux only tproxy support, you need PyXAPI, available here:
+   http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+
+
 Obtaining sshuttle
 ------------------
 
- - First, go get PyXAPI from the link above
+ - Clone::
 
- - Clone: `git clone https://github.com/sshuttle/sshuttle.git`
+       git clone https://github.com/sshuttle/sshuttle.git
+       ./setup.py install
 
+ - From PyPI::
 
-Usage on (Ubuntu) Linux
------------------------
-
- - `cd packaging; ./make_deb`
-
- - `sudo dpkg -i ./sshuttle-VERSION.deb`
-
- - Check out the files in `/etc/sshuttle`; configure them so your tunnel works
-
- - `sudo service sshuttle start`
+       pip install sshuttle
 
 
-Usage on other Linuxes and OSes
--------------------------------
+Usage
+-----
 
-  <tt>src/sshuttle -r username@sshserver 0.0.0.0/0 -vv</tt>
+ - Forward all traffic::
+
+       sshuttle -r username@sshserver 0.0.0.0/0 -vv
 
  - There is a shortcut for 0.0.0.0/0 for those that value
-   their wrists
-   <tt>src/sshuttle -r username@sshserver 0/0 -vv</tt>
+   their wrists::
+
+       sshuttle -r username@sshserver 0/0 -vv
 
  - If you would also like your DNS queries to be proxied
-   through the DNS server of the server you are connect to:
-   <tt>src/sshuttle --dns -vvr username@sshserver 0/0</tt>
+   through the DNS server of the server you are connect to::
+
+       sshuttle --dns -vvr username@sshserver 0/0
 
    The above is probably what you want to use to prevent
    local network attacks such as Firesheep and friends.
@@ -111,6 +105,7 @@ local password to become root using either sudo or su, and
 then the remote ssh password.  Or you might have sudo and ssh set
 up to not require passwords, in which case you won't be
 prompted at all.)
+
 
 Usage Notes
 -----------
@@ -127,7 +122,7 @@ to the remote python interpreter.
 This creates a transparent proxy server on your local machine for all IP
 addresses that match 0.0.0.0/0.  (You can use more specific IP addresses if
 you want; use any number of IP addresses or subnets to change which
-addresses get proxied.  Using 0.0.0.0/0 proxies <i>everything</i>, which is
+addresses get proxied.  Using 0.0.0.0/0 proxies *everything*, which is
 interesting if you don't trust the people on your local network.)
 
 Any TCP session you initiate to one of the proxied IP addresses will be
@@ -137,6 +132,19 @@ the data back and forth through ssh.
 
 Fun, right?  A poor man's instant VPN, and you don't even have to have
 admin access on the server.
+
+
+Support
+-------
+
+Mailing list:
+
+* Subscribe by sending a message to <sshuttle+subscribe@googlegroups.com>
+* List archives are at: http://groups.google.com/group/sshuttle
+
+Issue tracker and pull requests at github:
+
+* https://github.com/sshuttle/sshuttle
 
 
 Theory of Operation
@@ -155,8 +163,7 @@ doesn't care about individual connections; ie. it's "stateless" with respect
 to the traffic.  sshuttle is the opposite of stateless; it tracks every
 single connection.
 
-You could compare sshuttle to something like the old <a
-href="http://en.wikipedia.org/wiki/Slirp">Slirp</a> program, which was a
+You could compare sshuttle to something like the old `Slirp <http://en.wikipedia.org/wiki/Slirp>`_ program, which was a
 userspace TCP/IP implementation that did something similar.  But it
 operated on a packet-by-packet basis on the client side, reassembling the
 packets on the server side.  That worked okay back in the "real live serial
@@ -164,9 +171,9 @@ port" days, because serial ports had predictable latency and buffering.
 
 But you can't safely just forward TCP packets over a TCP session (like ssh),
 because TCP's performance depends fundamentally on packet loss; it
-<i>must</i> experience packet loss in order to know when to slow down!  At
+*must* experience packet loss in order to know when to slow down!  At
 the same time, the outer TCP session (ssh, in this case) is a reliable
-transport, which means that what you forward through the tunnel <i>never</i>
+transport, which means that what you forward through the tunnel *never*
 experiences packet loss.  The ssh session itself experiences packet loss, of
 course, but TCP fixes it up and ssh (and thus you) never know the
 difference.  But neither does your inner TCP session, and extremely screwy
@@ -181,8 +188,7 @@ safe.
 Useless Trivia
 --------------
 
-Back in 1998 (12 years ago!  Yikes!), I released the first version of <a
-href="http://alumnit.ca/wiki/?TunnelVisionReadMe">Tunnel Vision</a>, a
+Back in 1998 (12 years ago!  Yikes!), I released the first version of `Tunnel Vision <http://alumnit.ca/wiki/?TunnelVisionReadMe>`_, a
 semi-intelligent VPN client for Linux.  Unfortunately, I made two big mistakes: 
 I implemented the key exchange myself (oops), and I ended up doing
 TCP-over-TCP (double oops).  The resulting program worked okay - and people
@@ -197,8 +203,7 @@ tool we called "Double Vision").
 
 I was still in university at the time.  A couple years after that, one of my
 professors was working with some graduate students on the technology that
-would eventually become <a href="http://www.slipstream.com/">Slipstream
-Internet Acceleration</a>.  He asked me to do a contract for him to build an
+would eventually become `Slipstream Internet Acceleration <http://www.slipstream.com/>`_.  He asked me to do a contract for him to build an
 initial prototype of a transparent proxy server for mobile networks.  The
 idea was similar to sshuttle: if you reassemble and then disassemble the TCP
 packets, you can reduce latency and improve performance vs.  just forwarding
@@ -215,7 +220,3 @@ later.  You're welcome.
 
 --
 Avery Pennarun <apenwarr@gmail.com>
-
-Mailing list:
-   Subscribe by sending a message to <sshuttle+subscribe@googlegroups.com>
-   List archives are at: http://groups.google.com/group/sshuttle

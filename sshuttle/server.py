@@ -5,14 +5,14 @@ import traceback
 import time
 import sys
 import os
-if not globals().get('skip_imports'):
-    import ssnet
-    import helpers
-    import hostwatch
-    import compat.ssubprocess as ssubprocess
-    from ssnet import Handler, Proxy, Mux, MuxWrapper
-    from helpers import log, debug1, debug2, debug3, Fatal, \
-        resolvconf_random_nameserver
+
+import sshuttle.ssnet as ssnet
+import sshuttle.helpers as helpers
+import sshuttle.hostwatch as hostwatch
+import sshuttle.compat.ssubprocess as ssubprocess
+from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
+    resolvconf_random_nameserver
 
 
 if not globals().get('latency_control'):

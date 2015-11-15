@@ -3,28 +3,51 @@ import os
 import re
 import socket
 import zlib
-import compat.ssubprocess as ssubprocess
-import helpers
-from helpers import debug2
+import imp
+import sshuttle.compat.ssubprocess as ssubprocess
+import sshuttle.helpers as helpers
+from sshuttle.helpers import debug2
 
 
 def readfile(name):
-    basedir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    path = [basedir] + sys.path
-    for d in path:
-        fullname = os.path.join(d, name)
-        if os.path.exists(fullname):
-            return open(fullname, 'rb').read()
-    raise Exception("can't find file %r in any of %r" % (name, path))
+    tokens = name.split(".")
+    f = None
 
+    token = tokens[0]
+    token_name = [token]
+    token_str = ".".join(token_name)
 
-def empackage(z, filename, data=None):
-    (path, basename) = os.path.split(filename)
+    try:
+        f, pathname, description = imp.find_module(token_str)
+
+        for token in tokens[1:]:
+            module = imp.load_module(token_str, f, pathname, description)
+            if f is not None:
+                f.close()
+
+            token_name.append(token)
+            token_str = ".".join(token_name)
+
+            f, pathname, description = imp.find_module(
+                token, module.__path__)
+
+        if f is not None:
+            contents = f.read()
+        else:
+            contents = ""
+
+    finally:
+        if f is not None:
+            f.close()
+
+    return contents
+
+def empackage(z, name, data=None):
     if not data:
-        data = readfile(filename)
+        data = readfile(name)
     content = z.compress(data)
     content += z.flush(zlib.Z_SYNC_FLUSH)
-    return '%s\n%d\n%s' % (basename, len(content), content)
+    return '%s\n%d\n%s' % (name, len(content), content)
 
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
@@ -52,19 +75,20 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         rhost = None
 
     z = zlib.compressobj(1)
-    content = readfile('assembler.py')
+    content = readfile('sshuttle.assembler')
     optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in options.items())
-    content2 = (empackage(z, 'cmdline_options.py', optdata) +
-                empackage(z, 'helpers.py') +
-                empackage(z, 'compat/ssubprocess.py') +
-                empackage(z, 'ssnet.py') +
-                empackage(z, 'hostwatch.py') +
-                empackage(z, 'server.py') +
+    content2 = (empackage(z, 'sshuttle') +
+                empackage(z, 'sshuttle.cmdline_options', optdata) +
+                empackage(z, 'sshuttle.helpers') +
+                empackage(z, 'sshuttle.compat') +
+                empackage(z, 'sshuttle.compat.ssubprocess') +
+                empackage(z, 'sshuttle.ssnet') +
+                empackage(z, 'sshuttle.hostwatch') +
+                empackage(z, 'sshuttle.server') +
                 "\n")
 
     pyscript = r"""
                 import sys;
-                skip_imports=1;
                 verbosity=%d;
                 exec compile(sys.stdin.read(%d), "assembler.py", "exec")
                 """ % (helpers.verbose or 0, len(content))

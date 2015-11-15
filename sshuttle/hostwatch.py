@@ -5,10 +5,10 @@ import select
 import errno
 import os
 import sys
-if not globals().get('skip_imports'):
-    import compat.ssubprocess as ssubprocess
-    import helpers
-    from helpers import log, debug1, debug2, debug3
+
+import sshuttle.compat.ssubprocess as ssubprocess
+import sshuttle.helpers as helpers
+from sshuttle.helpers import log, debug1, debug2, debug3
 
 POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30

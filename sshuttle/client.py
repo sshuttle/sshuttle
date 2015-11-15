@@ -3,15 +3,15 @@ import errno
 import re
 import signal
 import time
-import compat.ssubprocess as ssubprocess
+import sshuttle.compat.ssubprocess as ssubprocess
 import helpers
 import os
-import ssnet
-import ssh
+import sshuttle.ssnet as ssnet
+import sshuttle.ssh as ssh
 import ssyslog
 import sys
-from ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
-from helpers import log, debug1, debug2, debug3, Fatal, islocal, \
+from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
         resolvconf_nameservers
 
 recvmsg = None
@@ -282,7 +282,9 @@ class FirewallClient:
         self.auto_nets = []
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
-        argvbase = ([sys.argv[1], sys.argv[0], sys.argv[1]] +
+        python_path = os.path.dirname(os.path.dirname(__file__))
+        argvbase = (["PYTHONPATH=%s" % python_path] +
+                    [sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--firewall', str(port_v6), str(port_v4),
                      str(dnsport_v6), str(dnsport_v4),

@@ -1,0 +1,6 @@
+#!/bin/sh
+if python2 -V 2>/dev/null; then
+	exec python2 -m "sshuttle" "$@"
+else
+	exec python -m "sshuttle" "$@"
+fi

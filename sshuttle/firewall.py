@@ -8,7 +8,7 @@ import ssyslog
 import sys
 import os
 import re
-from helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
+from sshuttle.helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
     resolvconf_nameservers
 from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \

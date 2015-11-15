@@ -3,8 +3,7 @@ import socket
 import errno
 import select
 import os
-if not globals().get('skip_imports'):
-    from helpers import log, debug1, debug2, debug3, Fatal
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal
 
 MAX_CHANNEL = 65535
 

@@ -3,11 +3,11 @@ import re
 import socket
 import helpers
 import options
-import client
-import server
-import firewall
-import hostwatch
-from helpers import family_ip_tuple, log, Fatal
+import sshuttle.client as client
+import sshuttle.server as server
+import sshuttle.firewall as firewall
+import sshuttle.hostwatch as hostwatch
+from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
 # 1.2.3.4/5 or just 1.2.3.4
@@ -139,7 +139,7 @@ firewall   (internal use only)
 hostwatch  (internal use only)
 """
 o = options.Options(optspec)
-(opt, flags, extra) = o.parse(sys.argv[2:])
+(opt, flags, extra) = o.parse(sys.argv[1:])
 
 if opt.daemon:
     opt.syslog = 1
