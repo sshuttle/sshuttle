@@ -4,7 +4,6 @@ import socket
 import sshuttle.helpers as helpers
 import sshuttle.options as options
 import sshuttle.client as client
-import sshuttle.server as server
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 from sshuttle.helpers import family_ip_tuple, log, Fatal
@@ -112,7 +111,6 @@ def parse_list(list):
 
 optspec = """
 sshuttle [-l [ip:]port] [-r [username@]sshserver[:port]] <subnets...>
-sshuttle --server
 sshuttle --firewall <port> <subnets...>
 sshuttle --hostwatch
 --
@@ -150,12 +148,7 @@ if opt.wrap:
 helpers.verbose = opt.verbose
 
 try:
-    if opt.server:
-        if len(extra) != 0:
-            o.fatal('no arguments expected')
-        server.latency_control = opt.latency_control
-        sys.exit(server.main())
-    elif opt.firewall:
+    if opt.firewall:
         if len(extra) != 6:
             o.fatal('exactly six arguments expected')
         port, dnsport = int(extra[0]), int(extra[1])

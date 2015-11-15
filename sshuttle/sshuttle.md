@@ -147,11 +147,6 @@ entire subnet to the VPN.
     *pidfilename*.  The default is `sshuttle.pid` in the
     current directory.
 
---server
-:   (internal use only) run the sshuttle server on
-    stdin/stdout.  This is what the client runs on
-    the remote end.
-
 --firewall
 :   (internal use only) run the firewall manager.  This is
     the only part of sshuttle that must run as root.  If
