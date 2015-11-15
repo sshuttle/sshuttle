@@ -42,6 +42,7 @@ def readfile(name):
 
     return contents
 
+
 def empackage(z, name, data=None):
     if not data:
         data = readfile(name)

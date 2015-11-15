@@ -12,7 +12,7 @@ import ssyslog
 import sys
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-        resolvconf_nameservers
+    resolvconf_nameservers
 
 recvmsg = None
 try:
@@ -187,11 +187,13 @@ def daemon_cleanup():
 
 pf_command_file = None
 
+
 def pf_dst(sock):
     peer = sock.getpeername()
     proxy = sock.getsockname()
 
-    argv = (sock.family, socket.IPPROTO_TCP, peer[0], peer[1], proxy[0], proxy[1])
+    argv = (sock.family, socket.IPPROTO_TCP,
+            peer[0], peer[1], proxy[0], proxy[1])
     pf_command_file.write("QUERY_PF_NAT %r,%r,%s,%r,%s,%r\n" % argv)
     pf_command_file.flush()
     line = pf_command_file.readline()
@@ -201,6 +203,7 @@ def pf_dst(sock):
         return (ip, int(port))
 
     return sock.getsockname()
+
 
 def original_dst(sock):
     try:

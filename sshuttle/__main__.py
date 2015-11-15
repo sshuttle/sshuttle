@@ -105,6 +105,7 @@ def parse_ipport6(s):
     (ip, port) = (ip or '::', int(port or 0))
     return (ip, port)
 
+
 def parse_list(list):
     return re.split(r'[\s,]+', list.strip()) if list else []
 

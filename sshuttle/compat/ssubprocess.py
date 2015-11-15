@@ -360,13 +360,17 @@ import gc
 import signal
 
 # Exception classes used by this module.
+
+
 class CalledProcessError(Exception):
     """This exception is raised when a process run by check_call() returns
     a non-zero exit status.  The exit status will be stored in the
     returncode attribute."""
+
     def __init__(self, returncode, cmd):
         self.returncode = returncode
         self.cmd = cmd
+
     def __str__(self):
         return "Command '%s' returned non-zero exit status %d" % (self.cmd, self.returncode)
 
@@ -374,27 +378,29 @@ class CalledProcessError(Exception):
 if mswindows:
     import threading
     import msvcrt
-    if 0: # <-- change this to use pywin32 instead of the _subprocess driver
+    if 0:  # <-- change this to use pywin32 instead of the _subprocess driver
         import pywintypes
         from win32api import GetStdHandle, STD_INPUT_HANDLE, \
-                             STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
+            STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
         from win32api import GetCurrentProcess, DuplicateHandle, \
-                             GetModuleFileName, GetVersion
+            GetModuleFileName, GetVersion
         from win32con import DUPLICATE_SAME_ACCESS, SW_HIDE
         from win32pipe import CreatePipe
         from win32process import CreateProcess, STARTUPINFO, \
-                                 GetExitCodeProcess, STARTF_USESTDHANDLES, \
-                                 STARTF_USESHOWWINDOW, CREATE_NEW_CONSOLE
+            GetExitCodeProcess, STARTF_USESTDHANDLES, \
+            STARTF_USESHOWWINDOW, CREATE_NEW_CONSOLE
         from win32process import TerminateProcess
         from win32event import WaitForSingleObject, INFINITE, WAIT_OBJECT_0
     else:
         from _subprocess import *
+
         class STARTUPINFO:
             dwFlags = 0
             hStdInput = None
             hStdOutput = None
             hStdError = None
             wShowWindow = 0
+
         class pywintypes:
             error = IOError
 else:
@@ -403,7 +409,8 @@ else:
     import fcntl
     import pickle
 
-__all__ = ["Popen", "PIPE", "STDOUT", "call", "check_call", "CalledProcessError"]
+__all__ = ["Popen", "PIPE", "STDOUT", "call",
+           "check_call", "CalledProcessError"]
 
 try:
     MAXFD = os.sysconf("SC_OPEN_MAX")
@@ -411,13 +418,14 @@ except:
     MAXFD = 256
 
 # True/False does not exist on 2.2.0
-#try:
+# try:
 #    False
-#except NameError:
+# except NameError:
 #    False = 0
 #    True = 1
 
 _active = []
+
 
 def _cleanup():
     for inst in _active[:]:
@@ -510,7 +518,7 @@ def list2cmdline(seq):
                 bs_buf.append(c)
             elif c == '"':
                 # Double backslashes.
-                result.append('\\' * len(bs_buf)*2)
+                result.append('\\' * len(bs_buf) * 2)
                 bs_buf = []
                 result.append('\\"')
             else:
@@ -543,6 +551,7 @@ def _closerange(start, max):
 
 
 class Popen(object):
+
     def __init__(self, args, bufsize=0, executable=None,
                  stdin=None, stdout=None, stderr=None,
                  preexec_fn=None, close_fds=False, shell=False,
@@ -634,12 +643,10 @@ class Popen(object):
             else:
                 self.stderr = os.fdopen(errread, 'rb', bufsize)
 
-
     def _translate_newlines(self, data):
         data = data.replace("\r\n", "\n")
         data = data.replace("\r", "\n")
         return data
-
 
     def __del__(self, sys=sys):
         if not self._child_created:
@@ -650,7 +657,6 @@ class Popen(object):
         if self.returncode is None and _active is not None:
             # Child is still running, keep us alive until we can wait on it.
             _active.append(self)
-
 
     def communicate(self, input=None):
         """Interact with process: Send data to stdin.  Read data from
@@ -681,10 +687,8 @@ class Popen(object):
 
         return self._communicate(input)
 
-
     def poll(self):
         return self._internal_poll()
-
 
     if mswindows:
         #
@@ -755,13 +759,11 @@ class Popen(object):
                     c2pread, c2pwrite,
                     errread, errwrite)
 
-
         def _make_inheritable(self, handle):
             """Return a duplicate of handle, which is inheritable"""
             return DuplicateHandle(GetCurrentProcess(), handle,
                                    GetCurrentProcess(), 0, 1,
                                    DUPLICATE_SAME_ACCESS)
-
 
         def _find_w9xpopen(self):
             """Find and return absolut path to w9xpopen.exe"""
@@ -777,7 +779,6 @@ class Popen(object):
                                        "needed for Popen to work with your "
                                        "shell or platform.")
             return w9xpopen
-
 
         def _execute_child(self, args, executable, preexec_fn, close_fds,
                            cwd, env, universal_newlines,
@@ -823,13 +824,13 @@ class Popen(object):
             # Start the process
             try:
                 hp, ht, pid, tid = CreateProcess(executable, args,
-                                         # no special security
-                                         None, None,
-                                         int(not close_fds),
-                                         creationflags,
-                                         env,
-                                         cwd,
-                                         startupinfo)
+                                                 # no special security
+                                                 None, None,
+                                                 int(not close_fds),
+                                                 creationflags,
+                                                 env,
+                                                 cwd,
+                                                 startupinfo)
             except pywintypes.error, e:
                 # Translate pywintypes.error to WindowsError, which is
                 # a subclass of OSError.  FIXME: We should really
@@ -856,7 +857,6 @@ class Popen(object):
             if errwrite is not None:
                 errwrite.Close()
 
-
         def _internal_poll(self, _deadstate=None):
             """Check if child process has terminated.  Returns returncode
             attribute."""
@@ -864,7 +864,6 @@ class Popen(object):
                 if WaitForSingleObject(self._handle, 0) == WAIT_OBJECT_0:
                     self.returncode = GetExitCodeProcess(self._handle)
             return self.returncode
-
 
         def wait(self):
             """Wait for child process to terminate.  Returns returncode
@@ -874,14 +873,12 @@ class Popen(object):
                 self.returncode = GetExitCodeProcess(self._handle)
             return self.returncode
 
-
         def _readerthread(self, fh, buffer):
             buffer.append(fh.read())
 
-
         def _communicate(self, input):
-            stdout = None # Return
-            stderr = None # Return
+            stdout = None  # Return
+            stderr = None  # Return
 
             if self.stdout:
                 stdout = []
@@ -988,7 +985,6 @@ class Popen(object):
                     c2pread, c2pwrite,
                     errread, errwrite)
 
-
         def _set_cloexec_flag(self, fd):
             try:
                 cloexec_flag = fcntl.FD_CLOEXEC
@@ -998,11 +994,9 @@ class Popen(object):
             old = fcntl.fcntl(fd, fcntl.F_GETFD)
             fcntl.fcntl(fd, fcntl.F_SETFD, old | cloexec_flag)
 
-
         def _close_fds(self, but):
             _closerange(3, but)
             _closerange(but + 1, MAXFD)
-
 
         def _execute_child(self, args, executable, preexec_fn, close_fds,
                            cwd, env, universal_newlines,
@@ -1109,13 +1103,12 @@ class Popen(object):
                 os.close(errwrite)
 
             # Wait for exec to fail or succeed; possibly raising exception
-            data = os.read(errpipe_read, 1048576) # Exceptions limited to 1 MB
+            data = os.read(errpipe_read, 1048576)  # Exceptions limited to 1 MB
             os.close(errpipe_read)
             if data != "":
                 os.waitpid(self.pid, 0)
                 child_exception = pickle.loads(data)
                 raise child_exception
-
 
         def _handle_exitstatus(self, sts):
             if os.WIFSIGNALED(sts):
@@ -1125,7 +1118,6 @@ class Popen(object):
             else:
                 # Should never happen
                 raise RuntimeError("Unknown child exit status!")
-
 
         def _internal_poll(self, _deadstate=None):
             """Check if child process has terminated.  Returns returncode
@@ -1140,7 +1132,6 @@ class Popen(object):
                         self.returncode = _deadstate
             return self.returncode
 
-
         def wait(self):
             """Wait for child process to terminate.  Returns returncode
             attribute."""
@@ -1149,12 +1140,11 @@ class Popen(object):
                 self._handle_exitstatus(sts)
             return self.returncode
 
-
         def _communicate(self, input):
             read_set = []
             write_set = []
-            stdout = None # Return
-            stderr = None # Return
+            stdout = None  # Return
+            stderr = None  # Return
 
             if self.stdin:
                 # Flush stdio buffer.  This might block, if the user has
@@ -1174,7 +1164,8 @@ class Popen(object):
             input_offset = 0
             while read_set or write_set:
                 try:
-                    rlist, wlist, xlist = select.select(read_set, write_set, [])
+                    rlist, wlist, xlist = select.select(
+                        read_set, write_set, [])
                 except select.error, e:
                     if e.args[0] == errno.EINTR:
                         continue
@@ -1184,7 +1175,7 @@ class Popen(object):
                     # When select has indicated that the file is writable,
                     # we can write up to PIPE_BUF bytes without risk
                     # blocking.  POSIX defines PIPE_BUF >= 512
-                    chunk = input[input_offset : input_offset + 512]
+                    chunk = input[input_offset: input_offset + 512]
                     bytes_written = os.write(self.stdin.fileno(), chunk)
                     input_offset += bytes_written
                     if input_offset >= len(input):

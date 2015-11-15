@@ -2,19 +2,19 @@ import sys
 import os
 import pty
 from AppKit import (
-  objc,
-  NSApp,
-  NSApplicationMain,
-  NSAttributedString,
-  NSFileHandle,
-  NSFileHandleDataAvailableNotification,
-  NSImage,
-  NSMenu,
-  NSMenuItem,
-  NSNotificationCenter,
-  NSObject,
-  NSStatusBar,
-  NSVariableStatusItemLength,
+    objc,
+    NSApp,
+    NSApplicationMain,
+    NSAttributedString,
+    NSFileHandle,
+    NSFileHandleDataAvailableNotification,
+    NSImage,
+    NSMenu,
+    NSMenuItem,
+    NSNotificationCenter,
+    NSObject,
+    NSStatusBar,
+    NSVariableStatusItemLength,
 )
 import my
 import models
