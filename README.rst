@@ -11,19 +11,19 @@ common case:
  - You don't necessarily have admin access on the remote network.
 
  - The remote network has no VPN, or only stupid/complex VPN
-    protocols (IPsec, PPTP, etc). Or maybe you <i>are</i> the
-    admin and you just got frustrated with the awful state of
-    VPN tools.
+   protocols (IPsec, PPTP, etc). Or maybe you *are* the
+   admin and you just got frustrated with the awful state of
+   VPN tools.
 
  - You don't want to create an ssh port forward for every
-    single host/port on the remote network.
+   single host/port on the remote network.
 
  - You hate openssh's port forwarding because it's randomly
-    slow and/or stupid.
+   slow and/or stupid.
 
  - You can't use openssh's PermitTunnel feature because
-    it's disabled by default on openssh servers; plus it does
-    TCP-over-TCP, which has terrible performance (see below).
+   it's disabled by default on openssh servers; plus it does
+   TCP-over-TCP, which has terrible performance (see below).
 
 
 Prerequisites
