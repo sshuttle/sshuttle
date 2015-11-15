@@ -298,7 +298,6 @@ class FirewallClient:
             argvbase += ['--syslog']
         argv_tries = [
             ['sudo', '-p', '[local sudo] Password: '] + argvbase,
-            ['su', '-c', ' '.join(argvbase)],
             argvbase
         ]
 
