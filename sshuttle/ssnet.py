@@ -75,7 +75,7 @@ def _fds(l):
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except OSError, e:
+    except OSError as e:
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
         else:
@@ -88,7 +88,7 @@ def _try_peername(sock):
         pn = sock.getpeername()
         if pn:
             return '%s:%s' % (pn[0], pn[1])
-    except socket.error, e:
+    except socket.error as e:
         if e.args[0] not in (errno.ENOTCONN, errno.ENOTSOCK):
             raise
     return 'unknown'
@@ -144,7 +144,7 @@ class SockWrapper:
             self.rsock.connect(self.connect_to)
             # connected successfully (Linux)
             self.connect_to = None
-        except socket.error, e:
+        except socket.error as e:
             debug3('%r: connect result: %s\n' % (self, e))
             if e.args[0] == errno.EINVAL:
                 # this is what happens when you call connect() on a socket
@@ -191,7 +191,7 @@ class SockWrapper:
             self.shut_write = True
             try:
                 self.wsock.shutdown(SHUT_WR)
-            except socket.error, e:
+            except socket.error as e:
                 self.seterr('nowrite: %s' % e)
 
     def too_full(self):
@@ -203,7 +203,7 @@ class SockWrapper:
         self.wsock.setblocking(False)
         try:
             return _nb_clean(os.write, self.wsock.fileno(), buf)
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.EPIPE:
                 debug1('%r: uwrite: got EPIPE\n' % self)
                 self.nowrite()
@@ -225,9 +225,9 @@ class SockWrapper:
         self.rsock.setblocking(False)
         try:
             return _nb_clean(os.read, self.rsock.fileno(), 65536)
-        except OSError, e:
+        except OSError as e:
             self.seterr('uread: %s' % e)
-            return ''  # unexpected error... we'll call it EOF
+            return b''  # unexpected error... we'll call it EOF
 
     def fill(self):
         if self.buf:
@@ -235,7 +235,7 @@ class SockWrapper:
         rb = self.uread()
         if rb:
             self.buf.append(rb)
-        if rb == '':  # empty string means EOF; None means temporarily empty
+        if rb == b'':  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def copy_to(self, outwrap):
@@ -333,15 +333,15 @@ class Mux(Handler):
         self.channels = {}
         self.chani = 0
         self.want = 0
-        self.inbuf = ''
+        self.inbuf = b''
         self.outbuf = []
         self.fullness = 0
         self.too_full = False
-        self.send(0, CMD_PING, 'chicken')
+        self.send(0, CMD_PING, b'chicken')
 
     def next_channel(self):
         # channel 0 is special, so we never allocate it
-        for timeout in xrange(1024):
+        for timeout in range(1024):
             self.chani += 1
             if self.chani > MAX_CHANNEL:
                 self.chani = 1
@@ -357,7 +357,7 @@ class Mux(Handler):
     def check_fullness(self):
         if self.fullness > 32768:
             if not self.too_full:
-                self.send(0, CMD_PING, 'rttest')
+                self.send(0, CMD_PING, b'rttest')
             self.too_full = True
         #ob = []
         # for b in self.outbuf:
@@ -366,9 +366,9 @@ class Mux(Handler):
         #log('outbuf: %d %r\n' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
-        data = str(data)
-        assert(len(data) <= 65535)
-        p = struct.pack('!ccHHH', 'S', 'S', channel, cmd, len(data)) + data
+        assert isinstance(data, bytes)
+        assert len(data) <= 65535
+        p = struct.pack('!ccHHH', b'S', b'S', channel, cmd, len(data)) + data
         self.outbuf.append(p)
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
                % (channel, cmd_to_name.get(cmd, hex(cmd)),
@@ -435,10 +435,10 @@ class Mux(Handler):
         self.rsock.setblocking(False)
         try:
             b = _nb_clean(os.read, self.rsock.fileno(), 32768)
-        except OSError, e:
+        except OSError as e:
             raise Fatal('other end: %r' % e)
         #log('<<< %r\n' % b)
-        if b == '':  # EOF
+        if b == b'':  # EOF
             self.ok = False
         if b:
             self.inbuf += b
@@ -451,8 +451,8 @@ class Mux(Handler):
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1, s2, channel, cmd, datalen) = \
                     struct.unpack('!ccHHH', self.inbuf[:HDR_LEN])
-                assert(s1 == 'S')
-                assert(s2 == 'S')
+                assert(s1 == b'S')
+                assert(s2 == b'S')
                 self.want = datalen + HDR_LEN
             if self.want and len(self.inbuf) >= self.want:
                 data = self.inbuf[HDR_LEN:self.want]
@@ -494,18 +494,21 @@ class MuxWrapper(SockWrapper):
 
     def noread(self):
         if not self.shut_read:
+            debug2('%r: done reading\n' % self)
             self.shut_read = True
-            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, '')
+            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, b'')
             self.maybe_close()
 
     def nowrite(self):
         if not self.shut_write:
+            debug2('%r: done writing\n' % self)
             self.shut_write = True
-            self.mux.send(self.channel, CMD_TCP_EOF, '')
+            self.mux.send(self.channel, CMD_TCP_EOF, b'')
             self.maybe_close()
 
     def maybe_close(self):
         if self.shut_read and self.shut_write:
+            debug2('%r: closing connection\n' % self)
             # remove the mux's reference to us.  The python garbage collector
             # will then be able to reap our object.
             self.mux.channels[self.channel] = None
@@ -523,7 +526,7 @@ class MuxWrapper(SockWrapper):
 
     def uread(self):
         if self.shut_read:
-            return ''  # EOF
+            return b''  # EOF
         else:
             return None  # no data available right now
 
@@ -552,7 +555,7 @@ def runonce(handlers, mux):
     r = []
     w = []
     x = []
-    to_remove = filter(lambda s: not s.ok, handlers)
+    to_remove = [s for s in handlers if not s.ok]
     for h in to_remove:
         handlers.remove(h)
 

@@ -89,7 +89,7 @@ class SshuttleServer(NSObject):
         return getattr(self, '_k_connected', False)
 
     def setConnected_(self, v):
-        print 'setConnected of %r to %r' % (self, v)
+        print('setConnected of %r to %r' % (self, v))
         self._k_connected = v
         if v:
             self.setError_(None)  # connected ok, so no error

@@ -3,12 +3,12 @@ import errno
 import re
 import signal
 import time
-import sshuttle.compat.ssubprocess as ssubprocess
-import helpers
+import subprocess as ssubprocess
+import sshuttle.helpers as helpers
 import os
 import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
-import ssyslog
+import sshuttle.ssyslog as ssyslog
 import sys
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
@@ -124,7 +124,7 @@ def check_daemon(pidfile):
     _pidname = os.path.abspath(pidfile)
     try:
         oldpid = open(_pidname).read(1024)
-    except IOError, e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
         else:
@@ -138,7 +138,7 @@ def check_daemon(pidfile):
         return  # invalid pidfile, ok
     try:
         os.kill(oldpid, 0)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ESRCH:
             os.unlink(_pidname)
             return  # outdated pidfile, ok
@@ -157,7 +157,7 @@ def daemonize():
     if os.fork():
         os._exit(0)
 
-    outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0666)
+    outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
     try:
         os.write(outfd, '%d\n' % os.getpid())
     finally:
@@ -179,7 +179,7 @@ def daemonize():
 def daemon_cleanup():
     try:
         os.unlink(_pidname)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             pass
         else:
@@ -215,7 +215,7 @@ def original_dst(sock):
         assert(socket.htons(proto) == socket.AF_INET)
         ip = '%d.%d.%d.%d' % (a, b, c, d)
         return (ip, port)
-    except socket.error, e:
+    except socket.error as e:
         if e.args[0] == errno.ENOPROTOOPT:
             return sock.getsockname()
         raise
@@ -251,7 +251,7 @@ class MultiListener:
         if self.v4:
             try:
                 self.v4.listen(backlog)
-            except socket.error, e:
+            except socket.error as e:
                 # on some systems v4 bind will fail if the v6 suceeded,
                 # in this case the v6 socket will receive v4 too.
                 if e.errno == errno.EADDRINUSE and self.v6:
@@ -321,17 +321,22 @@ class FirewallClient:
                 self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 e = None
                 break
-            except OSError, e:
+            except OSError as e:
                 pass
         self.argv = argv
         s1.close()
-        self.pfile = s2.makefile('wb+')
+        if sys.version_info < (3, 0):
+            # python 2.7
+            self.pfile = s2.makefile('wb+')
+        else:
+            # python 3.5
+            self.pfile = s2.makefile('rwb')
         if e:
             log('Spawning firewall manager: %r\n' % self.argv)
             raise Fatal(e)
         line = self.pfile.readline()
         self.check()
-        if line[0:5] != 'READY':
+        if line[0:5] != b'READY':
             raise Fatal('%r expected READY, got %r' % (self.argv, line))
         self.method = line[6:-1]
 
@@ -341,22 +346,26 @@ class FirewallClient:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
     def start(self):
-        self.pfile.write('ROUTES\n')
-        for (family, ip, width) in self.subnets_include + self.auto_nets:
-            self.pfile.write('%d,%d,0,%s\n' % (family, width, ip))
-        for (family, ip, width) in self.subnets_exclude:
-            self.pfile.write('%d,%d,1,%s\n' % (family, width, ip))
-        self.pfile.write('GO\n')
+        self.pfile.write(b'ROUTES\n')
+        try:
+            for (family, ip, width) in self.subnets_include + self.auto_nets:
+                self.pfile.write(b'%d,%d,0,%s\n' % (family, width, ip.encode("ASCII")))
+            for (family, ip, width) in self.subnets_exclude:
+                self.pfile.write(b'%d,%d,1,%s\n' % (family, width, ip.encode("ASCII")))
+        except Exception as e:
+            debug1("exception occured %r" % e)
+            raise
+        self.pfile.write(b'GO\n')
         self.pfile.flush()
         line = self.pfile.readline()
         self.check()
-        if line != 'STARTED\n':
+        if line != b'STARTED\n':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
         assert(not re.search(r'[^-\w]', hostname))
         assert(not re.search(r'[^0-9.]', ip))
-        self.pfile.write('HOST %s,%s\n' % (hostname, ip))
+        self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
     def done(self):
@@ -390,7 +399,7 @@ def onaccept_tcp(listener, method, mux, handlers):
     global _extra_fd
     try:
         sock, srcip = listener.accept()
-    except socket.error, e:
+    except socket.error as e:
         if e.args[0] in [errno.EMFILE, errno.ENFILE]:
             debug1('Rejected incoming connection: too many open files!\n')
             # free up an fd so we can eat the connection
@@ -403,9 +412,9 @@ def onaccept_tcp(listener, method, mux, handlers):
             return
         else:
             raise
-    if method == "tproxy":
+    if method == b"tproxy":
         dstip = sock.getsockname()
-    elif method == "pf":
+    elif method == b"pf":
         dstip = pf_dst(sock)
     else:
         dstip = original_dst(sock)
@@ -420,8 +429,8 @@ def onaccept_tcp(listener, method, mux, handlers):
         log('warning: too many open channels.  Discarded connection.\n')
         sock.close()
         return
-    mux.send(chan, ssnet.CMD_TCP_CONNECT, '%d,%s,%s' %
-             (sock.family, dstip[0], dstip[1]))
+    mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
+             (sock.family, dstip[0].encode("ASCII"), dstip[1]))
     outwrap = MuxWrapper(mux, chan)
     handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     expire_connections(time.time(), mux)
@@ -439,7 +448,7 @@ def udp_done(chan, data, method, family, dstip):
         sender.bind(srcip)
         sender.sendto(data, dstip)
         sender.close()
-    except socket.error, e:
+    except socket.error as e:
         debug1('-- ignored socket error sending UDP data: %r\n' % e)
 
 
@@ -471,7 +480,7 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
-    if method == "tproxy":
+    if method == b"tproxy":
         debug3('doing send from %r to %r\n' % (srcip, dstip,))
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -487,7 +496,7 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
 def ondns(listener, method, mux, handlers):
     now = time.time()
     srcip, dstip, data = recv_udp(listener, 4096)
-    if method == "tproxy" and not dstip:
+    if method == b"tproxy" and not dstip:
         debug1(
             "-- ignored UDP from %r: "
             "couldn't determine destination IP address\n" % (srcip,))
@@ -517,7 +526,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             options=dict(latency_control=latency_control, method=method))
-    except socket.error, e:
+    except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
         else:
@@ -525,17 +534,17 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     mux = Mux(serversock, serversock)
     handlers.append(mux)
 
-    expected = 'SSHUTTLE0001'
+    expected = b'SSHUTTLE0001'
 
     try:
         v = 'x'
-        while v and v != '\0':
+        while v and v != b'\0':
             v = serversock.recv(1)
         v = 'x'
-        while v and v != '\0':
+        while v and v != b'\0':
             v = serversock.recv(1)
         initstring = serversock.recv(len(expected))
-    except socket.error, e:
+    except socket.error as e:
         if e.args[0] == errno.ECONNRESET:
             raise Fatal("failed to establish ssh session (2)")
         else:
@@ -549,7 +558,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         raise Fatal('expected server init string %r; got %r'
                     % (expected, initstring))
     debug1('connected.\n')
-    print 'Connected.'
+    print('Connected.')
     sys.stdout.flush()
     if daemon:
         daemonize()
@@ -616,7 +625,7 @@ def main(listenip_v6, listenip_v4,
     if daemon:
         try:
             check_daemon(pidfile)
-        except Fatal, e:
+        except Fatal as e:
             log("%s\n" % e)
             return 5
     debug1('Starting sshuttle proxy.\n')
@@ -624,7 +633,7 @@ def main(listenip_v6, listenip_v4,
     if recvmsg is not None:
         debug1("recvmsg %s support enabled.\n" % recvmsg)
 
-    if method == "tproxy":
+    if method == b"tproxy":
         if recvmsg is not None:
             debug1("tproxy UDP support enabled.\n")
             udp = True
@@ -643,7 +652,7 @@ def main(listenip_v6, listenip_v4,
         ports = [0, ]
     else:
         # if at least one port missing, we have to search
-        ports = xrange(12300, 9000, -1)
+        ports = range(12300, 9000, -1)
 
     # search for free ports and try to bind
     last_e = None
@@ -688,7 +697,7 @@ def main(listenip_v6, listenip_v4,
                 udp_listener.bind(lv6, lv4)
             bound = True
             break
-        except socket.error, e:
+        except socket.error as e:
             if e.errno == errno.EADDRINUSE:
                 last_e = e
             else:
@@ -708,7 +717,7 @@ def main(listenip_v6, listenip_v4,
             nslist += resolvconf_nameservers()
         # search for spare port for DNS
         debug2('Binding DNS:')
-        ports = xrange(12300, 9000, -1)
+        ports = range(12300, 9000, -1)
         for port in ports:
             debug2(' %d' % port)
             dns_listener = MultiListener(socket.SOCK_DGRAM)
@@ -731,7 +740,7 @@ def main(listenip_v6, listenip_v4,
                 dns_listener.bind(lv6, lv4)
                 bound = True
                 break
-            except socket.error, e:
+            except socket.error as e:
                 if e.errno == errno.EADDRINUSE:
                     last_e = e
                 else:
@@ -750,7 +759,7 @@ def main(listenip_v6, listenip_v4,
                         subnets_exclude, dnsport_v6, dnsport_v4, nslist,
                         method, udp)
 
-    if fw.method == "tproxy":
+    if fw.method == b"tproxy":
         tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
         if udp_listener:
             udp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
@@ -767,7 +776,7 @@ def main(listenip_v6, listenip_v4,
             if dns_listener.v6 is not None:
                 dns_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
-    if fw.method == "pf":
+    if fw.method == b"pf":
         global pf_command_file
         pf_command_file = fw.pfile
 

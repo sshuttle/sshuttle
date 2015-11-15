@@ -40,6 +40,7 @@ setup(
             "GNU General Public License v2 or later (GPLv2+)",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.5",
         "Topic :: System :: Networking",
     ],
     entry_points={

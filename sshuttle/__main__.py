@@ -1,8 +1,8 @@
 import sys
 import re
 import socket
-import helpers
-import options
+import sshuttle.helpers as helpers
+import sshuttle.options as options
 import sshuttle.client as client
 import sshuttle.server as server
 import sshuttle.firewall as firewall
@@ -145,7 +145,7 @@ o = options.Options(optspec)
 if opt.daemon:
     opt.syslog = 1
 if opt.wrap:
-    import ssnet
+    import sshuttle.ssnet as ssnet
     ssnet.MAX_CHANNEL = int(opt.wrap)
 helpers.verbose = opt.verbose
 
@@ -230,7 +230,7 @@ try:
             log('Abnormal exit code detected, failing...' % return_code)
         sys.exit(return_code)
 
-except Fatal, e:
+except Fatal as e:
     log('fatal: %s\n' % e)
     sys.exit(99)
 except KeyboardInterrupt:

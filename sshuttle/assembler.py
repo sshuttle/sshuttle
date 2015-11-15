@@ -18,7 +18,7 @@ while 1:
             setattr(sys.modules[parent], parent_name, module)
 
         code = compile(content, name, "exec")
-        exec code in module.__dict__
+        exec(code, module.__dict__)
         sys.modules[name] = module
     else:
         break

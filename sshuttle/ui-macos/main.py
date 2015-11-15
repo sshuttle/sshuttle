@@ -60,7 +60,7 @@ class Callback:
 class Runner:
 
     def __init__(self, argv, logfunc, promptfunc, serverobj):
-        print 'in __init__'
+        print('in __init__')
         self.id = argv
         self.rv = None
         self.pid = None
@@ -70,14 +70,14 @@ class Runner:
         self.serverobj = serverobj
         self.buf = ''
         self.logfunc('\nConnecting to %s.\n' % self.serverobj.host())
-        print 'will run: %r' % argv
+        print('will run: %r' % argv)
         self.serverobj.setConnected_(False)
         pid, fd = pty.fork()
         if pid == 0:
             # child
             try:
                 os.execvp(argv[0], argv)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write('failed to start: %r\n' % e)
                 raise
             finally:
@@ -107,7 +107,7 @@ class Runner:
                 self.serverobj.setConnected_(False)
                 self.serverobj.setError_('VPN process died')
                 self.logfunc('Disconnected.\n')
-        print 'wait_result: %r' % self.rv
+        print('wait_result: %r' % self.rv)
         return self.rv
 
     def wait(self):
@@ -121,14 +121,14 @@ class Runner:
 
     def kill(self):
         assert(self.pid > 0)
-        print 'killing: pid=%r rv=%r' % (self.pid, self.rv)
+        print('killing: pid=%r rv=%r' % (self.pid, self.rv))
         if self.rv is None:
             self.logfunc('Disconnecting from %s.\n' % self.serverobj.host())
             os.kill(self.pid, 15)
             self.wait()
 
     def gotdata(self, notification):
-        print 'gotdata!'
+        print('gotdata!')
         d = str(self.file.availableData())
         if d:
             self.logfunc(d)
@@ -171,18 +171,18 @@ class SshuttleController(NSObject):
 
     def _connect(self, server):
         host = server.host()
-        print 'connecting %r' % host
+        print('connecting %r' % host)
         self.fill_menu()
 
         def logfunc(msg):
-            print 'log! (%d bytes)' % len(msg)
+            print('log! (%d bytes)' % len(msg))
             self.logField.textStorage()\
                 .appendAttributedString_(NSAttributedString.alloc()
                                          .initWithString_(msg))
             self.logField.didChangeText()
 
         def promptfunc(prompt):
-            print 'prompt! %r' % prompt
+            print('prompt! %r' % prompt)
             return askpass.askpass(prompt)
         nets_mode = server.autoNets()
         if nets_mode == models.NET_MANUAL:
@@ -206,7 +206,7 @@ class SshuttleController(NSObject):
 
     def _disconnect(self, server):
         host = server.host()
-        print 'disconnecting %r' % host
+        print('disconnecting %r' % host)
         conn = self.conns.get(host)
         if conn:
             conn.kill()

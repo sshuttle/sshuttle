@@ -53,7 +53,7 @@ def DelayedCallback(func, *args, **kwargs):
 
     def _go():
         if flag[0]:
-            print 'running %r (flag=%r)' % (func, flag)
+            print('running %r (flag=%r)' % (func, flag))
             flag[0] = 0
             func(*args, **kwargs)
 

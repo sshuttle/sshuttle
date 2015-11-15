@@ -1,6 +1,6 @@
 import sys
 import os
-from compat import ssubprocess
+import subprocess as ssubprocess
 
 
 _p = None

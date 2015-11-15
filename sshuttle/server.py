@@ -9,7 +9,7 @@ import os
 import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
 import sshuttle.hostwatch as hostwatch
-import sshuttle.compat.ssubprocess as ssubprocess
+import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
@@ -148,7 +148,7 @@ class DnsProxy(Handler):
         debug2('DNS: sending to %r\n' % self.peer)
         try:
             self.sock.send(self.request)
-        except socket.error, e:
+        except socket.error as e:
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
@@ -163,7 +163,7 @@ class DnsProxy(Handler):
     def callback(self):
         try:
             data = self.sock.recv(4096)
-        except socket.error, e:
+        except socket.error as e:
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
@@ -195,14 +195,14 @@ class UdpProxy(Handler):
         debug2('UDP: sending to %r port %d\n' % dstip)
         try:
             self.sock.sendto(data, dstip)
-        except socket.error, e:
+        except socket.error as e:
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
     def callback(self):
         try:
             data, peer = self.sock.recvfrom(4096)
-        except socket.error, e:
+        except socket.error as e:
             log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
             return
         debug2('UDP response: %d bytes\n' % len(data))
@@ -322,13 +322,13 @@ def main():
 
         if dnshandlers:
             now = time.time()
-            for channel, h in dnshandlers.items():
+            for channel, h in list(dnshandlers.items()):
                 if h.timeout < now or not h.ok:
                     debug3('expiring dnsreqs channel=%d\n' % channel)
                     del dnshandlers[channel]
                     h.ok = False
         if udphandlers:
-            for channel, h in udphandlers.items():
+            for channel, h in list(udphandlers.items()):
                 if not h.ok:
                     debug3('expiring UDP channel=%d\n' % channel)
                     del udphandlers[channel]

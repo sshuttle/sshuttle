@@ -3,8 +3,8 @@ import socket
 import select
 import signal
 import struct
-import compat.ssubprocess as ssubprocess
-import ssyslog
+import subprocess as ssubprocess
+import sshuttle.ssyslog as ssyslog
 import sys
 import os
 import re
@@ -22,7 +22,7 @@ IPPROTO_DIVERT = 254
 def nonfatal(func, *args):
     try:
         func(*args)
-    except Fatal, e:
+    except Fatal as e:
         log('error: %s\n' % e)
 
 
@@ -36,7 +36,7 @@ def ipt_chain_exists(family, table, name):
     argv = [cmd, '-t', table, '-nL']
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     for line in p.stdout:
-        if line.startswith('Chain %s ' % name):
+        if line.startswith(b'Chain %s ' % name.encode("ASCII")):
             return True
     rv = p.wait()
     if rv:
@@ -134,7 +134,7 @@ def do_iptables_nat(port, dnsport, nslist, family, subnets, udp):
                         '--to-ports', str(port))
 
     if dnsport:
-        for f, ip in filter(lambda i: i[0] == family, nslist):
+        for f, ip in [i for i in nslist if i[0] == family]:
             ipt_ttl('-A', chain, '-j', 'REDIRECT',
                     '--dest', '%s/32' % ip,
                     '-p', 'udp',
@@ -193,7 +193,7 @@ def do_iptables_tproxy(port, dnsport, nslist, family, subnets, udp):
             '-m', 'udp', '-p', 'udp')
 
     if dnsport:
-        for f, ip in filter(lambda i: i[0] == family, nslist):
+        for f, ip in [i for i in nslist if i[0] == family]:
             ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                 '--dest', '%s/32' % ip,
                 '-m', 'udp', '-p', 'udp', '--dport', '53')
@@ -440,7 +440,7 @@ def do_ipfw(port, dnsport, family, subnets, udp):
                                    IPPROTO_DIVERT)
         divertsock.bind(('0.0.0.0', port))  # IP field is ignored
 
-        for f, ip in filter(lambda i: i[0] == family, nslist):
+        for f, ip in [i for i in nslist if i[0] == family]:
             # relabel and then catch outgoing DNS requests
             ipfw('add', sport, 'divert', sport,
                  'udp',
@@ -553,7 +553,7 @@ def rewrite_etc_hosts(port):
     try:
         old_content = open(HOSTSFILE).read()
         st = os.stat(HOSTSFILE)
-    except IOError, e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             pass
         else:
@@ -575,7 +575,7 @@ def rewrite_etc_hosts(port):
         os.chmod(tmpname, st.st_mode)
     else:
         os.chown(tmpname, 0, 0)
-        os.chmod(tmpname, 0644)
+        os.chmod(tmpname, 0o644)
     os.rename(tmpname, HOSTSFILE)
 
 
@@ -625,11 +625,11 @@ pfioc_pooladdr = c_char * 1136  # sizeof(struct pfioc_pooladdr)
 
 MAXPATHLEN = 1024
 
-DIOCNATLOOK = ((0x40000000L | 0x80000000L) | (
+DIOCNATLOOK = ((0x40000000 | 0x80000000) | (
     (sizeof(pfioc_natlook) & 0x1fff) << 16) | ((ord('D')) << 8) | (23))
-DIOCCHANGERULE = ((0x40000000L | 0x80000000L) | (
+DIOCCHANGERULE = ((0x40000000 | 0x80000000) | (
     (sizeof(pfioc_rule) & 0x1fff) << 16) | ((ord('D')) << 8) | (26))
-DIOCBEGINADDRS = ((0x40000000L | 0x80000000L) | (
+DIOCBEGINADDRS = ((0x40000000 | 0x80000000) | (
     (sizeof(pfioc_pooladdr) & 0x1fff) << 16) | ((ord('D')) << 8) | (51))
 
 PF_CHANGE_ADD_TAIL = 2
@@ -794,14 +794,14 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, nslist, method, udp, syslog):
         if line:
             debug1('firewall manager: starting transproxy.\n')
 
-            subnets_v6 = filter(lambda i: i[0] == socket.AF_INET6, subnets)
+            subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
             if port_v6:
                 do_wait = do_it(
                     port_v6, dnsport_v6, nslist, socket.AF_INET6, subnets_v6, udp)
             elif len(subnets_v6) > 0:
                 debug1("IPv6 subnets defined but IPv6 disabled\n")
 
-            subnets_v4 = filter(lambda i: i[0] == socket.AF_INET, subnets)
+            subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
             if port_v4:
                 do_wait = do_it(
                     port_v4, dnsport_v4, nslist, socket.AF_INET, subnets_v4, udp)
@@ -832,7 +832,7 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, nslist, method, udp, syslog):
                 try:
                     dst = pf_query_nat(*(line[13:].split(',')))
                     sys.stdout.write('QUERY_PF_NAT_SUCCESS %s,%r\n' % dst)
-                except IOError, e:
+                except IOError as e:
                     sys.stdout.write('QUERY_PF_NAT_FAILURE %s\n' % e)
 
                 sys.stdout.flush()

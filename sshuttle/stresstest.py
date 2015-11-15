@@ -25,10 +25,10 @@ while 1:
         count += 1
         if count >= 16384:
             count = 1
-        print 'cli CREATING %d' % count
+        print('cli CREATING %d' % count)
         b = struct.pack('I', count) + 'x' * count
         remain[c] = count
-        print 'cli  >> %r' % len(b)
+        print('cli  >> %r' % len(b))
         c.send(b)
         c.shutdown(socket.SHUT_WR)
         clients.append(c)
@@ -36,7 +36,7 @@ while 1:
         time.sleep(0.1)
     else:
         r = [listener] + servers + clients
-    print 'select(%d)' % len(r)
+    print('select(%d)' % len(r))
     r, w, x = select.select(r, [], [], 5)
     assert(r)
     for i in r:
@@ -45,7 +45,7 @@ while 1:
             servers.append(s)
         elif i in servers:
             b = i.recv(4096)
-            print 'srv <<  %r' % len(b)
+            print('srv <<  %r' % len(b))
             if not i in remain:
                 assert(len(b) >= 4)
                 want = struct.unpack('I', b[:4])[0]
@@ -54,34 +54,34 @@ while 1:
             else:
                 want = remain[i]
             if want < len(b):
-                print 'weird wanted %d bytes, got %d: %r' % (want, len(b), b)
+                print('weird wanted %d bytes, got %d: %r' % (want, len(b), b))
                 assert(want >= len(b))
             want -= len(b)
             remain[i] = want
             if not b:  # EOF
                 if want:
-                    print 'weird: eof but wanted %d more' % want
+                    print('weird: eof but wanted %d more' % want)
                     assert(want == 0)
                 i.close()
                 servers.remove(i)
                 del remain[i]
             else:
-                print 'srv  >> %r' % len(b)
+                print('srv  >> %r' % len(b))
                 i.send('y' * len(b))
                 if not want:
                     i.shutdown(socket.SHUT_WR)
         elif i in clients:
             b = i.recv(4096)
-            print 'cli <<  %r' % len(b)
+            print('cli <<  %r' % len(b))
             want = remain[i]
             if want < len(b):
-                print 'weird wanted %d bytes, got %d: %r' % (want, len(b), b)
+                print('weird wanted %d bytes, got %d: %r' % (want, len(b), b))
                 assert(want >= len(b))
             want -= len(b)
             remain[i] = want
             if not b:  # EOF
                 if want:
-                    print 'weird: eof but wanted %d more' % want
+                    print('weird: eof but wanted %d more' % want)
                     assert(want == 0)
                 i.close()
                 clients.remove(i)

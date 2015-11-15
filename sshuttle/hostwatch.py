@@ -6,7 +6,7 @@ import errno
 import os
 import sys
 
-import sshuttle.compat.ssubprocess as ssubprocess
+import subprocess as ssubprocess
 import sshuttle.helpers as helpers
 from sshuttle.helpers import log, debug1, debug2, debug3
 
@@ -21,7 +21,7 @@ hostnames = {}
 queue = {}
 try:
     null = open('/dev/null', 'wb')
-except IOError, e:
+except IOError as e:
     log('warning: %s\n' % e)
     null = os.popen("sh -c 'while read x; do :; done'", 'wb', 4096)
 
@@ -48,7 +48,7 @@ def write_host_cache():
 def read_host_cache():
     try:
         f = open(CACHEFILE)
-    except IOError, e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             return
         else:
@@ -122,7 +122,7 @@ def _check_netstat():
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         content = p.stdout.read()
         p.wait()
-    except OSError, e:
+    except OSError as e:
         log('%r failed: %r\n' % (argv, e))
         return
 
@@ -142,7 +142,7 @@ def _check_smb(hostname):
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         p.wait()
-    except OSError, e:
+    except OSError as e:
         log('%r failed: %r\n' % (argv, e))
         _smb_ok = False
         return
@@ -199,7 +199,7 @@ def _check_nmb(hostname, is_workgroup, is_master):
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         rv = p.wait()
-    except OSError, e:
+    except OSError as e:
         log('%r failed: %r\n' % (argv, e))
         _nmb_ok = False
         return
@@ -267,7 +267,7 @@ def hw_main(seed_hosts):
 
     while 1:
         now = time.time()
-        for t, last_polled in queue.items():
+        for t, last_polled in list(queue.items()):
             (op, args) = t
             if not _stdin_still_ok(0):
                 break

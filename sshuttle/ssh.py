@@ -4,7 +4,7 @@ import re
 import socket
 import zlib
 import imp
-import sshuttle.compat.ssubprocess as ssubprocess
+import subprocess as ssubprocess
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -40,7 +40,7 @@ def readfile(name):
         if f is not None:
             f.close()
 
-    return contents
+    return contents.encode("UTF8")
 
 
 def empackage(z, name, data=None):
@@ -48,7 +48,8 @@ def empackage(z, name, data=None):
         data = readfile(name)
     content = z.compress(data)
     content += z.flush(zlib.Z_SYNC_FLUSH)
-    return '%s\n%d\n%s' % (name, len(content), content)
+
+    return b'%s\n%d\n%s' % (name.encode("ASCII"), len(content), content)
 
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
@@ -77,16 +78,15 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
 
     z = zlib.compressobj(1)
     content = readfile('sshuttle.assembler')
-    optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in options.items())
+    optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in list(options.items()))
+    optdata = optdata.encode("UTF8")
     content2 = (empackage(z, 'sshuttle') +
                 empackage(z, 'sshuttle.cmdline_options', optdata) +
                 empackage(z, 'sshuttle.helpers') +
-                empackage(z, 'sshuttle.compat') +
-                empackage(z, 'sshuttle.compat.ssubprocess') +
                 empackage(z, 'sshuttle.ssnet') +
                 empackage(z, 'sshuttle.hostwatch') +
                 empackage(z, 'sshuttle.server') +
-                "\n")
+                b"\n")
 
     pyscript = r"""
                 import sys;

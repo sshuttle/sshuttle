@@ -69,7 +69,7 @@ def islocal(ip, family):
     try:
         try:
             sock.bind((ip, 0))
-        except socket.error, e:
+        except socket.error as e:
             if e.args[0] == errno.EADDRNOTAVAIL:
                 return False  # not a local IP
             else:
