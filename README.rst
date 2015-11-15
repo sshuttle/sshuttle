@@ -4,48 +4,48 @@ sshuttle: where transparent proxy meets VPN meets ssh
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
- - Your client machine (or router) is Linux, FreeBSD, or MacOS.
+- Your client machine (or router) is Linux, FreeBSD, or MacOS.
 
- - You have access to a remote network via ssh.
+- You have access to a remote network via ssh.
 
- - You don't necessarily have admin access on the remote network.
+- You don't necessarily have admin access on the remote network.
 
- - The remote network has no VPN, or only stupid/complex VPN
-   protocols (IPsec, PPTP, etc). Or maybe you *are* the
-   admin and you just got frustrated with the awful state of
-   VPN tools.
+- The remote network has no VPN, or only stupid/complex VPN
+  protocols (IPsec, PPTP, etc). Or maybe you *are* the
+  admin and you just got frustrated with the awful state of
+  VPN tools.
 
- - You don't want to create an ssh port forward for every
-   single host/port on the remote network.
+- You don't want to create an ssh port forward for every
+  single host/port on the remote network.
 
- - You hate openssh's port forwarding because it's randomly
-   slow and/or stupid.
+- You hate openssh's port forwarding because it's randomly
+  slow and/or stupid.
 
- - You can't use openssh's PermitTunnel feature because
-   it's disabled by default on openssh servers; plus it does
-   TCP-over-TCP, which has terrible performance (see below).
+- You can't use openssh's PermitTunnel feature because
+  it's disabled by default on openssh servers; plus it does
+  TCP-over-TCP, which has terrible performance (see below).
 
 
 Prerequisites
 -------------
 
- - sudo, su, or logged in as root on your client machine.
-   (The server doesn't need admin access.)
+- sudo, su, or logged in as root on your client machine.
+  (The server doesn't need admin access.)
 
- - If you use Linux on your client machine:
-   iptables installed on the client, including at
-   least the iptables DNAT, REDIRECT, and ttl modules. 
-   These are installed by default on most Linux distributions. 
-   (The server doesn't need iptables and doesn't need to be
-   Linux.)
+- If you use Linux on your client machine:
+  iptables installed on the client, including at
+  least the iptables DNAT, REDIRECT, and ttl modules. 
+  These are installed by default on most Linux distributions. 
+  (The server doesn't need iptables and doesn't need to be
+  Linux.)
 
- - If you use MacOS or BSD on your client machine:
-   Your kernel needs to be compiled with `IPFIREWALL_FORWARD`
-   (MacOS has this by default) and you need to have ipfw
-   available. (The server doesn't need to be MacOS or BSD.)
+- If you use MacOS or BSD on your client machine:
+  Your kernel needs to be compiled with `IPFIREWALL_FORWARD`
+  (MacOS has this by default) and you need to have ipfw
+  available. (The server doesn't need to be MacOS or BSD.)
 
-
- - Python 2.x, both locally and the remote system. Python 3.x is not yet supported.
+- Python 2.x, both locally and the remote system. Python 3.x is not yet
+  supported.
 
 *WARNING*:
 On MacOS 10.6 (at least up to 10.6.6), your network will
@@ -60,45 +60,45 @@ again, even after a reboot.
 Additional Suggested Software
 -----------------------------
 
- - You may want to need autossh, available in various package management
-   systems
+- You may want to need autossh, available in various package management
+  systems
 
- - For Linux only tproxy support, you need PyXAPI, available here:
-   http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+- For Linux only tproxy support, you need PyXAPI, available here:
+  http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
 
 
 Obtaining sshuttle
 ------------------
 
- - Clone::
+- Clone::
 
-       git clone https://github.com/sshuttle/sshuttle.git
-       ./setup.py install
+      git clone https://github.com/sshuttle/sshuttle.git
+      ./setup.py install
 
- - From PyPI::
+- From PyPI::
 
-       pip install sshuttle
+      pip install sshuttle
 
 
 Usage
 -----
 
- - Forward all traffic::
+- Forward all traffic::
 
-       sshuttle -r username@sshserver 0.0.0.0/0 -vv
+      sshuttle -r username@sshserver 0.0.0.0/0 -vv
 
- - There is a shortcut for 0.0.0.0/0 for those that value
-   their wrists::
+- There is a shortcut for 0.0.0.0/0 for those that value
+  their wrists::
 
-       sshuttle -r username@sshserver 0/0 -vv
+      sshuttle -r username@sshserver 0/0 -vv
 
- - If you would also like your DNS queries to be proxied
-   through the DNS server of the server you are connect to::
+- If you would also like your DNS queries to be proxied
+  through the DNS server of the server you are connect to::
 
-       sshuttle --dns -vvr username@sshserver 0/0
+      sshuttle --dns -vvr username@sshserver 0/0
 
-   The above is probably what you want to use to prevent
-   local network attacks such as Firesheep and friends.
+  The above is probably what you want to use to prevent
+  local network attacks such as Firesheep and friends.
 
 (You may be prompted for one or more passwords; first, the
 local password to become root using either sudo or su, and
