@@ -8,8 +8,8 @@ import sshuttle.ssyslog as ssyslog
 import sys
 import os
 import re
-from sshuttle.helpers import log, debug1, debug3, islocal, Fatal, family_to_string, \
-    resolvconf_nameservers
+from sshuttle.helpers import log, debug1, debug3, islocal, \
+    Fatal, family_to_string
 from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
@@ -353,7 +353,7 @@ def ipfw(*args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-def do_ipfw(port, dnsport, family, subnets, udp):
+def do_ipfw(port, dnsport, nslist, family, subnets, udp):
     # IPv6 not supported
     if family not in [socket.AF_INET, ]:
         raise Exception(
@@ -498,24 +498,28 @@ def do_pf(port, dnsport, nslist, family, subnets, udp):
 
         tables.append('table <forward_subnets> {%s}' % ','.join(includes))
         translating_rules.append(
-            'rdr pass on lo0 proto tcp to <forward_subnets> -> 127.0.0.1 port %r' % port)
+            'rdr pass on lo0 proto tcp '
+            'to <forward_subnets> -> 127.0.0.1 port %r' % port)
         filtering_rules.append(
-            'pass out route-to lo0 inet proto tcp to <forward_subnets> keep state')
+            'pass out route-to lo0 inet proto tcp '
+            'to <forward_subnets> keep state')
 
         if dnsport:
             tables.append('table <dns_servers> {%s}' % ','.join(
                 [ns[1] for ns in nslist]))
             translating_rules.append(
-                'rdr pass on lo0 proto udp to <dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
+                'rdr pass on lo0 proto udp to '
+                '<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
             filtering_rules.append(
-                'pass out route-to lo0 inet proto udp to <dns_servers> port 53 keep state')
+                'pass out route-to lo0 inet proto udp to '
+                '<dns_servers> port 53 keep state')
 
         rules = '\n'.join(tables + translating_rules + filtering_rules) + '\n'
 
         pf_status = pfctl('-s all')[0]
-        if not '\nrdr-anchor "sshuttle" all\n' in pf_status:
+        if '\nrdr-anchor "sshuttle" all\n' not in pf_status:
             pf_add_anchor_rule(PF_RDR, "sshuttle")
-        if not '\nanchor "sshuttle" all\n' in pf_status:
+        if '\nanchor "sshuttle" all\n' not in pf_status:
             pf_add_anchor_rule(PF_PASS, "sshuttle")
 
         pfctl('-a sshuttle -f /dev/stdin', rules)
@@ -645,7 +649,7 @@ _pf_fd = None
 
 def pf_get_dev():
     global _pf_fd
-    if _pf_fd == None:
+    if _pf_fd is None:
         _pf_fd = os.open('/dev/pf', os.O_RDWR)
 
     return _pf_fd
@@ -666,8 +670,8 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     memmove(addressof(pnl.daddr), socket.inet_pton(pnl.af, dst_ip), length)
     pnl.dxport.port = socket.htons(dst_port)
 
-    ioctl(pf_get_dev(), DIOCNATLOOK, (c_char *
-                                      sizeof(pnl)).from_address(addressof(pnl)))
+    ioctl(pf_get_dev(), DIOCNATLOOK, (
+        c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
         pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)))
@@ -692,12 +696,12 @@ def pf_add_anchor_rule(type, name):
     memmove(addressof(pr) + RULE_ACTION_OFFSET,
             struct.pack('I', type), 4)  # rule.action = type
 
-    memmove(addressof(pr) + ACTION_OFFSET, struct.pack('I',
-                                                       PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
+    memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
+        'I', PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
     ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
 
-    memmove(addressof(pr) + ACTION_OFFSET, struct.pack('I',
-                                                       PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
+    memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
+        'I', PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
     ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
 
 
@@ -709,7 +713,9 @@ def pf_add_anchor_rule(type, name):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(port_v6, port_v4, dnsport_v6, dnsport_v4, nslist, method, udp, syslog):
+def main(port_v6, port_v4,
+         dnsport_v6, dnsport_v4,
+         nslist, method, udp, syslog):
     assert(port_v6 >= 0)
     assert(port_v6 <= 65535)
     assert(port_v4 >= 0)
@@ -797,14 +803,16 @@ def main(port_v6, port_v4, dnsport_v6, dnsport_v4, nslist, method, udp, syslog):
             subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
             if port_v6:
                 do_wait = do_it(
-                    port_v6, dnsport_v6, nslist, socket.AF_INET6, subnets_v6, udp)
+                    port_v6, dnsport_v6, nslist,
+                    socket.AF_INET6, subnets_v6, udp)
             elif len(subnets_v6) > 0:
                 debug1("IPv6 subnets defined but IPv6 disabled\n")
 
             subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
             if port_v4:
                 do_wait = do_it(
-                    port_v4, dnsport_v4, nslist, socket.AF_INET, subnets_v4, udp)
+                    port_v4, dnsport_v4, nslist,
+                    socket.AF_INET, subnets_v4, udp)
             elif len(subnets_v4) > 0:
                 debug1('IPv4 subnets defined but IPv4 disabled\n')
 

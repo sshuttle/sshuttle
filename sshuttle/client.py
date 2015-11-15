@@ -348,9 +348,11 @@ class FirewallClient:
         self.pfile.write(b'ROUTES\n')
         try:
             for (family, ip, width) in self.subnets_include + self.auto_nets:
-                self.pfile.write(b'%d,%d,0,%s\n' % (family, width, ip.encode("ASCII")))
+                self.pfile.write(b'%d,%d,0,%s\n'
+                                 % (family, width, ip.encode("ASCII")))
             for (family, ip, width) in self.subnets_exclude:
-                self.pfile.write(b'%d,%d,1,%s\n' % (family, width, ip.encode("ASCII")))
+                self.pfile.write(b'%d,%d,1,%s\n'
+                                 % (family, width, ip.encode("ASCII")))
         except Exception as e:
             debug1("exception occured %r" % e)
             raise

@@ -46,7 +46,7 @@ while 1:
         elif i in servers:
             b = i.recv(4096)
             print('srv <<  %r' % len(b))
-            if not i in remain:
+            if i not in remain:
                 assert(len(b) >= 4)
                 want = struct.unpack('I', b[:4])[0]
                 b = b[4:]

@@ -57,7 +57,7 @@ NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
 
 
 def _add(l, elem):
-    if not elem in l:
+    if elem not in l:
         l.append(elem)
 
 
@@ -359,11 +359,11 @@ class Mux(Handler):
             if not self.too_full:
                 self.send(0, CMD_PING, b'rttest')
             self.too_full = True
-        #ob = []
+        # ob = []
         # for b in self.outbuf:
         #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
         #    ob.append(c)
-        #log('outbuf: %d %r\n' % (self.amount_queued(), ob))
+        # log('outbuf: %d %r\n' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -437,7 +437,7 @@ class Mux(Handler):
             b = _nb_clean(os.read, self.rsock.fileno(), 32768)
         except OSError as e:
             raise Fatal('other end: %r' % e)
-        #log('<<< %r\n' % b)
+        # log('<<< %r\n' % b)
         if b == b'':  # EOF
             self.ok = False
         if b:
@@ -575,5 +575,5 @@ def runonce(handlers, mux):
                 h.callback()
                 did[s] = 1
     for s in ready:
-        if not s in did:
+        if s not in did:
             raise Fatal('socket %r was not used by any handler' % s)
