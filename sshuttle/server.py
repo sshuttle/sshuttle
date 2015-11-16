@@ -15,10 +15,6 @@ from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
 
 
-if not globals().get('latency_control'):
-    latency_control = None
-
-
 def _ipmatch(ipstr):
     if ipstr == 'default':
         ipstr = '0.0.0.0/0'
@@ -210,7 +206,7 @@ class UdpProxy(Handler):
         self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr + data)
 
 
-def main():
+def main(latency_control):
     if helpers.verbose >= 1:
         helpers.logprefix = ' s: '
     else:
