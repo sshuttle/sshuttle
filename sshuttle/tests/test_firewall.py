@@ -4,7 +4,6 @@ import os
 import os.path
 import shutil
 import filecmp
-import pytest
 
 import sshuttle.firewall
 
