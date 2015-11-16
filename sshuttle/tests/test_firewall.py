@@ -1,5 +1,4 @@
 from mock import Mock, patch, call
-from contextlib import nested
 import io
 import os
 import os.path
@@ -63,39 +62,37 @@ def test_rewrite_etc_hosts():
     assert filecmp.cmp("tmp/hosts.orig", "tmp/hosts", shallow=False) is True
 
 
-def test_main():
-    with nested(
-            patch('sshuttle.firewall.setup_daemon'),
-            patch('sshuttle.firewall.get_method')
-            ) as (mock_setup_daemon, mock_get_method):
-        stdin, stdout = setup_daemon()
-        mock_setup_daemon.return_value = stdin, stdout
+@patch('sshuttle.firewall.setup_daemon')
+@patch('sshuttle.firewall.get_method')
+def test_main(mock_get_method, mock_setup_daemon):
+    stdin, stdout = setup_daemon()
+    mock_setup_daemon.return_value = stdin, stdout
 
-        sshuttle.firewall.main("test", False)
+    sshuttle.firewall.main("test", False)
 
-        stdout.mock_calls == [
-            call.write('READY test\n'),
-            call.flush(),
-            call.write('STARTED\n'),
-            call.flush()
-        ]
-        mock_setup_daemon.mock_calls == [call()]
-        mock_get_method.mock_calls == [
-            call('test'),
-            call().setup_firewall(
-                1024, 1026,
-                [(10, u'2404:6800:4004:80c::33')],
-                10,
-                [(10, 64, False, u'2404:6800:4004:80c::'),
-                    (10, 128, True, u'2404:6800:4004:80c::101f')],
-                True),
-            call().setup_firewall(
-                1025, 1027,
-                [(2, u'1.2.3.33')],
-                2,
-                [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
-                True),
-            call().setup_firewall()(),
-            call().setup_firewall(1024, 0, [], 10, [], True),
-            call().setup_firewall(1025, 0, [], 2, [], True),
-        ]
+    stdout.mock_calls == [
+        call.write('READY test\n'),
+        call.flush(),
+        call.write('STARTED\n'),
+        call.flush()
+    ]
+    mock_setup_daemon.mock_calls == [call()]
+    mock_get_method.mock_calls == [
+        call('test'),
+        call().setup_firewall(
+            1024, 1026,
+            [(10, u'2404:6800:4004:80c::33')],
+            10,
+            [(10, 64, False, u'2404:6800:4004:80c::'),
+                (10, 128, True, u'2404:6800:4004:80c::101f')],
+            True),
+        call().setup_firewall(
+            1025, 1027,
+            [(2, u'1.2.3.33')],
+            2,
+            [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
+            True),
+        call().setup_firewall()(),
+        call().setup_firewall(1024, 0, [], 10, [], True),
+        call().setup_firewall(1025, 0, [], 2, [], True),
+    ]
