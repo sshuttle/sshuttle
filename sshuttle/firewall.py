@@ -8,10 +8,10 @@ from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
 hostmap = {}
+HOSTSFILE = '/etc/hosts'
 
 
 def rewrite_etc_hosts(port):
-    HOSTSFILE = '/etc/hosts'
     BAKFILE = '%s.sbak' % HOSTSFILE
     APPEND = '# sshuttle-firewall-%d AUTOCREATED' % port
     old_content = ''
@@ -51,35 +51,10 @@ def restore_etc_hosts(port):
     rewrite_etc_hosts(port)
 
 
-# This is some voodoo for setting up the kernel's transparent
-# proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
-# otherwise we delete it, then make them from scratch.
-#
-# This code is supposed to clean up after itself by deleting its rules on
-# exit.  In case that fails, it's not the end of the world; future runs will
-# supercede it in the transproxy list, at least, so the leftover rules
-# are hopefully harmless.
-def main(method_name, syslog):
+# Isolate function that needs to be replaced for tests
+def setup_daemon():
     if os.getuid() != 0:
         raise Fatal('you must be root (or enable su/sudo) to set the firewall')
-
-    if method_name == "auto":
-        method = get_auto_method()
-    else:
-        method = get_method(method_name)
-
-    # because of limitations of the 'su' command, the *real* stdin/stdout
-    # are both attached to stdout initially.  Clone stdout into stdin so we
-    # can read from it.
-    os.dup2(1, 0)
-
-    if syslog:
-        ssyslog.start_syslog()
-        ssyslog.stderr_to_syslog()
-
-    debug1('firewall manager ready method name %s.\n' % method.name)
-    sys.stdout.write('READY %s\n' % method.name)
-    sys.stdout.flush()
 
     # don't disappear if our controlling terminal or stdout/stderr
     # disappears; we still have to clean up.
@@ -92,10 +67,42 @@ def main(method_name, syslog):
     # I'll die automatically.
     os.setsid()
 
+    # because of limitations of the 'su' command, the *real* stdin/stdout
+    # are both attached to stdout initially.  Clone stdout into stdin so we
+    # can read from it.
+    os.dup2(1, 0)
+
+    return sys.stdin, sys.stdout
+
+
+# This is some voodoo for setting up the kernel's transparent
+# proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
+# otherwise we delete it, then make them from scratch.
+#
+# This code is supposed to clean up after itself by deleting its rules on
+# exit.  In case that fails, it's not the end of the world; future runs will
+# supercede it in the transproxy list, at least, so the leftover rules
+# are hopefully harmless.
+def main(method_name, syslog):
+    stdin, stdout = setup_daemon()
+
+    if method_name == "auto":
+        method = get_auto_method()
+    else:
+        method = get_method(method_name)
+
+    if syslog:
+        ssyslog.start_syslog()
+        ssyslog.stderr_to_syslog()
+
+    debug1('firewall manager ready method name %s.\n' % method_name)
+    stdout.write('READY %s\n' % method_name)
+    stdout.flush()
+
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
-    line = sys.stdin.readline(128)
+    line = stdin.readline(128)
     if not line:
         return  # parent died; nothing to do
 
@@ -103,7 +110,7 @@ def main(method_name, syslog):
     if line != 'ROUTES\n':
         raise Fatal('firewall: expected ROUTES but got %r' % line)
     while 1:
-        line = sys.stdin.readline(128)
+        line = stdin.readline(128)
         if not line:
             raise Fatal('firewall: expected route but got %r' % line)
         elif line.startswith("NSLIST\n"):
@@ -119,7 +126,7 @@ def main(method_name, syslog):
     if line != 'NSLIST\n':
         raise Fatal('firewall: expected NSLIST but got %r' % line)
     while 1:
-        line = sys.stdin.readline(128)
+        line = stdin.readline(128)
         if not line:
             raise Fatal('firewall: expected nslist but got %r' % line)
         elif line.startswith("PORTS "):
@@ -155,7 +162,7 @@ def main(method_name, syslog):
     debug2('Got ports: %d,%d,%d,%d\n'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
-    line = sys.stdin.readline(128)
+    line = stdin.readline(128)
     if not line:
         raise Fatal('firewall: expected GO but got %r' % line)
     elif not line.startswith("GO "):
@@ -169,26 +176,28 @@ def main(method_name, syslog):
         do_wait = None
         debug1('firewall manager: starting transproxy.\n')
 
+        nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
         subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
         if port_v6 > 0:
             do_wait = method.setup_firewall(
-                port_v6, dnsport_v6, nslist,
+                port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp)
         elif len(subnets_v6) > 0:
             debug1("IPv6 subnets defined but IPv6 disabled\n")
 
+        nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
         subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
         if port_v4 > 0:
             do_wait = method.setup_firewall(
-                port_v4, dnsport_v4, nslist,
+                port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp)
         elif len(subnets_v4) > 0:
             debug1('IPv4 subnets defined but IPv4 disabled\n')
 
-        sys.stdout.write('STARTED\n')
+        stdout.write('STARTED\n')
 
         try:
-            sys.stdout.flush()
+            stdout.flush()
         except IOError:
             # the parent process died for some reason; he's surely been loud
             # enough, so no reason to report another error
@@ -198,9 +207,9 @@ def main(method_name, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            if do_wait:
+            if do_wait is not None:
                 do_wait()
-            line = sys.stdin.readline(128)
+            line = stdin.readline(128)
             if line.startswith('HOST '):
                 (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
