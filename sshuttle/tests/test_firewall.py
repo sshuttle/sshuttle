@@ -41,22 +41,22 @@ def test_rewrite_etc_hosts():
     }
     sshuttle.firewall.rewrite_etc_hosts(10)
     with open("tmp/hosts") as f:
-        line = f.next()
+        line = f.readline()
         s = line.split()
         assert s == ['1.2.3.3', 'existing']
 
-        line = f.next()
+        line = f.readline()
         s = line.split()
         assert s == ['1.2.3.4', 'myhost',
                      '#', 'sshuttle-firewall-10', 'AUTOCREATED']
 
-        line = f.next()
+        line = f.readline()
         s = line.split()
         assert s == ['1.2.3.5', 'myotherhost',
                      '#', 'sshuttle-firewall-10', 'AUTOCREATED']
 
-        with pytest.raises(StopIteration):
-            line = f.next()
+        line = f.readline()
+        assert line == ""
 
     sshuttle.firewall.restore_etc_hosts(10)
     assert filecmp.cmp("tmp/hosts.orig", "tmp/hosts", shallow=False) is True
