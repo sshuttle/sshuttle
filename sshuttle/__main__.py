@@ -149,13 +149,10 @@ helpers.verbose = opt.verbose
 
 try:
     if opt.firewall:
-        if len(extra) != 6:
-            o.fatal('exactly six arguments expected')
-        port, dnsport = int(extra[0]), int(extra[1])
-        nslist = [family_ip_tuple(ns) for ns in parse_list(opt.ns_hosts)]
-        sys.exit(firewall.main(int(extra[0]), int(extra[1]),
-                               int(extra[2]), int(extra[3]), nslist,
-                               extra[4], int(extra[5]), opt.syslog))
+        if len(extra) != 0:
+            o.fatal('exactly zero arguments expected')
+        result = firewall.main(opt.method, opt.syslog)
+        sys.exit(result)
     elif opt.hostwatch:
         sys.exit(hostwatch.hw_main(extra))
     else:
@@ -183,23 +180,20 @@ try:
         if opt.subnets:
             includes = parse_subnet_file(opt.subnets)
         if not opt.method:
-            method = "auto"
+            method_name = "auto"
         elif opt.method in ["auto", "nat", "tproxy", "ipfw", "pf"]:
-            method = opt.method
+            method_name = opt.method
         else:
-            o.fatal("method %s not supported" % opt.method)
+            o.fatal("method_name %s not supported" % opt.method)
         if not opt.listen:
-            if opt.method == "tproxy":
-                ipport_v6 = parse_ipport6('[::1]:0')
-            else:
-                ipport_v6 = None
-            ipport_v4 = parse_ipport4('127.0.0.1:0')
+            ipport_v6 = "auto"  # parse_ipport6('[::1]:0')
+            ipport_v4 = "auto"  # parse_ipport4('127.0.0.1:0')
         else:
             ipport_v6 = None
             ipport_v4 = None
             list = opt.listen.split(",")
             for ip in list:
-                if '[' in ip and ']' in ip and opt.method == "tproxy":
+                if '[' in ip and ']' in ip:
                     ipport_v6 = parse_ipport6(ip)
                 else:
                     ipport_v4 = parse_ipport4(ip)
@@ -210,7 +204,7 @@ try:
                                   opt.latency_control,
                                   opt.dns,
                                   nslist,
-                                  method,
+                                  method_name,
                                   sh,
                                   opt.auto_nets,
                                   parse_subnets(includes),

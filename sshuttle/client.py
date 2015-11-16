@@ -1,4 +1,4 @@
-import struct
+import socket
 import errno
 import re
 import signal
@@ -13,23 +13,7 @@ import sys
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
-
-recvmsg = None
-try:
-    # try getting recvmsg from python
-    import socket as pythonsocket
-    getattr(pythonsocket.socket, "recvmsg")
-    socket = pythonsocket
-    recvmsg = "python"
-except AttributeError:
-    # try getting recvmsg from socket_ext library
-    try:
-        import socket_ext
-        getattr(socket_ext.socket, "recvmsg")
-        socket = socket_ext
-        recvmsg = "socket_ext"
-    except ImportError:
-        import socket
+from sshuttle.methods import get_method
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
@@ -40,83 +24,6 @@ def got_signal(signum, frame):
 
 
 _pidname = None
-IP_TRANSPARENT = 19
-IP_ORIGDSTADDR = 20
-IP_RECVORIGDSTADDR = IP_ORIGDSTADDR
-SOL_IPV6 = 41
-IPV6_ORIGDSTADDR = 74
-IPV6_RECVORIGDSTADDR = IPV6_ORIGDSTADDR
-
-
-if recvmsg == "python":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP python using recvmsg.\n')
-        data, ancdata, msg_flags, srcip = listener.recvmsg(
-            4096, socket.CMSG_SPACE(24))
-        dstip = None
-        family = None
-        for cmsg_level, cmsg_type, cmsg_data in ancdata:
-            if cmsg_level == socket.SOL_IP and cmsg_type == IP_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET:
-                    start = 4
-                    length = 4
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(family, cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-            elif cmsg_level == SOL_IPV6 and cmsg_type == IPV6_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET6:
-                    start = 8
-                    length = 16
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(family, cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data)
-elif recvmsg == "socket_ext":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using socket_ext recvmsg.\n')
-        srcip, data, adata, flags = listener.recvmsg(
-            (bufsize,), socket.CMSG_SPACE(24))
-        dstip = None
-        family = None
-        for a in adata:
-            if a.cmsg_level == socket.SOL_IP and a.cmsg_type == IP_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', a.cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET:
-                    start = 4
-                    length = 4
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(
-                    family, a.cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-            elif a.cmsg_level == SOL_IPV6 and a.cmsg_type == IPV6_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', a.cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET6:
-                    start = 8
-                    length = 16
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(
-                    family, a.cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data[0])
-else:
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using recvfrom.\n')
-        data, srcip = listener.recvfrom(bufsize)
-        return (srcip, None, data)
 
 
 def check_daemon(pidfile):
@@ -185,40 +92,7 @@ def daemon_cleanup():
         else:
             raise
 
-pf_command_file = None
-
-
-def pf_dst(sock):
-    peer = sock.getpeername()
-    proxy = sock.getsockname()
-
-    argv = (sock.family, socket.IPPROTO_TCP,
-            peer[0], peer[1], proxy[0], proxy[1])
-    pf_command_file.write("QUERY_PF_NAT %r,%r,%s,%r,%s,%r\n" % argv)
-    pf_command_file.flush()
-    line = pf_command_file.readline()
-    debug2("QUERY_PF_NAT %r,%r,%s,%r,%s,%r" % argv + ' > ' + line)
-    if line.startswith('QUERY_PF_NAT_SUCCESS '):
-        (ip, port) = line[21:].split(',')
-        return (ip, int(port))
-
-    return sock.getsockname()
-
-
-def original_dst(sock):
-    try:
-        SO_ORIGINAL_DST = 80
-        SOCKADDR_MIN = 16
-        sockaddr_in = sock.getsockopt(socket.SOL_IP,
-                                      SO_ORIGINAL_DST, SOCKADDR_MIN)
-        (proto, port, a, b, c, d) = struct.unpack('!HHBBBB', sockaddr_in[:8])
-        assert(socket.htons(proto) == socket.AF_INET)
-        ip = '%d.%d.%d.%d' % (a, b, c, d)
-        return (ip, port)
-    except socket.error as e:
-        if e.args[0] == errno.ENOPROTOOPT:
-            return sock.getsockname()
-        raise
+firewall = None
 
 
 class MultiListener:
@@ -280,24 +154,18 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, port_v6, port_v4, subnets_include, subnets_exclude,
-                 dnsport_v6, dnsport_v4, nslist, method, udp):
+    def __init__(self, method_name):
         self.auto_nets = []
-        self.subnets_include = subnets_include
-        self.subnets_exclude = subnets_exclude
         python_path = os.path.dirname(os.path.dirname(__file__))
-        argvbase = (["PYTHONPATH=%s" % python_path] +
-                    [sys.executable, sys.argv[0]] +
+        argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
-                    ['--firewall', str(port_v6), str(port_v4),
-                     str(dnsport_v6), str(dnsport_v4),
-                     method, str(int(udp))])
-        if dnsport_v4 or dnsport_v6:
-            argvbase += ['--ns-hosts', ' '.join([ip for _, ip in nslist])]
+                    ['--method', method_name] +
+                    ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
-            ['sudo', '-p', '[local sudo] Password: '] + argvbase,
+            ['sudo', '-p', '[local sudo] Password: ',
+                ('PYTHONPATH=%s' % python_path), '--'] + argvbase,
             argvbase
         ]
 
@@ -337,7 +205,19 @@ class FirewallClient:
         self.check()
         if line[0:5] != b'READY':
             raise Fatal('%r expected READY, got %r' % (self.argv, line))
-        self.method = line[6:-1]
+        method_name = line[6:-1]
+        self.method = get_method(method_name.decode("ASCII"))
+
+    def setup(self, subnets_include, subnets_exclude, nslist,
+              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp):
+        self.subnets_include = subnets_include
+        self.subnets_exclude = subnets_exclude
+        self.nslist = nslist
+        self.redirectport_v6 = redirectport_v6
+        self.redirectport_v4 = redirectport_v4
+        self.dnsport_v6 = dnsport_v6
+        self.dnsport_v4 = dnsport_v4
+        self.udp = udp
 
     def check(self):
         rv = self.p.poll()
@@ -346,18 +226,30 @@ class FirewallClient:
 
     def start(self):
         self.pfile.write(b'ROUTES\n')
-        try:
-            for (family, ip, width) in self.subnets_include + self.auto_nets:
-                self.pfile.write(b'%d,%d,0,%s\n'
-                                 % (family, width, ip.encode("ASCII")))
-            for (family, ip, width) in self.subnets_exclude:
-                self.pfile.write(b'%d,%d,1,%s\n'
-                                 % (family, width, ip.encode("ASCII")))
-        except Exception as e:
-            debug1("exception occured %r" % e)
-            raise
-        self.pfile.write(b'GO\n')
+        for (family, ip, width) in self.subnets_include + self.auto_nets:
+            self.pfile.write(b'%d,%d,0,%s\n'
+                             % (family, width, ip.encode("ASCII")))
+        for (family, ip, width) in self.subnets_exclude:
+            self.pfile.write(b'%d,%d,1,%s\n'
+                             % (family, width, ip.encode("ASCII")))
+
+        self.pfile.write(b'NSLIST\n')
+        for (family, ip) in self.nslist:
+            self.pfile.write(b'%d,%s\n'
+                             % (family, ip.encode("ASCII")))
+
+        self.pfile.write(
+            b'PORTS %d,%d,%d,%d\n'
+            % (self.redirectport_v6, self.redirectport_v4,
+               self.dnsport_v6, self.dnsport_v4))
+
+        udp = 0
+        if self.udp:
+            udp = 1
+
+        self.pfile.write(b'GO %d\n' % udp)
         self.pfile.flush()
+
         line = self.pfile.readline()
         self.check()
         if line != b'STARTED\n':
@@ -413,12 +305,8 @@ def onaccept_tcp(listener, method, mux, handlers):
             return
         else:
             raise
-    if method == b"tproxy":
-        dstip = sock.getsockname()
-    elif method == b"pf":
-        dstip = pf_dst(sock)
-    else:
-        dstip = original_dst(sock)
+
+    dstip = method.get_tcp_dstip(sock)
     debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
                                               dstip[0], dstip[1]))
     if dstip[1] == sock.getsockname()[1] and islocal(dstip[0], sock.family):
@@ -437,37 +325,26 @@ def onaccept_tcp(listener, method, mux, handlers):
     expire_connections(time.time(), mux)
 
 
-def udp_done(chan, data, method, family, dstip):
+def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
-
-    try:
-        sender = socket.socket(family, socket.SOCK_DGRAM)
-        sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-        sender.bind(srcip)
-        sender.sendto(data, dstip)
-        sender.close()
-    except socket.error as e:
-        debug1('-- ignored socket error sending UDP data: %r\n' % e)
+    method.send_udp(sock, srcip, dstip, data)
 
 
 def onaccept_udp(listener, method, mux, handlers):
     now = time.time()
-    srcip, dstip, data = recv_udp(listener, 4096)
-    if not dstip:
-        debug1(
-            "-- ignored UDP from %r: "
-            "couldn't determine destination IP address\n" % (srcip,))
+    t = method.recv_udp(listener, 4096)
+    if t is None:
         return
+    srcip, dstip, data = t
     debug1('Accept UDP: %r -> %r.\n' % (srcip, dstip,))
     if srcip in udp_by_src:
         chan, timeout = udp_by_src[srcip]
     else:
         chan = mux.next_channel()
         mux.channels[chan] = lambda cmd, data: udp_done(
-            chan, data, method, listener.family, dstip=srcip)
+            chan, data, method, listener, dstip=srcip)
         mux.send(chan, ssnet.CMD_UDP_OPEN, listener.family)
     udp_by_src[srcip] = chan, now + 30
 
@@ -481,27 +358,15 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
-    if method == b"tproxy":
-        debug3('doing send from %r to %r\n' % (srcip, dstip,))
-        sender = socket.socket(sock.family, socket.SOCK_DGRAM)
-        sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-        sender.bind(srcip)
-        sender.sendto(data, dstip)
-        sender.close()
-    else:
-        debug3('doing sendto %r\n' % (dstip,))
-        sock.sendto(data, dstip)
+    method.send_udp(sock, srcip, dstip, data)
 
 
 def ondns(listener, method, mux, handlers):
     now = time.time()
-    srcip, dstip, data = recv_udp(listener, 4096)
-    if method == b"tproxy" and not dstip:
-        debug1(
-            "-- ignored UDP from %r: "
-            "couldn't determine destination IP address\n" % (srcip,))
+    t = method.recv_udp(listener, 4096)
+    if t is None:
         return
+    srcip, dstip, data = t
     debug1('DNS request from %r to %r: %d bytes\n' % (srcip, dstip, len(data)))
     chan = mux.next_channel()
     dnsreqs[chan] = now + 30
@@ -513,8 +378,11 @@ def ondns(listener, method, mux, handlers):
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
-          dns_listener, method, seed_hosts, auto_nets,
+          dns_listener, seed_hosts, auto_nets,
           syslog, daemon):
+
+    method = fw.method
+
     handlers = []
     if helpers.verbose >= 1:
         helpers.logprefix = 'c : '
@@ -526,7 +394,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         (serverproc, serversock) = ssh.connect(
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
-            options=dict(latency_control=latency_control, method=method))
+            options=dict(latency_control=latency_control))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -618,7 +486,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
-         method, seed_hosts, auto_nets,
+         method_name, seed_hosts, auto_nets,
          subnets_include, subnets_exclude, syslog, daemon, pidfile):
 
     if syslog:
@@ -631,22 +499,20 @@ def main(listenip_v6, listenip_v4,
             return 5
     debug1('Starting sshuttle proxy.\n')
 
-    if recvmsg is not None:
-        debug1("recvmsg %s support enabled.\n" % recvmsg)
+    fw = FirewallClient(method_name)
 
-    if method == b"tproxy":
-        if recvmsg is not None:
-            debug1("tproxy UDP support enabled.\n")
-            udp = True
+    features = fw.method.get_supported_features()
+    if listenip_v6 == "auto":
+        if features.ipv6:
+            listenip_v6 = ('::1', 0)
         else:
-            debug1("tproxy UDP support requires recvmsg function.\n")
-            udp = False
-        if dns and recvmsg is None:
-            debug1("tproxy DNS support requires recvmsg function.\n")
-            dns = False
-    else:
-        debug1("UDP support requires tproxy; disabling UDP.\n")
-        udp = False
+            listenip_v6 = None
+
+    if listenip_v4 == "auto":
+        listenip_v4 = ('127.0.0.1', 0)
+
+    udp = features.udp
+    debug1("UDP enabled: %r\n" % udp)
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
@@ -703,6 +569,7 @@ def main(listenip_v6, listenip_v4,
                 last_e = e
             else:
                 raise e
+
     debug2('\n')
     if not bound:
         assert(last_e)
@@ -716,6 +583,7 @@ def main(listenip_v6, listenip_v4,
     if dns or nslist:
         if dns:
             nslist += resolvconf_nameservers()
+        dns = True
         # search for spare port for DNS
         debug2('Binding DNS:')
         ports = range(12300, 9000, -1)
@@ -756,35 +624,25 @@ def main(listenip_v6, listenip_v4,
         dnsport_v4 = 0
         dns_listener = None
 
-    fw = FirewallClient(redirectport_v6, redirectport_v4, subnets_include,
-                        subnets_exclude, dnsport_v6, dnsport_v4, nslist,
-                        method, udp)
+    fw.method.check_settings(udp, dns)
+    fw.method.setup_tcp_listener(tcp_listener)
+    if udp_listener:
+        fw.method.setup_udp_listener(tcp_listener)
+    if dns_listener:
+        fw.method.setup_udp_listener(dns_listener)
 
-    if fw.method == b"tproxy":
-        tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-        if udp_listener:
-            udp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-            if udp_listener.v4 is not None:
-                udp_listener.v4.setsockopt(
-                    socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
-            if udp_listener.v6 is not None:
-                udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
-        if dns_listener:
-            dns_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-            if dns_listener.v4 is not None:
-                dns_listener.v4.setsockopt(
-                    socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
-            if dns_listener.v6 is not None:
-                dns_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
+    fw.setup(subnets_include, subnets_exclude, nslist,
+             redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
+             udp)
 
-    if fw.method == b"pf":
-        global pf_command_file
-        pf_command_file = fw.pfile
+    # kludge for PF method.
+    global firewall
+    firewall = fw
 
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,
-                     fw.method, seed_hosts, auto_nets, syslog,
+                     seed_hosts, auto_nets, syslog,
                      daemon)
     finally:
         try:
