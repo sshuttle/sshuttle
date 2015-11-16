@@ -36,13 +36,6 @@ class Fatal(Exception):
     pass
 
 
-def list_contains_any(l, sub):
-    for i in sub:
-        if i in l:
-            return True
-    return False
-
-
 def resolvconf_nameservers():
     l = []
     for line in open('/etc/resolv.conf'):
