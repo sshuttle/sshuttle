@@ -9,4 +9,4 @@ install:
     - travis_retry pip install -q pytest mock
 
 script:
-  - py.test
+  - PYTHONPATH=. py.test
