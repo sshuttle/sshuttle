@@ -118,9 +118,14 @@ class Method(BaseMethod):
                 "-- ignored UDP from %r: "
                 "couldn't determine destination IP address\n" % (srcip,))
             return None
-        return None
+        return srcip, dstip, data
 
     def send_udp(self, sock, srcip, dstip, data):
+        if not srcip:
+            debug1(
+                "-- ignored UDP to %r: "
+                "couldn't determine source IP address\n" % (dstip,))
+            return
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
