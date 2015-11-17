@@ -1,4 +1,5 @@
 from mock import patch, call
+import sys
 import io
 import socket
 
@@ -162,4 +163,9 @@ def test_family_ip_tuple():
 def test_family_to_string():
     assert sshuttle.helpers.family_to_string(socket.AF_INET) == "AF_INET"
     assert sshuttle.helpers.family_to_string(socket.AF_INET6) == "AF_INET6"
-    assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == "1"
+    if sys.version_info < (3, 0):
+        expected = "1"
+        assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == "1"
+    else:
+        expected = 'AddressFamily.AF_UNIX'
+    assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == expected
