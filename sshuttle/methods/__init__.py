@@ -28,7 +28,11 @@ class Features(object):
 
 class BaseMethod(object):
     def __init__(self, name):
+        self.firewall = None
         self.name = name
+
+    def set_firewall(self, firewall):
+        self.firewall = firewall
 
     def get_supported_features(self):
         result = Features()

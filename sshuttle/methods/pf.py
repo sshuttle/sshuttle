@@ -7,7 +7,7 @@ import subprocess as ssubprocess
 from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
-from sshuttle.helpers import debug1, debug2, Fatal
+from sshuttle.helpers import debug1, debug2, Fatal, family_to_string
 from sshuttle.methods import BaseMethod
 
 
@@ -146,18 +146,17 @@ def pf_add_anchor_rule(type, name):
 class Method(BaseMethod):
 
     def get_tcp_dstip(self, sock):
-        # yuck
-        from sshuttle.client import firewall
+        pfile = self.firewall.pfile
 
         peer = sock.getpeername()
         proxy = sock.getsockname()
 
         argv = (sock.family, socket.IPPROTO_TCP,
                 peer[0], peer[1], proxy[0], proxy[1])
-        firewall.pfile.write("QUERY_PF_NAT %r,%r,%s,%r,%s,%r\n" % argv)
-        firewall.pfile.flush()
-        line = firewall.pfile.readline()
-        debug2("QUERY_PF_NAT %r,%r,%s,%r,%s,%r" % argv + ' > ' + line)
+        pfile.write("QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % argv)
+        pfile.flush()
+        line = pfile.readline()
+        debug2("QUERY_PF_NAT %d,%d,%s,%d,%s,%d" % argv + ' > ' + line)
         if line.startswith('QUERY_PF_NAT_SUCCESS '):
             (ip, port) = line[21:].split(',')
             return (ip, int(port))
@@ -169,6 +168,13 @@ class Method(BaseMethod):
         tables = []
         translating_rules = []
         filtering_rules = []
+
+        if family != socket.AF_INET:
+            raise Exception(
+                'Address family "%s" unsupported by pf method_name'
+                % family_to_string(family))
+        if udp:
+            raise Exception("UDP not supported by pf method_name")
 
         if subnets:
             includes = []

@@ -92,8 +92,6 @@ def daemon_cleanup():
         else:
             raise
 
-firewall = None
-
 
 class MultiListener:
 
@@ -207,6 +205,7 @@ class FirewallClient:
             raise Fatal('%r expected READY, got %r' % (self.argv, line))
         method_name = line[6:-1]
         self.method = get_method(method_name.decode("ASCII"))
+        self.method.set_firewall(self)
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp):
@@ -634,10 +633,6 @@ def main(listenip_v6, listenip_v4,
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
              udp)
-
-    # kludge for PF method.
-    global firewall
-    firewall = fw
 
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
