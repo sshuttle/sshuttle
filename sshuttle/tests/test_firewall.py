@@ -24,6 +24,11 @@ GO 1
     return stdin, stdout
 
 
+@patch('sshuttle.firewall.HOSTSFILE', new='tmp/hosts')
+@patch('sshuttle.firewall.hostmap', new={
+    'myhost': '1.2.3.4',
+    'myotherhost': '1.2.3.5',
+})
 def test_rewrite_etc_hosts():
     if not os.path.isdir("tmp"):
         os.mkdir("tmp")
@@ -33,11 +38,6 @@ def test_rewrite_etc_hosts():
 
     shutil.copyfile("tmp/hosts.orig", "tmp/hosts")
 
-    sshuttle.firewall.HOSTSFILE = "tmp/hosts"
-    sshuttle.firewall.hostmap = {
-        'myhost': '1.2.3.4',
-        'myotherhost': '1.2.3.5',
-    }
     sshuttle.firewall.rewrite_etc_hosts(10)
     with open("tmp/hosts") as f:
         line = f.readline()
@@ -61,13 +61,25 @@ def test_rewrite_etc_hosts():
     assert filecmp.cmp("tmp/hosts.orig", "tmp/hosts", shallow=False) is True
 
 
+@patch('sshuttle.firewall.HOSTSFILE', new='tmp/hosts')
 @patch('sshuttle.firewall.setup_daemon')
 @patch('sshuttle.firewall.get_method')
 def test_main(mock_get_method, mock_setup_daemon):
     stdin, stdout = setup_daemon()
     mock_setup_daemon.return_value = stdin, stdout
 
+    if not os.path.isdir("tmp"):
+        os.mkdir("tmp")
+
     sshuttle.firewall.main("test", False)
+
+    with open("tmp/hosts") as f:
+        line = f.readline()
+        s = line.split()
+        assert s == ['1.2.3.3', 'existing']
+
+        line = f.readline()
+        assert line == ""
 
     stdout.mock_calls == [
         call.write('READY test\n'),
