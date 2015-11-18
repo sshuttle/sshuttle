@@ -112,7 +112,7 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
         c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
-        pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)))
+        pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
     port = socket.ntohs(pnl.rdxport.port)
     return (ip, port)
 
