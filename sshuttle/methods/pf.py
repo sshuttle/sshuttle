@@ -97,19 +97,23 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     [proto, family, src_port, dst_port] = [
         int(v) for v in [proto, family, src_port, dst_port]]
 
-    length = 4 if family == socket.AF_INET else 16
+    packed_src_ip = socket.inet_pton(family, src_ip)
+    packed_dst_ip = socket.inet_pton(family, dst_ip)
+
+    assert len(packed_src_ip) == len(packed_dst_ip)
+    length = len(packed_src_ip)
 
     pnl = pfioc_natlook()
     pnl.proto = proto
     pnl.direction = PF_OUT
     pnl.af = family
-    memmove(addressof(pnl.saddr), socket.inet_pton(pnl.af, src_ip), length)
+    memmove(addressof(pnl.saddr), packed_src_ip, length)
     pnl.sxport.port = socket.htons(src_port)
-    memmove(addressof(pnl.daddr), socket.inet_pton(pnl.af, dst_ip), length)
+    memmove(addressof(pnl.daddr), packed_dst_ip, length)
     pnl.dxport.port = socket.htons(dst_port)
 
-    ioctl(pf_get_dev(), DIOCNATLOOK, (
-        c_char * sizeof(pnl)).from_address(addressof(pnl)))
+    ioctl(pf_get_dev(), DIOCNATLOOK,
+          (c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
         pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
