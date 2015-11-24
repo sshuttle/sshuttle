@@ -95,8 +95,8 @@ def main(method_name, syslog):
         ssyslog.start_syslog()
         ssyslog.stderr_to_syslog()
 
-    debug1('firewall manager ready method name %s.\n' % method_name)
-    stdout.write('READY %s\n' % method_name)
+    debug1('firewall manager ready method name %s.\n' % method.name)
+    stdout.write('READY %s\n' % method.name)
     stdout.flush()
 
     # we wait until we get some input before creating the rules.  That way,
