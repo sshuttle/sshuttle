@@ -106,16 +106,18 @@ class MultiListener:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
+        socks = []
         if self.v6:
-            handlers.append(
-                Handler(
-                    [self.v6],
-                    lambda: callback(self.v6, method, mux, handlers)))
+            socks.append(self.v6)
         if self.v4:
-            handlers.append(
-                Handler(
-                    [self.v4],
-                    lambda: callback(self.v4, method, mux, handlers)))
+            socks.append(self.v4)
+
+        handlers.append(
+            Handler(
+                socks,
+                lambda sock: callback(sock, method, mux, handlers)
+            )
+        )
 
     def listen(self, backlog):
         if self.v6:
@@ -480,7 +482,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
-        mux.callback()
 
 
 def main(listenip_v6, listenip_v4,

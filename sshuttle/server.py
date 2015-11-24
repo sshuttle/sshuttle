@@ -156,9 +156,9 @@ class DnsProxy(Handler):
                 log('DNS send to %r: %s\n' % (self.peer, e))
                 return
 
-    def callback(self):
+    def callback(self, sock):
         try:
-            data = self.sock.recv(4096)
+            data = sock.recv(4096)
         except socket.error as e:
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
@@ -195,9 +195,9 @@ class UdpProxy(Handler):
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
-    def callback(self):
+    def callback(self, sock):
         try:
-            data, peer = self.sock.recvfrom(4096)
+            data, peer = sock.recvfrom(4096)
         except socket.error as e:
             log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
             return
@@ -236,7 +236,7 @@ def main(latency_control):
     hw = Hostwatch()
     hw.leftover = ''
 
-    def hostwatch_ready():
+    def hostwatch_ready(sock):
         assert(hw.pid)
         content = hw.sock.recv(4096)
         if content:
@@ -314,7 +314,6 @@ def main(latency_control):
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
-        mux.callback()
 
         if dnshandlers:
             now = time.time()

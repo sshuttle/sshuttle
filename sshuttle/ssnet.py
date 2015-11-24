@@ -260,7 +260,7 @@ class Handler:
         for i in self.socks:
             _add(r, i)
 
-    def callback(self):
+    def callback(self, sock):
         log('--no callback defined-- %r\n' % self)
         (r, w, x) = select.select(self.socks, [], [], 0)
         for s in r:
@@ -301,7 +301,7 @@ class Proxy(Handler):
         elif not self.wrap2.shut_read:
             _add(r, self.wrap2.rsock)
 
-    def callback(self):
+    def callback(self, sock):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
         self.wrap1.fill()
@@ -467,7 +467,7 @@ class Mux(Handler):
         if self.outbuf:
             _add(w, self.wsock)
 
-    def callback(self):
+    def callback(self, sock):
         (r, w, x) = select.select([self.rsock], [self.wsock], [], 0)
         if self.rsock in r:
             self.handle()
@@ -572,7 +572,7 @@ def runonce(handlers, mux):
     for h in handlers:
         for s in h.socks:
             if s in ready:
-                h.callback()
+                h.callback(s)
                 did[s] = 1
     for s in ready:
         if s not in did:
