@@ -120,55 +120,62 @@ class Hostwatch:
 class DnsProxy(Handler):
 
     def __init__(self, mux, chan, request):
-        # FIXME! IPv4 specific
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        Handler.__init__(self, [sock])
+        Handler.__init__(self, [])
         self.timeout = time.time() + 30
         self.mux = mux
         self.chan = chan
         self.tries = 0
-        self.peer = None
         self.request = request
-        self.sock = sock
-        # FIXME! IPv4 specific
-        self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+        self.peers = {}
         self.try_send()
 
     def try_send(self):
         if self.tries >= 3:
             return
         self.tries += 1
-        # FIXME! Support IPv6 nameservers
-        self.peer = resolvconf_random_nameserver()[1]
-        self.sock.connect((self.peer, 53))
-        debug2('DNS: sending to %r\n' % self.peer)
+
+        family, peer = resolvconf_random_nameserver()
+
+        sock = socket.socket(family, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
+        sock.connect((peer, 53))
+
+        self.peers[sock] = peer
+
+        debug2('DNS: sending to %r (try %d)\n' % (peer, self.tries))
         try:
-            self.sock.send(self.request)
+            sock.send(self.request)
+            self.socks.append(sock)
         except socket.error as e:
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
                 # and sometimes by send().  We have to catch both.
-                debug2('DNS send to %r: %s\n' % (self.peer, e))
+                debug2('DNS send to %r: %s\n' % (peer, e))
                 self.try_send()
                 return
             else:
-                log('DNS send to %r: %s\n' % (self.peer, e))
+                log('DNS send to %r: %s\n' % (peer, e))
                 return
 
     def callback(self, sock):
+        peer = self.peers[sock]
+
         try:
             data = sock.recv(4096)
         except socket.error as e:
+            self.socks.remove(sock)
+            del self.peers[sock]
+
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
                 # and sometimes by send().  We have to catch both.
-                debug2('DNS recv from %r: %s\n' % (self.peer, e))
+                debug2('DNS recv from %r: %s\n' % (peer, e))
                 self.try_send()
                 return
             else:
-                log('DNS recv from %r: %s\n' % (self.peer, e))
+                log('DNS recv from %r: %s\n' % (peer, e))
                 return
         debug2('DNS response: %d bytes\n' % len(data))
         self.mux.send(self.chan, ssnet.CMD_DNS_RESPONSE, data)
