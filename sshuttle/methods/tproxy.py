@@ -216,8 +216,7 @@ class Method(BaseMethod):
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'tcp', '-p', 'tcp')
                 else:
-                    _ipt('-A', mark_chain, '-j', 'MARK',
-                         '--set-mark', '1',
+                    _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'tcp', '-p', 'tcp')
                     _ipt('-A', tproxy_chain, '-j', 'TPROXY',
@@ -234,8 +233,7 @@ class Method(BaseMethod):
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp', '-p', 'udp')
                 elif udp:
-                    _ipt('-A', mark_chain, '-j', 'MARK',
-                         '--set-mark', '1',
+                    _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp', '-p', 'udp')
                     _ipt('-A', tproxy_chain, '-j', 'TPROXY',
