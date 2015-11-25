@@ -627,7 +627,7 @@ def main(listenip_v6, listenip_v4,
     fw.method.check_settings(udp, dns)
     fw.method.setup_tcp_listener(tcp_listener)
     if udp_listener:
-        fw.method.setup_udp_listener(tcp_listener)
+        fw.method.setup_udp_listener(udp_listener)
     if dns_listener:
         fw.method.setup_udp_listener(dns_listener)
 
