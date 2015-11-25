@@ -147,9 +147,11 @@ class MultiListener:
         if self.v6:
             listenip = self.v6.getsockname()
             debug1('%s listening on %r.\n' % (what, listenip))
+            debug2('%s listening with %r.\n' % (what, self.v6))
         if self.v4:
             listenip = self.v4.getsockname()
             debug1('%s listening on %r.\n' % (what, listenip))
+            debug2('%s listening with %r.\n' % (what, self.v4))
 
 
 class FirewallClient:
