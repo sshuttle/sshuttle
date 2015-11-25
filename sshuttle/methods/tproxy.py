@@ -251,8 +251,8 @@ class Method(BaseMethod):
         if dns and recvmsg is None:
             Fatal("tproxy DNS support requires recvmsg function.\n")
 
-        if dns:
+        if udp:
             debug1("tproxy UDP support enabled.\n")
 
-        if udp:
+        if dns:
             debug1("tproxy DNS support enabled.\n")
