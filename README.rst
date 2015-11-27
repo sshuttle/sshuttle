@@ -50,6 +50,11 @@ Client side Requirements
 | MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
 +-------+--------+------------+-----------------------------------------------+
 
+The IPFW method is depreciated. It was originally required for MacOS support,
+however is no longer maintained. It is likely to get removed from future
+versions of sshuttle.
+
+
 Server side Requirements
 ------------------------
 Python 2.7 or Python 3.5. This should match what is used on the client side.
