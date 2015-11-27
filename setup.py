@@ -48,5 +48,6 @@ setup(
             'sshuttle = sshuttle.__main__',
         ],
     },
+    tests_require=['pytest', 'mock'],
     keywords="ssh vpn",
 )
