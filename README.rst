@@ -26,58 +26,87 @@ common case:
   TCP-over-TCP, which has terrible performance (see below).
 
 
-Prerequisites
--------------
+Client side Requirements
+------------------------
 
-- sudo, su, or logged in as root on your client machine.
+- sudo, or logged in as root on your client machine.
   (The server doesn't need admin access.)
+- Python 2.7 or Python 3.5.
 
-- If you use Linux on your client machine:
-  iptables installed on the client, including at
-  least the iptables DNAT, REDIRECT, and ttl modules. 
-  These are installed by default on most Linux distributions. 
-  (The server doesn't need iptables and doesn't need to be
-  Linux.)
++-------+--------+------------+-----------------------------------------------+
+| OS    | Method | Features   | Requirements                                  |
++=======+========+============+===============================================+
+| Linux | NAT    | * IPv4 TCP + iptables DNAT, REDIRECT, and ttl modules.     |
++       +--------+------------+-----------------------------------------------+
+|       | TPROXY | * IPv4 TCP + Linux with TPROXY support.                    |
+|       |        | * IPv4 UDP + Python 3.5 preferred (see below).             |
+|       |        | * IPv6 TCP +                                               |
+|       |        | * IPv6 UDP +                                               |
++-------+--------+------------+-----------------------------------------------+
+| BSD   | IPFW   | * IPv4 TCP | Your kernel needs to be compiled with         |
+|       |        |            | `IPFIREWALL_FORWARD` and you need to have ipfw|
+|       |        |            | available.                                    |
++-------+--------+------------+-----------------------------------------------+
+| MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
++-------+--------+------------+-----------------------------------------------+
 
-- If you use MacOS or BSD on your client machine:
-  Your kernel needs to be compiled with `IPFIREWALL_FORWARD`
-  (MacOS has this by default) and you need to have ipfw
-  available. (The server doesn't need to be MacOS or BSD.)
-
-- Python 2.x, both locally and the remote system. Python 3.x is not yet
-  supported.
-
-*WARNING*:
-On MacOS 10.6 (at least up to 10.6.6), your network will
-stop responding about 10 minutes after the first time you
-start sshuttle, because of a MacOS kernel bug relating to
-arp and the net.inet.ip.scopedroute sysctl.  To fix it,
-just switch your wireless off and on. Sshuttle makes the
-kernel setting it changes permanent, so this won't happen
-again, even after a reboot.
+Server side Requirements
+------------------------
+Python 2.7 or Python 3.5. This should match what is used on the client side.
 
 
 Additional Suggested Software
 -----------------------------
 
-- You may want to need autossh, available in various package management
+- You may want to use autossh, available in various package management
   systems
 
-- For Linux only tproxy support, you need PyXAPI, available here:
+
+Additional information for TPROXY
+---------------------------------
+TPROXY is the only method that supports full support of IPv6 and UDP.
+
+Full UDP or DNS support with the TPROXY method requires the `recvmsg()`
+syscall. This is not available in Python 2.7, however is in Python 3.5 and
+later.
+
+- For Python 2.7, you need PyXAPI, available here:
   http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+
+There are some things you need to consider for TPROXY to work:
+
+1. The following commands need to be run first as root. This only needs to be
+   done once after booting up::
+
+       ip route add local default dev lo table 100
+       ip rule add fwmark 1 lookup 100
+       ip -6 route add local default dev lo table 100
+       ip -6 rule add fwmark 1 lookup 100
+
+2. The client needs to be run as root. e.g.::
+
+       sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" $HOME/tree/sshuttle.tproxy/sshuttle  --method=tproxy ...
+
+3. You do need the `--method=tproxy` parameter, as above.
+
+4. The routes for the outgoing packets must already exist. For example, if your
+   connection does not have IPv6 support, no IPv6 routes will exist, IPv6
+   packets will not be generated and sshuttle cannot intercept them. Add some
+   dummy routes to external interfaces. Make sure they get removed however
+   after sshuttle exits.
 
 
 Obtaining sshuttle
 ------------------
 
+- From PyPI::
+
+      pip install sshuttle
+
 - Clone::
 
       git clone https://github.com/sshuttle/sshuttle.git
       ./setup.py install
-
-- From PyPI::
-
-      pip install sshuttle
 
 
 Usage
@@ -86,6 +115,9 @@ Usage
 - Forward all traffic::
 
       sshuttle -r username@sshserver 0.0.0.0/0 -vv
+
+- By default sshuttle will automatically choose a method to use. Override with
+  the `--method=` parameter.
 
 - There is a shortcut for 0.0.0.0/0 for those that value
   their wrists::
@@ -100,10 +132,9 @@ Usage
   The above is probably what you want to use to prevent
   local network attacks such as Firesheep and friends.
 
-(You may be prompted for one or more passwords; first, the
-local password to become root using either sudo or su, and
-then the remote ssh password.  Or you might have sudo and ssh set
-up to not require passwords, in which case you won't be
+(You may be prompted for one or more passwords; first, the local password to
+become root using sudo, and then the remote ssh password.  Or you might have
+sudo and ssh set up to not require passwords, in which case you won't be
 prompted at all.)
 
 
@@ -163,11 +194,12 @@ doesn't care about individual connections; ie. it's "stateless" with respect
 to the traffic.  sshuttle is the opposite of stateless; it tracks every
 single connection.
 
-You could compare sshuttle to something like the old `Slirp <http://en.wikipedia.org/wiki/Slirp>`_ program, which was a
-userspace TCP/IP implementation that did something similar.  But it
-operated on a packet-by-packet basis on the client side, reassembling the
-packets on the server side.  That worked okay back in the "real live serial
-port" days, because serial ports had predictable latency and buffering.
+You could compare sshuttle to something like the old `Slirp
+<http://en.wikipedia.org/wiki/Slirp>`_ program, which was a userspace TCP/IP
+implementation that did something similar.  But it operated on a
+packet-by-packet basis on the client side, reassembling the packets on the
+server side.  That worked okay back in the "real live serial port" days,
+because serial ports had predictable latency and buffering.
 
 But you can't safely just forward TCP packets over a TCP session (like ssh),
 because TCP's performance depends fundamentally on packet loss; it
@@ -187,14 +219,15 @@ safe.
 
 Useless Trivia
 --------------
+This section written by Avery Pennarun <apenwarr@gmail.com>.
 
-Back in 1998 (12 years ago!  Yikes!), I released the first version of `Tunnel Vision <http://alumnit.ca/wiki/?TunnelVisionReadMe>`_, a
-semi-intelligent VPN client for Linux.  Unfortunately, I made two big mistakes: 
-I implemented the key exchange myself (oops), and I ended up doing
-TCP-over-TCP (double oops).  The resulting program worked okay - and people
-used it for years - but the performance was always a bit funny.  And nobody
-ever found any security flaws in my key exchange, either, but that doesn't
-mean anything. :)
+Back in 1998 (12 years ago!  Yikes!), I released the first version of `Tunnel
+Vision <http://alumnit.ca/wiki/?TunnelVisionReadMe>`_, a semi-intelligent VPN
+client for Linux.  Unfortunately, I made two big mistakes: I implemented the
+key exchange myself (oops), and I ended up doing TCP-over-TCP (double oops).
+The resulting program worked okay - and people used it for years - but the
+performance was always a bit funny.  And nobody ever found any security flaws
+in my key exchange, either, but that doesn't mean anything. :)
 
 The same year, dcoombs and I also released Fast Forward, a proxy server
 supporting transparent proxying.  Among other things, we used it for
@@ -202,21 +235,19 @@ automatically splitting traffic across more than one Internet connection (a
 tool we called "Double Vision").
 
 I was still in university at the time.  A couple years after that, one of my
-professors was working with some graduate students on the technology that
-would eventually become `Slipstream Internet Acceleration <http://www.slipstream.com/>`_.  He asked me to do a contract for him to build an
-initial prototype of a transparent proxy server for mobile networks.  The
+professors was working with some graduate students on the technology that would
+eventually become `Slipstream Internet Acceleration
+<http://www.slipstream.com/>`_.  He asked me to do a contract for him to build
+an initial prototype of a transparent proxy server for mobile networks.  The
 idea was similar to sshuttle: if you reassemble and then disassemble the TCP
 packets, you can reduce latency and improve performance vs.  just forwarding
-the packets over a plain VPN or mobile network.  (It's unlikely that any of
-my code has persisted in the Slipstream product today, but the concept is
-still pretty cool.  I'm still horrified that people use plain TCP on
-complex mobile networks with crazily variable latency, for which it was
-never really intended.)
+the packets over a plain VPN or mobile network.  (It's unlikely that any of my
+code has persisted in the Slipstream product today, but the concept is still
+pretty cool.  I'm still horrified that people use plain TCP on complex mobile
+networks with crazily variable latency, for which it was never really
+intended.)
 
 That project I did for Slipstream was what first gave me the idea to merge
 the concepts of Fast Forward, Double Vision, and Tunnel Vision into a single
 program that was the best of all worlds.  And here we are, at last, 10 years
 later.  You're welcome.
-
---
-Avery Pennarun <apenwarr@gmail.com>
