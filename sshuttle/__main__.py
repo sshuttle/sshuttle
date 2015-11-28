@@ -145,7 +145,7 @@ if opt.daemon:
 if opt.wrap:
     import sshuttle.ssnet as ssnet
     ssnet.MAX_CHANNEL = int(opt.wrap)
-helpers.verbose = opt.verbose
+helpers.verbose = opt.verbose or 0
 
 try:
     if opt.firewall:
