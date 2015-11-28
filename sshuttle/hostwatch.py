@@ -37,6 +37,7 @@ def write_host_cache():
         for name, ip in sorted(hostnames.items()):
             f.write('%s,%s\n' % (name, ip))
         f.close()
+        os.chmod(tmpname, 0o600)
         os.rename(tmpname, CACHEFILE)
     finally:
         try:

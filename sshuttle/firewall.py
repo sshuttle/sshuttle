@@ -41,7 +41,7 @@ def rewrite_etc_hosts(port):
         os.chmod(tmpname, st.st_mode)
     else:
         os.chown(tmpname, 0, 0)
-        os.chmod(tmpname, 0o644)
+        os.chmod(tmpname, 0o600)
     os.rename(tmpname, HOSTSFILE)
 
 
