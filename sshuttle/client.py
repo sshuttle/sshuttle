@@ -259,8 +259,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(r'[^-\w]', hostname))
-        assert(not re.search(r'[^0-9.]', ip))
+        assert(not re.search(b'[^-\w]', hostname))
+        assert(not re.search(b'[^0-9.]', ip))
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
@@ -460,7 +460,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         debug2('got host list: %r\n' % hostlist)
         for line in hostlist.strip().split():
             if line:
-                name, ip = line.split(',', 1)
+                name, ip = line.split(b',', 1)
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
@@ -474,7 +474,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     if seed_hosts is not None:
         debug1('seed_hosts: %r\n' % seed_hosts)
-        mux.send(0, ssnet.CMD_HOST_REQ, '\n'.join(seed_hosts))
+        mux.send(0, ssnet.CMD_HOST_REQ, b'\n'.join(seed_hosts))
 
     while 1:
         rv = serverproc.poll()
