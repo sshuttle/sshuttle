@@ -91,7 +91,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     pyscript = r"""
                 import sys;
                 verbosity=%d;
-                exec compile(sys.stdin.read(%d), "assembler.py", "exec")
+                exec(compile(sys.stdin.read(%d), "assembler.py", "exec"))
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
 
