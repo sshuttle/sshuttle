@@ -4,6 +4,7 @@ import signal
 import sshuttle.ssyslog as ssyslog
 import sys
 import os
+import platform
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
@@ -85,6 +86,9 @@ def setup_daemon():
 # are hopefully harmless.
 def main(method_name, syslog):
     stdin, stdout = setup_daemon()
+
+    debug1('Starting firewall with Python version %s\n'
+           % platform.python_version())
 
     if method_name == "auto":
         method = get_auto_method()

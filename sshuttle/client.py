@@ -10,6 +10,7 @@ import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
 import sys
+import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
@@ -383,6 +384,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
           dns_listener, seed_hosts, auto_nets,
           syslog, daemon):
+
+    debug1('Starting client with Python version %s\n'
+           % platform.python_version())
 
     method = fw.method
 

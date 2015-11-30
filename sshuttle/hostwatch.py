@@ -5,6 +5,7 @@ import select
 import errno
 import os
 import sys
+import platform
 
 import subprocess as ssubprocess
 import sshuttle.helpers as helpers
@@ -254,6 +255,9 @@ def hw_main(seed_hosts):
         helpers.logprefix = 'HH: '
     else:
         helpers.logprefix = 'hostwatch: '
+
+    debug1('Starting hostwatch with Python version %s\n'
+           % platform.python_version())
 
     read_host_cache()
 

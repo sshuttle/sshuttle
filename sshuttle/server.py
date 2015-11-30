@@ -5,6 +5,7 @@ import traceback
 import time
 import sys
 import os
+import platform
 
 import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
@@ -214,6 +215,9 @@ class UdpProxy(Handler):
 
 
 def main(latency_control):
+    debug1('Starting server with Python version %s\n'
+           % platform.python_version())
+
     if helpers.verbose >= 1:
         helpers.logprefix = ' s: '
     else:
