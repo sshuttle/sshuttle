@@ -24,7 +24,7 @@ def pfctl(args, stdin=None):
 
     return o
 
-_pf_context = {'started_by_sshuttle': False, 'Xtoken': ''}
+_pf_context = {'started_by_sshuttle': False, 'Xtoken': None}
 
 
 # This are some classes and functions used to support pf in yosemite.
@@ -227,7 +227,8 @@ class Method(BaseMethod):
         else:
             pfctl('-a sshuttle -F all')
             if sys.platform == "darwin":
-                pfctl('-X %s' % _pf_context['Xtoken'])
+                if _pf_context['Xtoken'] is not None:
+                    pfctl('-X %s' % _pf_context['Xtoken'])
             elif _pf_context['started_by_sshuttle']:
                 pfctl('-d')
 
