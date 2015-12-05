@@ -168,7 +168,6 @@ class Method(BaseMethod):
         return sock.getsockname()
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
-        global _pf_started_by_sshuttle
         tables = []
         translating_rules = []
         filtering_rules = []
