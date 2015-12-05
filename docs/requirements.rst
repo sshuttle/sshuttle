@@ -62,6 +62,7 @@ cmd.exe with Administrator access. See :doc:`windows` for more information.
 
 Server side Requirements
 ------------------------
+Server requirements are more relaxed, however it is recommended that you use
 Python 2.7 or Python 3.5.
 
 

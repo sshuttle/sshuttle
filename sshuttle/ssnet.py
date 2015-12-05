@@ -1,9 +1,10 @@
+import sys
 import struct
 import socket
 import errno
 import select
 import os
-from sshuttle.helpers import log, debug1, debug2, debug3, Fatal
+from sshuttle.helpers import b, binary_type, log, debug1, debug2, debug3, Fatal
 
 MAX_CHANNEL = 65535
 
@@ -75,7 +76,8 @@ def _fds(l):
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except OSError as e:
+    except OSError:
+        _, e = sys.exc_info()[:2]
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
         else:
@@ -88,7 +90,8 @@ def _try_peername(sock):
         pn = sock.getpeername()
         if pn:
             return '%s:%s' % (pn[0], pn[1])
-    except socket.error as e:
+    except socket.error:
+        _, e = sys.exc_info()[:2]
         if e.args[0] not in (errno.ENOTCONN, errno.ENOTSOCK):
             raise
     return 'unknown'
@@ -144,7 +147,8 @@ class SockWrapper:
             self.rsock.connect(self.connect_to)
             # connected successfully (Linux)
             self.connect_to = None
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             debug3('%r: connect result: %s\n' % (self, e))
             if e.args[0] == errno.EINVAL:
                 # this is what happens when you call connect() on a socket
@@ -191,7 +195,8 @@ class SockWrapper:
             self.shut_write = True
             try:
                 self.wsock.shutdown(SHUT_WR)
-            except socket.error as e:
+            except socket.error:
+                _, e = sys.exc_info()[:2]
                 self.seterr('nowrite: %s' % e)
 
     def too_full(self):
@@ -203,7 +208,8 @@ class SockWrapper:
         self.wsock.setblocking(False)
         try:
             return _nb_clean(os.write, self.wsock.fileno(), buf)
-        except OSError as e:
+        except OSError:
+            _, e = sys.exc_info()[:2]
             if e.errno == errno.EPIPE:
                 debug1('%r: uwrite: got EPIPE\n' % self)
                 self.nowrite()
@@ -225,9 +231,10 @@ class SockWrapper:
         self.rsock.setblocking(False)
         try:
             return _nb_clean(os.read, self.rsock.fileno(), 65536)
-        except OSError as e:
+        except OSError:
+            _, e = sys.exc_info()[:2]
             self.seterr('uread: %s' % e)
-            return b''  # unexpected error... we'll call it EOF
+            return b('')  # unexpected error... we'll call it EOF
 
     def fill(self):
         if self.buf:
@@ -235,7 +242,7 @@ class SockWrapper:
         rb = self.uread()
         if rb:
             self.buf.append(rb)
-        if rb == b'':  # empty string means EOF; None means temporarily empty
+        if rb == b(''):  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def copy_to(self, outwrap):
@@ -333,11 +340,11 @@ class Mux(Handler):
         self.channels = {}
         self.chani = 0
         self.want = 0
-        self.inbuf = b''
+        self.inbuf = b('')
         self.outbuf = []
         self.fullness = 0
         self.too_full = False
-        self.send(0, CMD_PING, b'chicken')
+        self.send(0, CMD_PING, b('chicken'))
 
     def next_channel(self):
         # channel 0 is special, so we never allocate it
@@ -357,7 +364,7 @@ class Mux(Handler):
     def check_fullness(self):
         if self.fullness > 32768:
             if not self.too_full:
-                self.send(0, CMD_PING, b'rttest')
+                self.send(0, CMD_PING, b('rttest'))
             self.too_full = True
         # ob = []
         # for b in self.outbuf:
@@ -366,9 +373,9 @@ class Mux(Handler):
         # log('outbuf: %d %r\n' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
-        assert isinstance(data, bytes)
+        assert isinstance(data, binary_type)
         assert len(data) <= 65535
-        p = struct.pack('!ccHHH', b'S', b'S', channel, cmd, len(data)) + data
+        p = struct.pack('!ccHHH', b('S'), b('S'), channel, cmd, len(data)) + data
         self.outbuf.append(p)
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
                % (channel, cmd_to_name.get(cmd, hex(cmd)),
@@ -434,14 +441,15 @@ class Mux(Handler):
     def fill(self):
         self.rsock.setblocking(False)
         try:
-            b = _nb_clean(os.read, self.rsock.fileno(), 32768)
-        except OSError as e:
+            read = _nb_clean(os.read, self.rsock.fileno(), 32768)
+        except OSError:
+            _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
         # log('<<< %r\n' % b)
-        if b == b'':  # EOF
+        if read == b(''):  # EOF
             self.ok = False
-        if b:
-            self.inbuf += b
+        if read:
+            self.inbuf += read
 
     def handle(self):
         self.fill()
@@ -451,8 +459,8 @@ class Mux(Handler):
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1, s2, channel, cmd, datalen) = \
                     struct.unpack('!ccHHH', self.inbuf[:HDR_LEN])
-                assert(s1 == b'S')
-                assert(s2 == b'S')
+                assert(s1 == b('S'))
+                assert(s2 == b('S'))
                 self.want = datalen + HDR_LEN
             if self.want and len(self.inbuf) >= self.want:
                 data = self.inbuf[HDR_LEN:self.want]
@@ -496,14 +504,14 @@ class MuxWrapper(SockWrapper):
         if not self.shut_read:
             debug2('%r: done reading\n' % self)
             self.shut_read = True
-            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, b'')
+            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, b(''))
             self.maybe_close()
 
     def nowrite(self):
         if not self.shut_write:
             debug2('%r: done writing\n' % self)
             self.shut_write = True
-            self.mux.send(self.channel, CMD_TCP_EOF, b'')
+            self.mux.send(self.channel, CMD_TCP_EOF, b(''))
             self.maybe_close()
 
     def maybe_close(self):
@@ -526,7 +534,7 @@ class MuxWrapper(SockWrapper):
 
     def uread(self):
         if self.shut_read:
-            return b''  # EOF
+            return b('')  # EOF
         else:
             return None  # no data available right now
 
