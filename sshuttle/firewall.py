@@ -9,11 +9,10 @@ import traceback
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
-hostmap = {}
 HOSTSFILE = '/etc/hosts'
 
 
-def rewrite_etc_hosts(port):
+def rewrite_etc_hosts(hostmap, port):
     BAKFILE = '%s.sbak' % HOSTSFILE
     APPEND = '# sshuttle-firewall-%d AUTOCREATED' % port
     old_content = ''
@@ -48,9 +47,7 @@ def rewrite_etc_hosts(port):
 
 
 def restore_etc_hosts(port):
-    global hostmap
-    hostmap = {}
-    rewrite_etc_hosts(port)
+    rewrite_etc_hosts({}, port)
 
 
 # Isolate function that needs to be replaced for tests
@@ -87,6 +84,7 @@ def setup_daemon():
 # are hopefully harmless.
 def main(method_name, syslog):
     stdin, stdout = setup_daemon()
+    hostmap = {}
 
     debug1('firewall manager: Starting firewall with Python version %s\n'
            % platform.python_version())
@@ -222,7 +220,7 @@ def main(method_name, syslog):
                 (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
                 debug2('firewall manager: setting up /etc/hosts.\n')
-                rewrite_etc_hosts(port_v6 or port_v4)
+                rewrite_etc_hosts(hostmap, port_v6 or port_v4)
             elif line:
                 if not method.firewall_command(line):
                     raise Fatal('firewall: expected command, got %r' % line)
