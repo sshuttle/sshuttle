@@ -88,7 +88,7 @@ def setup_daemon():
 def main(method_name, syslog):
     stdin, stdout = setup_daemon()
 
-    debug1('Starting firewall with Python version %s\n'
+    debug1('firewall manager: Starting firewall with Python version %s\n'
            % platform.python_version())
 
     if method_name == "auto":
@@ -100,7 +100,7 @@ def main(method_name, syslog):
         ssyslog.start_syslog()
         ssyslog.stderr_to_syslog()
 
-    debug1('firewall manager ready method name %s.\n' % method.name)
+    debug1('firewall manager: ready method name %s.\n' % method.name)
     stdout.write('READY %s\n' % method.name)
     stdout.flush()
 
@@ -125,7 +125,7 @@ def main(method_name, syslog):
         except:
             raise Fatal('firewall: expected route or NSLIST but got %r' % line)
         subnets.append((int(family), int(width), bool(int(exclude)), ip))
-    debug2('Got subnets: %r\n' % subnets)
+    debug2('firewall manager: Got subnets: %r\n' % subnets)
 
     nslist = []
     if line != 'NSLIST\n':
@@ -141,8 +141,8 @@ def main(method_name, syslog):
         except:
             raise Fatal('firewall: expected nslist or PORTS but got %r' % line)
         nslist.append((int(family), ip))
-        debug2('Got partial nslist: %r\n' % nslist)
-    debug2('Got nslist: %r\n' % nslist)
+        debug2('firewall manager: Got partial nslist: %r\n' % nslist)
+    debug2('firewall manager: Got nslist: %r\n' % nslist)
 
     if not line.startswith('PORTS '):
         raise Fatal('firewall: expected PORTS but got %r' % line)
@@ -164,7 +164,7 @@ def main(method_name, syslog):
     assert(dnsport_v4 >= 0)
     assert(dnsport_v4 <= 65535)
 
-    debug2('Got ports: %d,%d,%d,%d\n'
+    debug2('firewall manager: Got ports: %d,%d,%d,%d\n'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
     line = stdin.readline(128)
@@ -175,15 +175,16 @@ def main(method_name, syslog):
 
     _, _, udp = line.partition(" ")
     udp = bool(int(udp))
-    debug2('Got udp: %r\n' % udp)
+    debug2('firewall manager: Got udp: %r\n' % udp)
 
     try:
-        do_wait = None
-        debug1('firewall manager: starting transproxy.\n')
+        debug1('firewall manager: setting up.\n')
 
+        do_wait = None
         nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
         subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
         if port_v6 > 0:
+            debug2('firewall manager: setting up IPv6.\n')
             do_wait = method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp)
@@ -193,11 +194,13 @@ def main(method_name, syslog):
         nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
         subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
         if port_v4 > 0:
+            debug2('firewall manager: setting up IPv4.\n')
             do_wait = method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp)
         elif len(subnets_v4) > 0:
-            debug1('IPv4 subnets defined but IPv4 disabled\n')
+            debug1('firewall manager: '
+                   'IPv4 subnets defined but IPv4 disabled\n')
 
         stdout.write('STARTED\n')
 
@@ -218,10 +221,11 @@ def main(method_name, syslog):
             if line.startswith('HOST '):
                 (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
+                debug2('firewall manager: setting up /etc/hosts.\n')
                 rewrite_etc_hosts(port_v6 or port_v4)
             elif line:
                 if not method.firewall_command(line):
-                    raise Fatal('expected EOF, got %r' % line)
+                    raise Fatal('firewall: expected command, got %r' % line)
             else:
                 break
     finally:
@@ -236,7 +240,8 @@ def main(method_name, syslog):
                 method.setup_firewall(port_v6, 0, [], socket.AF_INET6, [], udp)
         except:
             try:
-                debug1("Error trying to undo IPv6 firewall\n")
+                debug1("firewall manager: "
+                       "Error trying to undo IPv6 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("---> %s\n" % line)
             except:
@@ -247,9 +252,10 @@ def main(method_name, syslog):
                 debug2('firewall manager: undoing IPv4 changes.\n')
         except:
             try:
-                debug1("Error trying to undo IPv4 firewall\n")
+                debug1("firewall manager: "
+                       "Error trying to undo IPv4 firewall.\n")
                 for line in traceback.format_exc().splitlines():
-                    debug1("---> %s\n" % line)
+                    debug1("firewall manager: ---> %s\n" % line)
             except:
                 pass
 
@@ -258,8 +264,9 @@ def main(method_name, syslog):
             restore_etc_hosts(port_v6 or port_v4)
         except:
             try:
-                debug1("Error trying to undo IPv4 firewall\n")
+                debug1("firewall manager: "
+                       "Error trying to undo /etc/hosts changes.\n")
                 for line in traceback.format_exc().splitlines():
-                    debug1("---> %s\n" % line)
+                    debug1("firewall manager: ---> %s\n" % line)
             except:
                 pass
