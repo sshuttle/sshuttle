@@ -186,29 +186,34 @@ class Method(BaseMethod):
             # definition
             for f, swidth, sexclude, snet in sorted(
                     subnets, key=lambda s: (s[1], s[2]), reverse=True):
-                includes.append("%s%s/%s" %
-                                ("!" if sexclude else "", snet, swidth))
+                includes.append(b"%s%s/%d" %
+                                (b"!" if sexclude else b"",
+                                    snet.encode("ASCII"),
+                                    swidth))
 
-            tables.append('table <forward_subnets> {%s}' % ','.join(includes))
+            tables.append(
+                b'table <forward_subnets> {%s}' % b','.join(includes))
             translating_rules.append(
-                'rdr pass on lo0 proto tcp '
-                'to <forward_subnets> -> 127.0.0.1 port %r' % port)
+                b'rdr pass on lo0 proto tcp '
+                b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
             filtering_rules.append(
-                'pass out route-to lo0 inet proto tcp '
-                'to <forward_subnets> keep state')
+                b'pass out route-to lo0 inet proto tcp '
+                b'to <forward_subnets> keep state')
 
             if dnsport:
-                tables.append('table <dns_servers> {%s}' % ','.join(
-                    [ns[1] for ns in nslist]))
+                tables.append(
+                    b'table <dns_servers> {%s}' %
+                    b','.join([ns[1].encode("ASCII") for ns in nslist]))
                 translating_rules.append(
-                    'rdr pass on lo0 proto udp to '
-                    '<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
+                    b'rdr pass on lo0 proto udp to '
+                    b'<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
                 filtering_rules.append(
-                    'pass out route-to lo0 inet proto udp to '
-                    '<dns_servers> port 53 keep state')
+                    b'pass out route-to lo0 inet proto udp to '
+                    b'<dns_servers> port 53 keep state')
 
-            rules = '\n'.join(tables + translating_rules + filtering_rules) \
-                    + '\n'
+            rules = b'\n'.join(tables + translating_rules + filtering_rules) \
+                    + b'\n'
+            assert isinstance(rules, bytes)
 
             pf_status = pfctl('-s all')[0]
             if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
