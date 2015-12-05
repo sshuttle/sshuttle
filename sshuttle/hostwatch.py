@@ -22,7 +22,8 @@ hostnames = {}
 queue = {}
 try:
     null = open('/dev/null', 'wb')
-except IOError as e:
+except IOError:
+    _, e = sys.exc_info()[:2]
     log('warning: %s\n' % e)
     null = os.popen("sh -c 'while read x; do :; done'", 'wb', 4096)
 
@@ -38,7 +39,7 @@ def write_host_cache():
         for name, ip in sorted(hostnames.items()):
             f.write('%s,%s\n' % (name, ip))
         f.close()
-        os.chmod(tmpname, 0o600)
+        os.chmod(tmpname, 384) # 600 in octal, 'rw-------'
         os.rename(tmpname, CACHEFILE)
     finally:
         try:
@@ -50,7 +51,8 @@ def write_host_cache():
 def read_host_cache():
     try:
         f = open(CACHEFILE)
-    except IOError as e:
+    except IOError:
+        _, e = sys.exc_info()[:2]
         if e.errno == errno.ENOENT:
             return
         else:
@@ -124,7 +126,8 @@ def _check_netstat():
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         content = p.stdout.read()
         p.wait()
-    except OSError as e:
+    except OSError:
+        _, e = sys.exc_info()[:2]
         log('%r failed: %r\n' % (argv, e))
         return
 
@@ -144,7 +147,8 @@ def _check_smb(hostname):
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         p.wait()
-    except OSError as e:
+    except OSError:
+        _, e = sys.exc_info()[:2]
         log('%r failed: %r\n' % (argv, e))
         _smb_ok = False
         return
@@ -201,7 +205,8 @@ def _check_nmb(hostname, is_workgroup, is_master):
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
         lines = p.stdout.readlines()
         rv = p.wait()
-    except OSError as e:
+    except OSError:
+        _, e = sys.exc_info()[:2]
         log('%r failed: %r\n' % (argv, e))
         _nmb_ok = False
         return

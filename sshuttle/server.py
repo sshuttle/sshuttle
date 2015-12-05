@@ -147,7 +147,8 @@ class DnsProxy(Handler):
         try:
             sock.send(self.request)
             self.socks.append(sock)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
@@ -164,7 +165,8 @@ class DnsProxy(Handler):
 
         try:
             data = sock.recv(4096)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             self.socks.remove(sock)
             del self.peers[sock]
 
@@ -199,14 +201,16 @@ class UdpProxy(Handler):
         debug2('UDP: sending to %r port %d\n' % dstip)
         try:
             self.sock.sendto(data, dstip)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
     def callback(self, sock):
         try:
             data, peer = sock.recvfrom(4096)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
             return
         debug2('UDP response: %d bytes\n' % len(data))
