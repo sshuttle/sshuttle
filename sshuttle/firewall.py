@@ -5,6 +5,7 @@ import sshuttle.ssyslog as ssyslog
 import sys
 import os
 import platform
+import traceback
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
@@ -228,8 +229,37 @@ def main(method_name, syslog):
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
-        if port_v6:
-            method.setup_firewall(port_v6, 0, [], socket.AF_INET6, [], udp)
-        if port_v4:
-            method.setup_firewall(port_v4, 0, [], socket.AF_INET, [], udp)
-        restore_etc_hosts(port_v6 or port_v4)
+
+        try:
+            if port_v6:
+                debug2('firewall manager: undoing IPv6 changes.\n')
+                method.setup_firewall(port_v6, 0, [], socket.AF_INET6, [], udp)
+        except:
+            try:
+                debug1("Error trying to undo IPv6 firewall\n")
+                for line in traceback.format_exc().splitlines():
+                    debug1("---> %s\n" % line)
+            except:
+                pass
+
+        try:
+            if port_v4:
+                debug2('firewall manager: undoing IPv4 changes.\n')
+        except:
+            try:
+                debug1("Error trying to undo IPv4 firewall\n")
+                for line in traceback.format_exc().splitlines():
+                    debug1("---> %s\n" % line)
+            except:
+                pass
+
+        try:
+            debug2('firewall manager: undoing /etc/hosts changes.\n')
+            restore_etc_hosts(port_v6 or port_v4)
+        except:
+            try:
+                debug1("Error trying to undo IPv4 firewall\n")
+                for line in traceback.format_exc().splitlines():
+                    debug1("---> %s\n" % line)
+            except:
+                pass
