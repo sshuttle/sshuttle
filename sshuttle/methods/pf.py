@@ -211,9 +211,9 @@ class Method(BaseMethod):
                     + '\n'
 
             pf_status = pfctl('-s all')[0]
-            if '\nrdr-anchor "sshuttle" all\n' not in pf_status:
+            if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
                 pf_add_anchor_rule(PF_RDR, "sshuttle")
-            if '\nanchor "sshuttle" all\n' not in pf_status:
+            if b'\nanchor "sshuttle" all\n' not in pf_status:
                 pf_add_anchor_rule(PF_PASS, "sshuttle")
 
             pfctl('-a sshuttle -f /dev/stdin', rules)
@@ -221,7 +221,7 @@ class Method(BaseMethod):
                 o = pfctl('-E')
                 _pf_context['Xtoken'] = \
                     re.search(r'Token : (.+)', o[1]).group(1)
-            elif 'INFO:\nStatus: Disabled' in pf_status:
+            elif b'INFO:\nStatus: Disabled' in pf_status:
                 pfctl('-e')
                 _pf_context['started_by_sshuttle'] = True
         else:
