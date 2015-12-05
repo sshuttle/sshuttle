@@ -38,7 +38,7 @@ def rewrite_etc_hosts(port):
         f.write('%-30s %s\n' % ('%s %s' % (ip, name), APPEND))
     f.close()
 
-    if st:
+    if st is not None:
         os.chown(tmpname, st.st_uid, st.st_gid)
         os.chmod(tmpname, st.st_mode)
     else:
