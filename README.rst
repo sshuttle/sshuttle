@@ -43,16 +43,8 @@ Client side Requirements
 |       |        | * IPv6 TCP +                                               |
 |       |        | * IPv6 UDP +                                               |
 +-------+--------+------------+-----------------------------------------------+
-| BSD   | IPFW   | * IPv4 TCP | Your kernel needs to be compiled with         |
-|       |        |            | `IPFIREWALL_FORWARD` and you need to have ipfw|
-|       |        |            | available.                                    |
-+-------+--------+------------+-----------------------------------------------+
 | MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
 +-------+--------+------------+-----------------------------------------------+
-
-The IPFW method is depreciated. It was originally required for MacOS support,
-however is no longer maintained. It is likely to get removed from future
-versions of sshuttle.
 
 
 Server side Requirements

@@ -178,12 +178,11 @@ def main(method_name, syslog):
     try:
         debug1('firewall manager: setting up.\n')
 
-        do_wait = None
         nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
         subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
         if port_v6 > 0:
             debug2('firewall manager: setting up IPv6.\n')
-            do_wait = method.setup_firewall(
+            method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp)
         elif len(subnets_v6) > 0:
@@ -193,7 +192,7 @@ def main(method_name, syslog):
         subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
         if port_v4 > 0:
             debug2('firewall manager: setting up IPv4.\n')
-            do_wait = method.setup_firewall(
+            method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp)
         elif len(subnets_v4) > 0:
@@ -213,8 +212,6 @@ def main(method_name, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            if do_wait is not None:
-                do_wait()
             line = stdin.readline(128)
             if line.startswith('HOST '):
                 (name, ip) = line[5:].strip().split(',', 1)
