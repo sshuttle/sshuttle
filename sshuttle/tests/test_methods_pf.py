@@ -95,13 +95,21 @@ def test_firewall_command(mock_pf_get_dev, mock_ioctl, mock_stdout):
     ]
 
 
-# FIXME - test fails with platform=='darwin' due re.search not liking Mock
-# objects.
-@patch('sshuttle.methods.pf.sys.platform', 'not_darwin')
+def pfctl(args, stdin=None):
+    if args == '-s all':
+        return (b'another mary had a little lamb\n', b'little lamb\n')
+    if args == '-E':
+        return (b'\n', b'Token : abcdefg\n')
+    return None
+
+
+@patch('sshuttle.methods.pf.sys.platform', 'darwin')
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
 def test_setup_firewall(mock_pf_get_dev, mock_ioctl, mock_pfctl):
+    mock_pfctl.side_effect = pfctl
+
     method = get_method('pf')
     assert method.name == 'pf'
 
@@ -145,16 +153,31 @@ def test_setup_firewall(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call(mock_pf_get_dev(), 3424666650, ANY),
         call(mock_pf_get_dev(), 3424666650, ANY),
     ]
-    # FIXME - needs more work
-    # print(mock_pfctl.mock_calls)
-    # assert mock_pfctl.mock_calls == []
+    assert mock_pfctl.mock_calls == [
+        call('-s all'),
+        call('-a sshuttle -f /dev/stdin',
+             b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
+             b'table <dns_servers> {1.2.3.33}\n'
+             b'rdr pass on lo0 proto tcp '
+             b'to <forward_subnets> -> 127.0.0.1 port 1025\n'
+             b'rdr pass on lo0 proto udp '
+             b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
+             b'pass out route-to lo0 inet proto tcp '
+             b'to <forward_subnets> keep state\n'
+             b'pass out route-to lo0 inet proto udp '
+             b'to <dns_servers> port 53 keep state\n'),
+        call('-E'),
+    ]
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
 
     method.setup_firewall(1025, 0, [], 2, [], False)
     assert mock_ioctl.mock_calls == []
-    assert mock_pfctl.mock_calls == [call('-a sshuttle -F all')]
+    assert mock_pfctl.mock_calls == [
+        call('-a sshuttle -F all'),
+        call("-X b'abcdefg'"),
+    ]
     mock_pf_get_dev.reset_mock()
     mock_pfctl.reset_mock()
     mock_ioctl.reset_mock()
