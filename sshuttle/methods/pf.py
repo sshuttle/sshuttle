@@ -225,7 +225,7 @@ class Method(BaseMethod):
             if sys.platform == "darwin":
                 o = pfctl('-E')
                 _pf_context['Xtoken'] = \
-                    re.search(r'Token : (.+)', o[1]).group(1)
+                    re.search(b'Token : (.+)', o[1]).group(1)
             elif b'INFO:\nStatus: Disabled' in pf_status:
                 pfctl('-e')
                 _pf_context['started_by_sshuttle'] = True
