@@ -176,7 +176,7 @@ def test_setup_firewall(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle -F all'),
-        call("-X b'abcdefg'"),
+        call("-X abcdefg"),
     ]
     mock_pf_get_dev.reset_mock()
     mock_pfctl.reset_mock()

@@ -233,7 +233,7 @@ class Method(BaseMethod):
             pfctl('-a sshuttle -F all')
             if sys.platform == "darwin":
                 if _pf_context['Xtoken'] is not None:
-                    pfctl('-X %s' % _pf_context['Xtoken'])
+                    pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
             elif _pf_context['started_by_sshuttle']:
                 pfctl('-d')
 
