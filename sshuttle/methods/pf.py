@@ -156,14 +156,15 @@ class Method(BaseMethod):
         proxy = sock.getsockname()
 
         argv = (sock.family, socket.IPPROTO_TCP,
-                peer[0], peer[1], proxy[0], proxy[1])
-        pfile.write("QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % argv)
+                peer[0].encode("ASCII"), peer[1],
+                proxy[0].encode("ASCII"), proxy[1])
+        pfile.write(b"QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % argv)
         pfile.flush()
         line = pfile.readline()
-        debug2("QUERY_PF_NAT %d,%d,%s,%d,%s,%d" % argv + ' > ' + line)
-        if line.startswith('QUERY_PF_NAT_SUCCESS '):
-            (ip, port) = line[21:].split(',')
-            return (ip, int(port))
+        debug2(b"QUERY_PF_NAT %d,%d,%s,%d,%s,%d" % argv + b' > ' + line)
+        if line.startswith(b'QUERY_PF_NAT_SUCCESS '):
+            (ip, port) = line[21:].split(b',')
+            return (ip.decode("ASCII"), int(port))
 
         return sock.getsockname()
 

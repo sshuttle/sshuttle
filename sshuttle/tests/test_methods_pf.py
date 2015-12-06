@@ -20,7 +20,7 @@ def test_get_tcp_dstip():
 
     firewall = Mock()
     firewall.pfile.readline.return_value = \
-        "QUERY_PF_NAT_SUCCESS 127.0.0.3,1026\n"
+        b"QUERY_PF_NAT_SUCCESS 127.0.0.3,1026\n"
 
     method = get_method('pf')
     method.set_firewall(firewall)
@@ -31,7 +31,7 @@ def test_get_tcp_dstip():
         call.getsockname(),
     ]
     assert firewall.mock_calls == [
-        call.pfile.write('QUERY_PF_NAT 2,6,127.0.0.1,1024,127.0.0.2,1025\n'),
+        call.pfile.write(b'QUERY_PF_NAT 2,6,127.0.0.1,1024,127.0.0.2,1025\n'),
         call.pfile.flush(),
         call.pfile.readline()
     ]
