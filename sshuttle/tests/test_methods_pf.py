@@ -12,6 +12,7 @@ def test_get_supported_features():
     assert not features.udp
 
 
+@patch('sshuttle.helpers.verbose', new=3)
 def test_get_tcp_dstip():
     sock = Mock()
     sock.getpeername.return_value = ("127.0.0.1", 1024)
