@@ -4,7 +4,7 @@ import imp
 
 z = zlib.decompressobj()
 while 1:
-    name = sys.stdin.readline().strip()
+    name = sys.stdin.readline().strip().decode("ASCII")
     if name:
         nbytes = int(sys.stdin.readline())
         if verbosity >= 2:

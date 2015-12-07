@@ -12,7 +12,7 @@ import sshuttle.helpers as helpers
 import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
-from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
+from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
 
 
@@ -61,7 +61,7 @@ def _list_routes():
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
     for line in p.stdout:
-        cols = re.split(r'\s+', line)
+        cols = re.split(r'\s+', line.decode("ASCII"))
         ipw = _ipmatch(cols[0])
         if not ipw:
             continue  # some lines won't be parseable; never mind
@@ -246,7 +246,7 @@ def main(latency_control):
     routepkt = ''
     for r in routes:
         routepkt += '%d,%s,%d\n' % r
-    mux.send(0, ssnet.CMD_ROUTES, routepkt)
+    mux.send(0, ssnet.CMD_ROUTES, b(routepkt))
 
     hw = Hostwatch()
     hw.leftover = ''
