@@ -274,7 +274,7 @@ def main(latency_control):
     mux.got_host_req = got_host_req
 
     def new_channel(channel, data):
-        (family, dstip, dstport) = data.split(',', 2)
+        (family, dstip, dstport) = data.decode("ASCII").split(',', 2)
         family = int(family)
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(family, dstip, dstport)
