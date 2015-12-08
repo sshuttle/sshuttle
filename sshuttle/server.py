@@ -328,14 +328,20 @@ def main(latency_control):
 
         if dnshandlers:
             now = time.time()
-            for channel, h in list(dnshandlers.items()):
+            remove = []
+            for channel, h in dnshandlers.items():
                 if h.timeout < now or not h.ok:
                     debug3('expiring dnsreqs channel=%d\n' % channel)
-                    del dnshandlers[channel]
+                    remove.append(channel)
                     h.ok = False
+                for channel in remove:
+                    del dnshandlers[channel]
         if udphandlers:
-            for channel, h in list(udphandlers.items()):
+            remove = []
+            for channel, h in udphandlers.items():
                 if not h.ok:
                     debug3('expiring UDP channel=%d\n' % channel)
-                    del udphandlers[channel]
+                    remove.append(channel)
                     h.ok = False
+                for channel in remove:
+                    del udphandlers[channel]
