@@ -6,6 +6,7 @@ import sshuttle.options as options
 import sshuttle.client as client
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
+import sshuttle.ssyslog as ssyslog
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
@@ -197,6 +198,9 @@ try:
                     ipport_v6 = parse_ipport6(ip)
                 else:
                     ipport_v4 = parse_ipport4(ip)
+        if opt.syslog:
+            ssyslog.start_syslog()
+            ssyslog.stderr_to_syslog()
         return_code = client.main(ipport_v6, ipport_v4,
                                   opt.ssh_cmd,
                                   remotename,
@@ -209,7 +213,7 @@ try:
                                   opt.auto_nets,
                                   parse_subnets(includes),
                                   parse_subnets(excludes),
-                                  opt.syslog, opt.daemon, opt.pidfile)
+                                  opt.daemon, opt.pidfile)
 
         if return_code == 0:
             log('Normal exit code, exiting...')

@@ -81,8 +81,6 @@ def daemonize():
     os.dup2(si.fileno(), 1)
     si.close()
 
-    ssyslog.stderr_to_syslog()
-
 
 def daemon_cleanup():
     try:
@@ -389,8 +387,7 @@ def ondns(listener, method, mux, handlers):
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
-          dns_listener, seed_hosts, auto_nets,
-          syslog, daemon):
+          dns_listener, seed_hosts, auto_nets, daemon):
 
     debug1('Starting client with Python version %s\n'
            % platform.python_version())
@@ -440,15 +437,11 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     if initstring != expected:
         raise Fatal('expected server init string %r; got %r'
                     % (expected, initstring))
-    debug1('connected.\n')
-    print('Connected.')
+    log('Connected.\n')
     sys.stdout.flush()
     if daemon:
         daemonize()
         log('daemonizing (%s).\n' % _pidname)
-    elif syslog:
-        debug1('switching to syslog.\n')
-        ssyslog.stderr_to_syslog()
 
     def onroutes(routestr):
         if auto_nets:
@@ -500,10 +493,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_nets,
-         subnets_include, subnets_exclude, syslog, daemon, pidfile):
+         subnets_include, subnets_exclude, daemon, pidfile):
 
-    if syslog:
-        ssyslog.start_syslog()
     if daemon:
         try:
             check_daemon(pidfile)
@@ -651,8 +642,7 @@ def main(listenip_v6, listenip_v4,
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,
-                     seed_hosts, auto_nets, syslog,
-                     daemon)
+                     seed_hosts, auto_nets, daemon)
     finally:
         try:
             if daemon:
