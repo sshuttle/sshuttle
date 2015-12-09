@@ -67,7 +67,7 @@ def daemonize():
 
     outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
     try:
-        os.write(outfd, '%d\n' % os.getpid())
+        os.write(outfd, b'%d\n' % os.getpid())
     finally:
         os.close(outfd)
     os.chdir("/")
