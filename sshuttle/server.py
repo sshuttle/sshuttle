@@ -334,8 +334,8 @@ def main(latency_control):
                     debug3('expiring dnsreqs channel=%d\n' % channel)
                     remove.append(channel)
                     h.ok = False
-                for channel in remove:
-                    del dnshandlers[channel]
+            for channel in remove:
+                del dnshandlers[channel]
         if udphandlers:
             remove = []
             for channel, h in udphandlers.items():
@@ -343,5 +343,5 @@ def main(latency_control):
                     debug3('expiring UDP channel=%d\n' % channel)
                     remove.append(channel)
                     h.ok = False
-                for channel in remove:
-                    del udphandlers[channel]
+            for channel in remove:
+                del udphandlers[channel]
