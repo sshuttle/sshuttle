@@ -104,6 +104,7 @@ def pfctl(args, stdin=None):
     return None
 
 
+@patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.sys.platform', 'darwin')
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')

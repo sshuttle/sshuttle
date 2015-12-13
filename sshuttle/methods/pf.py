@@ -7,7 +7,7 @@ import subprocess as ssubprocess
 from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
-from sshuttle.helpers import debug1, debug2, Fatal, family_to_string
+from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string
 from sshuttle.methods import BaseMethod
 
 
@@ -215,6 +215,7 @@ class Method(BaseMethod):
         rules = b'\n'.join(tables + translating_rules + filtering_rules) \
                 + b'\n'
         assert isinstance(rules, bytes)
+        debug3("rules:\n" + rules.decode("ASCII"))
 
         pf_status = pfctl('-s all')[0]
         if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
