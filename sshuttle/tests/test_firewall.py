@@ -97,6 +97,6 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
             2,
             [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
             True),
-        call().setup_firewall(1024, 0, [], 10, [], True),
-        call().setup_firewall(1025, 0, [], 2, [], True),
+        call().restore_firewall(1024, 10, True),
+        call().restore_firewall(1025, 2, True),
     ]

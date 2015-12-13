@@ -68,6 +68,9 @@ class BaseMethod(object):
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
         raise NotImplementedError()
 
+    def restore_firewall(self, port, family, udp):
+        raise NotImplementedError()
+
     def firewall_command(self, line):
         return False
 

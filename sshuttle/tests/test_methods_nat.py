@@ -129,7 +129,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.setup_firewall(1025, 0, [], 2, [], False)
+    method.restore_firewall(1025, 2, False)
     assert mock_ipt_chain_exists.mock_calls == [
         call(2, 'nat', 'sshuttle-1025')
     ]

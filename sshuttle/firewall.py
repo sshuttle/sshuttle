@@ -232,7 +232,7 @@ def main(method_name, syslog):
         try:
             if port_v6:
                 debug2('firewall manager: undoing IPv6 changes.\n')
-                method.setup_firewall(port_v6, 0, [], socket.AF_INET6, [], udp)
+                method.restore_firewall(port_v6, socket.AF_INET6, udp)
         except:
             try:
                 debug1("firewall manager: "
@@ -245,7 +245,7 @@ def main(method_name, syslog):
         try:
             if port_v4:
                 debug2('firewall manager: undoing IPv4 changes.\n')
-            method.setup_firewall(port_v4, 0, [], socket.AF_INET, [], udp)
+            method.restore_firewall(port_v4, socket.AF_INET, udp)
         except:
             try:
                 debug1("firewall manager: "

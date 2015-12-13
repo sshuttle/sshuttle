@@ -163,34 +163,22 @@ class Method(BaseMethod):
         divert_chain = 'sshuttle-d-%s' % port
 
         # basic cleanup/setup of chains
-        if ipt_chain_exists(family, table, mark_chain):
-            _ipt('-D', 'OUTPUT', '-j', mark_chain)
-            _ipt('-F', mark_chain)
-            _ipt('-X', mark_chain)
+        self.restore_firewall(port, family, udp)
 
-        if ipt_chain_exists(family, table, tproxy_chain):
-            _ipt('-D', 'PREROUTING', '-j', tproxy_chain)
-            _ipt('-F', tproxy_chain)
-            _ipt('-X', tproxy_chain)
+        _ipt('-N', mark_chain)
+        _ipt('-F', mark_chain)
+        _ipt('-N', divert_chain)
+        _ipt('-F', divert_chain)
+        _ipt('-N', tproxy_chain)
+        _ipt('-F', tproxy_chain)
+        _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
+        _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
+        _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
+        _ipt('-A', divert_chain, '-j', 'ACCEPT')
+        _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
+             '-m', 'tcp', '-p', 'tcp')
 
-        if ipt_chain_exists(family, table, divert_chain):
-            _ipt('-F', divert_chain)
-            _ipt('-X', divert_chain)
-
-        if subnets or dnsport:
-            _ipt('-N', mark_chain)
-            _ipt('-F', mark_chain)
-            _ipt('-N', divert_chain)
-            _ipt('-F', divert_chain)
-            _ipt('-N', tproxy_chain)
-            _ipt('-F', tproxy_chain)
-            _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
-            _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
-            _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
-            _ipt('-A', divert_chain, '-j', 'ACCEPT')
-            _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
-                 '-m', 'tcp', '-p', 'tcp')
-        if subnets and udp:
+        if udp:
             _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
                  '-m', 'udp', '-p', 'udp')
 
@@ -205,34 +193,34 @@ class Method(BaseMethod):
                      '-m', 'udp', '-p', 'udp', '--dport', '53',
                      '--on-port', str(dnsport))
 
-        if subnets:
-            for f, swidth, sexclude, snet \
-                    in sorted(subnets, key=lambda s: s[1], reverse=True):
+        for f, swidth, sexclude, snet \
+                in sorted(subnets, key=lambda s: s[1], reverse=True):
+            if sexclude:
+                _ipt('-A', mark_chain, '-j', 'RETURN',
+                     '--dest', '%s/%s' % (snet, swidth),
+                     '-m', 'tcp', '-p', 'tcp')
+                _ipt('-A', tproxy_chain, '-j', 'RETURN',
+                     '--dest', '%s/%s' % (snet, swidth),
+                     '-m', 'tcp', '-p', 'tcp')
+            else:
+                _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                     '--dest', '%s/%s' % (snet, swidth),
+                     '-m', 'tcp', '-p', 'tcp')
+                _ipt('-A', tproxy_chain, '-j', 'TPROXY',
+                     '--tproxy-mark', '0x1/0x1',
+                     '--dest', '%s/%s' % (snet, swidth),
+                     '-m', 'tcp', '-p', 'tcp',
+                     '--on-port', str(port))
+
+            if udp:
                 if sexclude:
                     _ipt('-A', mark_chain, '-j', 'RETURN',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'tcp', '-p', 'tcp')
+                         '-m', 'udp', '-p', 'udp')
                     _ipt('-A', tproxy_chain, '-j', 'RETURN',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'tcp', '-p', 'tcp')
+                         '-m', 'udp', '-p', 'udp')
                 else:
-                    _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
-                         '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'tcp', '-p', 'tcp')
-                    _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                         '--tproxy-mark', '0x1/0x1',
-                         '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'tcp', '-p', 'tcp',
-                         '--on-port', str(port))
-
-                if sexclude and udp:
-                    _ipt('-A', mark_chain, '-j', 'RETURN',
-                         '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp')
-                    _ipt('-A', tproxy_chain, '-j', 'RETURN',
-                         '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp')
-                elif udp:
                     _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp', '-p', 'udp')
@@ -241,6 +229,39 @@ class Method(BaseMethod):
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp', '-p', 'udp',
                          '--on-port', str(port))
+
+    def restore_firewall(self, port, family, udp):
+        if family not in [socket.AF_INET, socket.AF_INET6]:
+            raise Exception(
+                'Address family "%s" unsupported by tproxy method'
+                % family_to_string(family))
+
+        table = "mangle"
+
+        def _ipt(*args):
+            return ipt(family, table, *args)
+
+        def _ipt_ttl(*args):
+            return ipt_ttl(family, table, *args)
+
+        mark_chain = 'sshuttle-m-%s' % port
+        tproxy_chain = 'sshuttle-t-%s' % port
+        divert_chain = 'sshuttle-d-%s' % port
+
+        # basic cleanup/setup of chains
+        if ipt_chain_exists(family, table, mark_chain):
+            _ipt('-D', 'OUTPUT', '-j', mark_chain)
+            _ipt('-F', mark_chain)
+            _ipt('-X', mark_chain)
+
+        if ipt_chain_exists(family, table, tproxy_chain):
+            _ipt('-D', 'PREROUTING', '-j', tproxy_chain)
+            _ipt('-F', tproxy_chain)
+            _ipt('-X', tproxy_chain)
+
+        if ipt_chain_exists(family, table, divert_chain):
+            _ipt('-F', divert_chain)
+            _ipt('-X', divert_chain)
 
     def check_settings(self, udp, dns):
         if udp and recvmsg is None:

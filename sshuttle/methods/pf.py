@@ -181,63 +181,70 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by pf method_name")
 
-        if subnets:
-            includes = []
-            # If a given subnet is both included and excluded, list the
-            # exclusion first; the table will ignore the second, opposite
-            # definition
-            for f, swidth, sexclude, snet in sorted(
-                    subnets, key=lambda s: (s[1], s[2]), reverse=True):
-                includes.append(b"%s%s/%d" %
-                                (b"!" if sexclude else b"",
-                                    snet.encode("ASCII"),
-                                    swidth))
+        includes = []
+        # If a given subnet is both included and excluded, list the
+        # exclusion first; the table will ignore the second, opposite
+        # definition
+        for f, swidth, sexclude, snet in sorted(
+                subnets, key=lambda s: (s[1], s[2]), reverse=True):
+            includes.append(b"%s%s/%d" %
+                            (b"!" if sexclude else b"",
+                                snet.encode("ASCII"),
+                                swidth))
 
+        tables.append(
+            b'table <forward_subnets> {%s}' % b','.join(includes))
+        translating_rules.append(
+            b'rdr pass on lo0 proto tcp '
+            b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
+        filtering_rules.append(
+            b'pass out route-to lo0 inet proto tcp '
+            b'to <forward_subnets> keep state')
+
+        if dnsport:
             tables.append(
-                b'table <forward_subnets> {%s}' % b','.join(includes))
+                b'table <dns_servers> {%s}' %
+                b','.join([ns[1].encode("ASCII") for ns in nslist]))
             translating_rules.append(
-                b'rdr pass on lo0 proto tcp '
-                b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
+                b'rdr pass on lo0 proto udp to '
+                b'<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
             filtering_rules.append(
-                b'pass out route-to lo0 inet proto tcp '
-                b'to <forward_subnets> keep state')
+                b'pass out route-to lo0 inet proto udp to '
+                b'<dns_servers> port 53 keep state')
 
-            if dnsport:
-                tables.append(
-                    b'table <dns_servers> {%s}' %
-                    b','.join([ns[1].encode("ASCII") for ns in nslist]))
-                translating_rules.append(
-                    b'rdr pass on lo0 proto udp to '
-                    b'<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
-                filtering_rules.append(
-                    b'pass out route-to lo0 inet proto udp to '
-                    b'<dns_servers> port 53 keep state')
+        rules = b'\n'.join(tables + translating_rules + filtering_rules) \
+                + b'\n'
+        assert isinstance(rules, bytes)
 
-            rules = b'\n'.join(tables + translating_rules + filtering_rules) \
-                    + b'\n'
-            assert isinstance(rules, bytes)
+        pf_status = pfctl('-s all')[0]
+        if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
+            pf_add_anchor_rule(PF_RDR, "sshuttle")
+        if b'\nanchor "sshuttle" all\n' not in pf_status:
+            pf_add_anchor_rule(PF_PASS, "sshuttle")
 
-            pf_status = pfctl('-s all')[0]
-            if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
-                pf_add_anchor_rule(PF_RDR, "sshuttle")
-            if b'\nanchor "sshuttle" all\n' not in pf_status:
-                pf_add_anchor_rule(PF_PASS, "sshuttle")
+        pfctl('-a sshuttle -f /dev/stdin', rules)
+        if sys.platform == "darwin":
+            o = pfctl('-E')
+            _pf_context['Xtoken'] = \
+                re.search(b'Token : (.+)', o[1]).group(1)
+        elif b'INFO:\nStatus: Disabled' in pf_status:
+            pfctl('-e')
+            _pf_context['started_by_sshuttle'] = True
 
-            pfctl('-a sshuttle -f /dev/stdin', rules)
-            if sys.platform == "darwin":
-                o = pfctl('-E')
-                _pf_context['Xtoken'] = \
-                    re.search(b'Token : (.+)', o[1]).group(1)
-            elif b'INFO:\nStatus: Disabled' in pf_status:
-                pfctl('-e')
-                _pf_context['started_by_sshuttle'] = True
-        else:
-            pfctl('-a sshuttle -F all')
-            if sys.platform == "darwin":
-                if _pf_context['Xtoken'] is not None:
-                    pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
-            elif _pf_context['started_by_sshuttle']:
-                pfctl('-d')
+    def restore_firewall(self, port, family, udp):
+        if family != socket.AF_INET:
+            raise Exception(
+                'Address family "%s" unsupported by pf method_name'
+                % family_to_string(family))
+        if udp:
+            raise Exception("UDP not supported by pf method_name")
+
+        pfctl('-a sshuttle -F all')
+        if sys.platform == "darwin":
+            if _pf_context['Xtoken'] is not None:
+                pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
+        elif _pf_context['started_by_sshuttle']:
+            pfctl('-d')
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):
