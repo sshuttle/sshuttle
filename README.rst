@@ -84,13 +84,22 @@ There are some things you need to consider for TPROXY to work:
 
        sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" $HOME/tree/sshuttle.tproxy/sshuttle  --method=tproxy ...
 
-3. You do need the `--method=tproxy` parameter, as above.
+3. You may need to exclude the IP address of the server you are connecting to.
+   Otherwise sshuttle may attempt to intercept the ssh packets, which will not
+   work. Use the `--exclude` parameter for this.
 
-4. The routes for the outgoing packets must already exist. For example, if your
+4. You do need the `--method=tproxy` parameter, as above.
+
+5. The routes for the outgoing packets must already exist. For example, if your
    connection does not have IPv6 support, no IPv6 routes will exist, IPv6
-   packets will not be generated and sshuttle cannot intercept them. Add some
-   dummy routes to external interfaces. Make sure they get removed however
-   after sshuttle exits.
+   packets will not be generated and sshuttle cannot intercept them::
+
+       telnet -6 www.google.com 80
+       Trying 2404:6800:4001:805::1010...
+       telnet: Unable to connect to remote host: Network is unreachable
+
+   Add some dummy routes to external interfaces. Make sure they get removed
+   however after sshuttle exits.
 
 
 Obtaining sshuttle
