@@ -105,7 +105,10 @@ class Method(BaseMethod):
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.ipv6 = True
-        result.udp = True
+        if recvmsg is None:
+            result.udp = False
+        else:
+            result.udp = True
         return result
 
     def get_tcp_dstip(self, sock):
