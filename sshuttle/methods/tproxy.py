@@ -265,10 +265,10 @@ class Method(BaseMethod):
 
     def check_settings(self, udp, dns):
         if udp and recvmsg is None:
-            Fatal("tproxy UDP support requires recvmsg function.\n")
+            raise Fatal("tproxy UDP support requires recvmsg function.\n")
 
         if dns and recvmsg is None:
-            Fatal("tproxy DNS support requires recvmsg function.\n")
+            raise Fatal("tproxy DNS support requires recvmsg function.\n")
 
         if udp:
             debug1("tproxy UDP support enabled.\n")
