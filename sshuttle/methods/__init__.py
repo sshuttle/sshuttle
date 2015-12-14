@@ -39,6 +39,7 @@ class BaseMethod(object):
         result = Features()
         result.ipv6 = False
         result.udp = False
+        result.dns = True
         return result
 
     def get_tcp_dstip(self, sock):

@@ -107,8 +107,10 @@ class Method(BaseMethod):
         result.ipv6 = True
         if recvmsg is None:
             result.udp = False
+            result.dns = False
         else:
             result.udp = True
+            result.dns = True
         return result
 
     def get_tcp_dstip(self, sock):
