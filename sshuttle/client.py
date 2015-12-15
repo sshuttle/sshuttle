@@ -445,9 +445,18 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     def onroutes(routestr):
         if auto_nets:
-            for line in routestr.strip().split('\n'):
-                (family, ip, width) = line.split(',', 2)
-                fw.auto_nets.append((int(family), ip, int(width)))
+            for line in routestr.strip().split(b'\n'):
+                (family, ip, width) = line.split(b',', 2)
+                family = int(family)
+                width = int(width)
+                ip = ip.decode("ASCII")
+                if family == socket.AF_INET6 and tcp_listener.v6 is None:
+                    debug2("Ignored auto net %d/%s/%d\n" % (family, ip, width))
+                if family == socket.AF_INET and tcp_listener.v4 is None:
+                    debug2("Ignored auto net %d/%s/%d\n" % (family, ip, width))
+                else:
+                    debug2("Adding auto net %d/%s/%d\n" % (family, ip, width))
+                    fw.auto_nets.append((family, ip, width))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!
