@@ -17,22 +17,23 @@ from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
 
 
 def _ipmatch(ipstr):
-    if ipstr == 'default':
-        ipstr = '0.0.0.0/0'
-    m = re.match(r'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
+    if ipstr == b'default':
+        ipstr = b'0.0.0.0/0'
+    m = re.match(b'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
     if m:
         g = m.groups()
         ips = g[0]
         width = int(g[4] or 32)
         if g[1] is None:
-            ips += '.0.0.0'
+            ips += b'.0.0.0'
             width = min(width, 8)
         elif g[2] is None:
-            ips += '.0.0'
+            ips += b'.0.0'
             width = min(width, 16)
         elif g[3] is None:
-            ips += '.0'
+            ips += b'.0'
             width = min(width, 24)
+        ips = ips.decode("ASCII")
         return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
 
 
@@ -61,7 +62,7 @@ def _list_routes():
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
     for line in p.stdout:
-        cols = re.split(r'\s+', line)
+        cols = re.split(b'\s+', line)
         ipw = _ipmatch(cols[0])
         if not ipw:
             continue  # some lines won't be parseable; never mind
@@ -239,9 +240,9 @@ def main(latency_control):
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
     handlers.append(mux)
-    routepkt = ''
+    routepkt = b''
     for r in routes:
-        routepkt += '%d,%s,%d\n' % r
+        routepkt += b'%d,%s,%d\n' % (r[0], r[1].encode("ASCII"), r[2])
     mux.send(0, ssnet.CMD_ROUTES, routepkt)
 
     hw = Hostwatch()
@@ -270,7 +271,7 @@ def main(latency_control):
     mux.got_host_req = got_host_req
 
     def new_channel(channel, data):
-        (family, dstip, dstport) = data.split(',', 2)
+        (family, dstip, dstport) = data.split(b',', 2)
         family = int(family)
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(family, dstip, dstport)

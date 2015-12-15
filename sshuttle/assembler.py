@@ -4,13 +4,15 @@ import imp
 
 z = zlib.decompressobj()
 while 1:
-    name = sys.stdin.readline().strip()
+    name = stdin.readline().strip()
     if name:
-        nbytes = int(sys.stdin.readline())
+        name = name.decode("ASCII")
+
+        nbytes = int(stdin.readline())
         if verbosity >= 2:
             sys.stderr.write('server: assembling %r (%d bytes)\n'
                              % (name, nbytes))
-        content = z.decompress(sys.stdin.read(nbytes))
+        content = z.decompress(stdin.read(nbytes))
 
         module = imp.new_module(name)
         parent, _, parent_name = name.rpartition(".")
