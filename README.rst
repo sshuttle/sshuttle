@@ -80,6 +80,9 @@ There are some things you need to consider for TPROXY to work:
       ip -6 route add local default dev lo table 100
       ip -6 rule add fwmark 1 lookup 100
 
+- The --auto-nets feature does not detect IPv6 routes automatically. Add IPv6
+  routes manually. e.g. by adding '::/0' to the end of the command line.
+
 - The client needs to be run as root. e.g.::
 
       sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" $HOME/tree/sshuttle.tproxy/sshuttle  --method=tproxy ...
@@ -90,7 +93,7 @@ There are some things you need to consider for TPROXY to work:
 
 - Similarly, UDP return packets (including DNS) could get intercepted and
   bounced back. This is the case if you have a broad subnet such as
-  ``0.0.0.0/0`` that includes the IP address of the client. Use the
+  ``0.0.0.0/0`` or ``::/0`` that includes the IP address of the client. Use the
   `--exclude` parameter for this.
 
 - You do need the `--method=tproxy` parameter, as above.
