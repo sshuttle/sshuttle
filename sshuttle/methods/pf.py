@@ -181,27 +181,28 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by pf method_name")
 
-        includes = []
-        # If a given subnet is both included and excluded, list the
-        # exclusion first; the table will ignore the second, opposite
-        # definition
-        for f, swidth, sexclude, snet in sorted(
-                subnets, key=lambda s: (s[1], s[2]), reverse=True):
-            includes.append(b"%s%s/%d" %
-                            (b"!" if sexclude else b"",
-                                snet.encode("ASCII"),
-                                swidth))
+        if len(subnets) > 0:
+            includes = []
+            # If a given subnet is both included and excluded, list the
+            # exclusion first; the table will ignore the second, opposite
+            # definition
+            for f, swidth, sexclude, snet in sorted(
+                    subnets, key=lambda s: (s[1], s[2]), reverse=True):
+                includes.append(b"%s%s/%d" %
+                                (b"!" if sexclude else b"",
+                                    snet.encode("ASCII"),
+                                    swidth))
 
-        tables.append(
-            b'table <forward_subnets> {%s}' % b','.join(includes))
-        translating_rules.append(
-            b'rdr pass on lo0 proto tcp '
-            b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
-        filtering_rules.append(
-            b'pass out route-to lo0 inet proto tcp '
-            b'to <forward_subnets> keep state')
+            tables.append(
+                b'table <forward_subnets> {%s}' % b','.join(includes))
+            translating_rules.append(
+                b'rdr pass on lo0 proto tcp '
+                b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
+            filtering_rules.append(
+                b'pass out route-to lo0 inet proto tcp '
+                b'to <forward_subnets> keep state')
 
-        if dnsport:
+        if len(nslist) > 0:
             tables.append(
                 b'table <dns_servers> {%s}' %
                 b','.join([ns[1].encode("ASCII") for ns in nslist]))

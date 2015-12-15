@@ -55,13 +55,12 @@ class Method(BaseMethod):
                          '-p', 'tcp',
                          '--to-ports', str(port))
 
-        if dnsport:
-            for f, ip in [i for i in nslist if i[0] == family]:
-                _ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                         '--dest', '%s/32' % ip,
-                         '-p', 'udp',
-                         '--dport', '53',
-                         '--to-ports', str(dnsport))
+        for f, ip in [i for i in nslist if i[0] == family]:
+            _ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                     '--dest', '%s/32' % ip,
+                     '-p', 'udp',
+                     '--dport', '53',
+                     '--to-ports', str(dnsport))
 
     def restore_firewall(self, port, family, udp):
         # only ipv4 supported with NAT

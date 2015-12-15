@@ -62,9 +62,13 @@ class BaseMethod(object):
     def setup_udp_listener(self, udp_listener):
         pass
 
-    def check_settings(self, udp, dns):
-        if udp:
-            Fatal("UDP support not supported with method %s.\n" % self.name)
+    def assert_features(self, features):
+        avail = self.get_supported_features()
+        for key in ["udp", "dns", "ipv6"]:
+            if getattr(features, key) and not getattr(avail, key):
+                raise Fatal(
+                    "Feature %s not supported with method %s.\n" %
+                    (key, self.name))
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
         raise NotImplementedError()

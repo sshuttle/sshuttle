@@ -59,6 +59,7 @@ if recvmsg == "python":
                 ip = socket.inet_ntop(family, cmsg_data[start:start + length])
                 dstip = (ip, port)
                 break
+        print("xxxxx", srcip, dstip)
         return (srcip, dstip, data)
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
@@ -187,16 +188,15 @@ class Method(BaseMethod):
             _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
                  '-m', 'udp', '-p', 'udp')
 
-        if dnsport:
-            for f, ip in [i for i in nslist if i[0] == family]:
-                _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
-                     '--dest', '%s/32' % ip,
-                     '-m', 'udp', '-p', 'udp', '--dport', '53')
-                _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                     '--tproxy-mark', '0x1/0x1',
-                     '--dest', '%s/32' % ip,
-                     '-m', 'udp', '-p', 'udp', '--dport', '53',
-                     '--on-port', str(dnsport))
+        for f, ip in [i for i in nslist if i[0] == family]:
+            _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                 '--dest', '%s/32' % ip,
+                 '-m', 'udp', '-p', 'udp', '--dport', '53')
+            _ipt('-A', tproxy_chain, '-j', 'TPROXY',
+                 '--tproxy-mark', '0x1/0x1',
+                 '--dest', '%s/32' % ip,
+                 '-m', 'udp', '-p', 'udp', '--dport', '53',
+                 '--on-port', str(dnsport))
 
         for f, swidth, sexclude, snet \
                 in sorted(subnets, key=lambda s: s[1], reverse=True):
@@ -267,16 +267,3 @@ class Method(BaseMethod):
         if ipt_chain_exists(family, table, divert_chain):
             _ipt('-F', divert_chain)
             _ipt('-X', divert_chain)
-
-    def check_settings(self, udp, dns):
-        if udp and recvmsg is None:
-            raise Fatal("tproxy UDP support requires recvmsg function.\n")
-
-        if dns and recvmsg is None:
-            raise Fatal("tproxy DNS support requires recvmsg function.\n")
-
-        if udp:
-            debug1("tproxy UDP support enabled.\n")
-
-        if dns:
-            debug1("tproxy DNS support enabled.\n")

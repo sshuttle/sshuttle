@@ -14,7 +14,7 @@ import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
-from sshuttle.methods import get_method
+from sshuttle.methods import get_method, Features
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
@@ -505,18 +505,43 @@ def main(listenip_v6, listenip_v4,
 
     fw = FirewallClient(method_name)
 
-    features = fw.method.get_supported_features()
+    # Get family specific subnet lists
+    if dns:
+        nslist += resolvconf_nameservers()
+
+    subnets = subnets_include + subnets_exclude  # we don't care here
+    subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
+    nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
+    subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
+    nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
+
+    # Check features available
+    avail = fw.method.get_supported_features()
+    required = Features()
+
     if listenip_v6 == "auto":
-        if features.ipv6:
+        if avail.ipv6:
             listenip_v6 = ('::1', 0)
         else:
             listenip_v6 = None
 
+    required.ipv6 = len(subnets_v6) > 0 or len(nslist_v6) > 0
+    required.udp = avail.udp
+    required.dns = len(nslist) > 0
+
+    fw.method.assert_features(required)
+
+    if required.ipv6 and listenip_v6 is None:
+        raise Fatal("IPv6 required but not listening.")
+
+    # display features enabled
+    debug1("IPv6 enabled: %r\n" % required.ipv6)
+    debug1("UDP enabled: %r\n" % required.udp)
+    debug1("DNS enabled: %r\n" % required.dns)
+
+    # bind to required ports
     if listenip_v4 == "auto":
         listenip_v4 = ('127.0.0.1', 0)
-
-    udp = features.udp
-    debug1("UDP enabled: %r\n" % udp)
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
@@ -536,7 +561,7 @@ def main(listenip_v6, listenip_v4,
         tcp_listener = MultiListener()
         tcp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        if udp:
+        if required.udp:
             udp_listener = MultiListener(socket.SOCK_DGRAM)
             udp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         else:
@@ -584,10 +609,7 @@ def main(listenip_v6, listenip_v4,
         udp_listener.print_listening("UDP redirector")
 
     bound = False
-    if dns or nslist:
-        if dns:
-            nslist += resolvconf_nameservers()
-        dns = True
+    if required.dns:
         # search for spare port for DNS
         debug2('Binding DNS:')
         ports = range(12300, 9000, -1)
@@ -628,17 +650,41 @@ def main(listenip_v6, listenip_v4,
         dnsport_v4 = 0
         dns_listener = None
 
-    fw.method.check_settings(udp, dns)
+    # Last minute sanity checks.
+    # These should never fail.
+    # If these do fail, something is broken above.
+    if len(subnets_v6) > 0:
+        assert required.ipv6
+        if redirectport_v6 == 0:
+            raise Fatal("IPv6 subnets defined but not listening")
+
+    if len(nslist_v6) > 0:
+        assert required.dns
+        assert required.ipv6
+        if dnsport_v6 == 0:
+            raise Fatal("IPv6 ns servers defined but not listening")
+
+    if len(subnets_v4) > 0:
+        if redirectport_v4 == 0:
+            raise Fatal("IPv4 subnets defined but not listening")
+
+    if len(nslist_v4) > 0:
+        if dnsport_v4 == 0:
+            raise Fatal("IPv4 ns servers defined but not listening")
+
+    # setup method specific stuff on listeners
     fw.method.setup_tcp_listener(tcp_listener)
     if udp_listener:
         fw.method.setup_udp_listener(udp_listener)
     if dns_listener:
         fw.method.setup_udp_listener(dns_listener)
 
+    # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             udp)
+             required.udp)
 
+    # start the client process
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,

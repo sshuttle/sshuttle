@@ -178,26 +178,23 @@ def main(method_name, syslog):
     try:
         debug1('firewall manager: setting up.\n')
 
-        nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
         subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
-        if port_v6 > 0:
+        nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
+
+        if len(subnets_v6) > 0 or len(nslist_v6) > 0:
             debug2('firewall manager: setting up IPv6.\n')
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp)
-        elif len(subnets_v6) > 0:
-            debug1("IPv6 subnets defined but IPv6 disabled\n")
 
-        nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
         subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
-        if port_v4 > 0:
+        nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
+
+        if len(subnets_v4) > 0 or len(nslist_v4) > 0:
             debug2('firewall manager: setting up IPv4.\n')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp)
-        elif len(subnets_v4) > 0:
-            debug1('firewall manager: '
-                   'IPv4 subnets defined but IPv4 disabled\n')
 
         stdout.write('STARTED\n')
 
