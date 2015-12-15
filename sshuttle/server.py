@@ -58,6 +58,7 @@ def _shl(n, bits):
 
 
 def _list_routes():
+    # FIXME: IPv4 only
     argv = ['netstat', '-rn']
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
