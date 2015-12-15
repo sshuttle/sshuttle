@@ -11,6 +11,7 @@ import sshuttle.helpers
 @patch('sshuttle.helpers.sys.stderr')
 def test_log(mock_stderr, mock_stdout):
     sshuttle.helpers.log("message")
+    sshuttle.helpers.log("abc")
     sshuttle.helpers.log("message 1\n")
     sshuttle.helpers.log("message 2\nline2\nline3\n")
     sshuttle.helpers.log("message 3\nline2\nline3")
@@ -19,9 +20,12 @@ def test_log(mock_stderr, mock_stdout):
         call.flush(),
         call.flush(),
         call.flush(),
+        call.flush(),
     ]
     assert mock_stderr.mock_calls == [
         call.write('prefix: message'),
+        call.flush(),
+        call.write('prefix: abc'),
         call.flush(),
         call.write('prefix: message 1\n'),
         call.flush(),
