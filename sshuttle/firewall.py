@@ -175,20 +175,19 @@ def main(method_name, syslog):
     udp = bool(int(udp))
     debug2('firewall manager: Got udp: %r\n' % udp)
 
+    subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
+    nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
+    subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
+    nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
+
     try:
         debug1('firewall manager: setting up.\n')
-
-        subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
-        nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
 
         if len(subnets_v6) > 0 or len(nslist_v6) > 0:
             debug2('firewall manager: setting up IPv6.\n')
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp)
-
-        subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
-        nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
 
         if len(subnets_v4) > 0 or len(nslist_v4) > 0:
             debug2('firewall manager: setting up IPv4.\n')
@@ -227,7 +226,7 @@ def main(method_name, syslog):
             pass
 
         try:
-            if port_v6:
+            if len(subnets_v6) > 0 or len(nslist_v6) > 0:
                 debug2('firewall manager: undoing IPv6 changes.\n')
                 method.restore_firewall(port_v6, socket.AF_INET6, udp)
         except:
@@ -240,9 +239,9 @@ def main(method_name, syslog):
                 pass
 
         try:
-            if port_v4:
+            if len(subnets_v4) > 0 or len(nslist_v4) > 0:
                 debug2('firewall manager: undoing IPv4 changes.\n')
-            method.restore_firewall(port_v4, socket.AF_INET, udp)
+                method.restore_firewall(port_v4, socket.AF_INET, udp)
         except:
             try:
                 debug1("firewall manager: "
