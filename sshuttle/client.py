@@ -289,7 +289,7 @@ def expire_connections(now, mux):
     for peer, (chan, timeout) in udp_by_src.items():
         if timeout < now:
             debug3('expiring UDP channel channel=%d peer=%r\n' % (chan, peer))
-            mux.send(chan, ssnet.CMD_UDP_CLOSE, '')
+            mux.send(chan, ssnet.CMD_UDP_CLOSE, b'')
             remove.append(peer)
             del mux.channels[chan]
     for peer in remove:
@@ -335,7 +335,7 @@ def onaccept_tcp(listener, method, mux, handlers):
 
 
 def udp_done(chan, data, method, sock, dstip):
-    (src, srcport, data) = data.split(",", 2)
+    (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
     method.send_udp(sock, srcip, dstip, data)
@@ -354,10 +354,10 @@ def onaccept_udp(listener, method, mux, handlers):
         chan = mux.next_channel()
         mux.channels[chan] = lambda cmd, data: udp_done(
             chan, data, method, listener, dstip=srcip)
-        mux.send(chan, ssnet.CMD_UDP_OPEN, listener.family)
+        mux.send(chan, ssnet.CMD_UDP_OPEN, b"%d" % listener.family)
     udp_by_src[srcip] = chan, now + 30
 
-    hdr = "%s,%r," % (dstip[0], dstip[1])
+    hdr = b"%s,%d," % (dstip[0].encode("ASCII"), dstip[1])
     mux.send(chan, ssnet.CMD_UDP_DATA, hdr + data)
 
     expire_connections(now, mux)
