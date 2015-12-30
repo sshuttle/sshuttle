@@ -33,6 +33,7 @@ class pf_state_xport(Union):
                 ("call_id", c_uint16),
                 ("spi", c_uint32)]
 
+pf_state_xport = pf_state_xport if sys.platform == 'darwin' else c_uint16
 
 class pf_addr(Structure):
 
@@ -61,9 +62,11 @@ class pfioc_natlook(Structure):
                 ("proto_variant", c_uint8),
                 ("direction", c_uint8)]
 
-pfioc_rule = c_char * 3104  # sizeof(struct pfioc_rule)
+# sizeof(struct pfioc_rule)
+pfioc_rule = c_char * (3104 if sys.platform == 'darwin' else 3040)
 
-pfioc_pooladdr = c_char * 1136  # sizeof(struct pfioc_pooladdr)
+# sizeof(struct pfioc_pooladdr)
+pfioc_pooladdr = c_char * 1136
 
 MAXPATHLEN = 1024
 
@@ -108,16 +111,21 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     pnl.direction = PF_OUT
     pnl.af = family
     memmove(addressof(pnl.saddr), packed_src_ip, length)
-    pnl.sxport.port = socket.htons(src_port)
     memmove(addressof(pnl.daddr), packed_dst_ip, length)
-    pnl.dxport.port = socket.htons(dst_port)
+    if sys.platform == 'darwin':
+        pnl.sxport.port = socket.htons(src_port)
+        pnl.dxport.port = socket.htons(dst_port)
+    else:
+        pnl.sxport = socket.htons(src_port)
+        pnl.dxport = socket.htons(dst_port)
 
     ioctl(pf_get_dev(), DIOCNATLOOK,
           (c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
         pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
-    port = socket.ntohs(pnl.rdxport.port)
+    rdxport = pnl.rdxport.port if sys.platform == 'darwin' else pnl.rdxport
+    port = socket.ntohs(rdxport)
     return (ip, port)
 
 
@@ -125,7 +133,7 @@ def pf_add_anchor_rule(type, name):
     ACTION_OFFSET = 0
     POOL_TICKET_OFFSET = 8
     ANCHOR_CALL_OFFSET = 1040
-    RULE_ACTION_OFFSET = 3068
+    RULE_ACTION_OFFSET = 3068 if sys.platform == 'darwin' else 2968
 
     pr = pfioc_rule()
     ppa = pfioc_pooladdr()
