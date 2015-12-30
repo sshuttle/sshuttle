@@ -25,64 +25,85 @@ def pfctl(args, stdin=None):
     return o
 
 _pf_context = {'started_by_sshuttle': False, 'Xtoken': None}
-
-
-# This are some classes and functions used to support pf in yosemite.
-class pf_state_xport(Union):
-    _fields_ = [("port", c_uint16),
-                ("call_id", c_uint16),
-                ("spi", c_uint32)]
-
-
-class pf_addr(Structure):
-
-    class _pfa(Union):
-        _fields_ = [("v4",            c_uint32),      # struct in_addr
-                    ("v6",            c_uint32 * 4),  # struct in6_addr
-                    ("addr8",         c_uint8 * 16),
-                    ("addr16",        c_uint16 * 8),
-                    ("addr32",        c_uint32 * 4)]
-
-    _fields_ = [("pfa",               _pfa)]
-    _anonymous_ = ("pfa",)
-
-
-class pfioc_natlook(Structure):
-    _fields_ = [("saddr", pf_addr),
-                ("daddr", pf_addr),
-                ("rsaddr", pf_addr),
-                ("rdaddr", pf_addr),
-                ("sxport", pf_state_xport),
-                ("dxport", pf_state_xport),
-                ("rsxport", pf_state_xport),
-                ("rdxport", pf_state_xport),
-                ("af", c_uint8),                      # sa_family_t
-                ("proto", c_uint8),
-                ("proto_variant", c_uint8),
-                ("direction", c_uint8)]
-
-pfioc_rule = c_char * 3104  # sizeof(struct pfioc_rule)
-
-pfioc_pooladdr = c_char * 1136  # sizeof(struct pfioc_pooladdr)
-
-MAXPATHLEN = 1024
-
-DIOCNATLOOK = ((0x40000000 | 0x80000000) | (
-    (sizeof(pfioc_natlook) & 0x1fff) << 16) | ((ord('D')) << 8) | (23))
-DIOCCHANGERULE = ((0x40000000 | 0x80000000) | (
-    (sizeof(pfioc_rule) & 0x1fff) << 16) | ((ord('D')) << 8) | (26))
-DIOCBEGINADDRS = ((0x40000000 | 0x80000000) | (
-    (sizeof(pfioc_pooladdr) & 0x1fff) << 16) | ((ord('D')) << 8) | (51))
-
-PF_CHANGE_ADD_TAIL = 2
-PF_CHANGE_GET_TICKET = 6
-
-PF_PASS = 0
-PF_RDR = 8
-
-PF_OUT = 2
-
 _pf_fd = None
+
+
+class OsDefs(object):
+
+    def __init__(self, platform=None):
+        if platform is None:
+            platform = sys.platform
+        self.platform = platform
+
+        # This are some classes and functions used to support pf in yosemite.
+        if platform == 'darwin':
+            class pf_state_xport(Union):
+                _fields_ = [("port", c_uint16),
+                            ("call_id", c_uint16),
+                            ("spi", c_uint32)]
+        else:
+            class pf_state_xport(Union):
+                _fields_ = [("port", c_uint16),
+                            ("call_id", c_uint16)]
+
+        class pf_addr(Structure):
+
+            class _pfa(Union):
+                _fields_ = [("v4",            c_uint32),      # struct in_addr
+                            ("v6",            c_uint32 * 4),  # struct in6_addr
+                            ("addr8",         c_uint8 * 16),
+                            ("addr16",        c_uint16 * 8),
+                            ("addr32",        c_uint32 * 4)]
+
+            _fields_ = [("pfa",               _pfa)]
+            _anonymous_ = ("pfa",)
+
+        class pfioc_natlook(Structure):
+            _fields_ = [("saddr", pf_addr),
+                        ("daddr", pf_addr),
+                        ("rsaddr", pf_addr),
+                        ("rdaddr", pf_addr),
+                        ("sxport", pf_state_xport),
+                        ("dxport", pf_state_xport),
+                        ("rsxport", pf_state_xport),
+                        ("rdxport", pf_state_xport),
+                        ("af", c_uint8),                      # sa_family_t
+                        ("proto", c_uint8),
+                        ("proto_variant", c_uint8),
+                        ("direction", c_uint8)]
+        self.pfioc_natlook = pfioc_natlook
+
+        # sizeof(struct pfioc_rule)
+        self.pfioc_rule = c_char * \
+            (3104 if platform == 'darwin' else 3040)
+
+        # sizeof(struct pfioc_pooladdr)
+        self.pfioc_pooladdr = c_char * 1136
+
+        self.MAXPATHLEN = 1024
+
+        self.DIOCNATLOOK = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(pfioc_natlook) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (23))
+        self.DIOCCHANGERULE = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(self.pfioc_rule) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (26))
+        self.DIOCBEGINADDRS = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(self.pfioc_pooladdr) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (51))
+
+        self.PF_CHANGE_ADD_TAIL = 2
+        self.PF_CHANGE_GET_TICKET = 6
+
+        self.PF_PASS = 0
+        self.PF_RDR = 8
+
+        self.PF_OUT = 2
+
+osdefs = OsDefs()
 
 
 def pf_get_dev():
@@ -103,16 +124,16 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     assert len(packed_src_ip) == len(packed_dst_ip)
     length = len(packed_src_ip)
 
-    pnl = pfioc_natlook()
+    pnl = osdefs.pfioc_natlook()
     pnl.proto = proto
-    pnl.direction = PF_OUT
+    pnl.direction = osdefs.PF_OUT
     pnl.af = family
     memmove(addressof(pnl.saddr), packed_src_ip, length)
-    pnl.sxport.port = socket.htons(src_port)
     memmove(addressof(pnl.daddr), packed_dst_ip, length)
+    pnl.sxport.port = socket.htons(src_port)
     pnl.dxport.port = socket.htons(dst_port)
 
-    ioctl(pf_get_dev(), DIOCNATLOOK,
+    ioctl(pf_get_dev(), osdefs.DIOCNATLOOK,
           (c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
@@ -125,26 +146,26 @@ def pf_add_anchor_rule(type, name):
     ACTION_OFFSET = 0
     POOL_TICKET_OFFSET = 8
     ANCHOR_CALL_OFFSET = 1040
-    RULE_ACTION_OFFSET = 3068
+    RULE_ACTION_OFFSET = 3068 if osdefs.platform == 'darwin' else 2968
 
-    pr = pfioc_rule()
-    ppa = pfioc_pooladdr()
+    pr = osdefs.pfioc_rule()
+    ppa = osdefs.pfioc_pooladdr()
 
-    ioctl(pf_get_dev(), DIOCBEGINADDRS, ppa)
+    ioctl(pf_get_dev(), osdefs.DIOCBEGINADDRS, ppa)
 
     memmove(addressof(pr) + POOL_TICKET_OFFSET, ppa[4:8], 4)  # pool_ticket
     memmove(addressof(pr) + ANCHOR_CALL_OFFSET, name,
-            min(MAXPATHLEN, len(name)))  # anchor_call = name
+            min(osdefs.MAXPATHLEN, len(name)))  # anchor_call = name
     memmove(addressof(pr) + RULE_ACTION_OFFSET,
             struct.pack('I', type), 4)  # rule.action = type
 
     memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
-        'I', PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
-    ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
+        'I', osdefs.PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
+    ioctl(pf_get_dev(), osdefs.DIOCCHANGERULE, pr)
 
     memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
-        'I', PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
-    ioctl(pf_get_dev(), DIOCCHANGERULE, pr)
+        'I', osdefs.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
+    ioctl(pf_get_dev(), osdefs.DIOCCHANGERULE, pr)
 
 
 class Method(BaseMethod):
@@ -220,12 +241,12 @@ class Method(BaseMethod):
 
         pf_status = pfctl('-s all')[0]
         if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(PF_RDR, "sshuttle")
+            pf_add_anchor_rule(osdefs.PF_RDR, b"sshuttle")
         if b'\nanchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(PF_PASS, "sshuttle")
+            pf_add_anchor_rule(osdefs.PF_PASS, b"sshuttle")
 
         pfctl('-a sshuttle -f /dev/stdin', rules)
-        if sys.platform == "darwin":
+        if osdefs.platform == "darwin":
             o = pfctl('-E')
             _pf_context['Xtoken'] = \
                 re.search(b'Token : (.+)', o[1]).group(1)
@@ -242,7 +263,7 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pfctl('-a sshuttle -F all')
-        if sys.platform == "darwin":
+        if osdefs.platform == "darwin":
             if _pf_context['Xtoken'] is not None:
                 pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
         elif _pf_context['started_by_sshuttle']:
