@@ -84,6 +84,7 @@ def test_assert_features():
         method.assert_features(features)
 
 
+@patch('sshuttle.methods.pf.sys.platform', 'darwin')
 @patch('sshuttle.methods.pf.sys.stdout')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
@@ -159,12 +160,12 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
         False)
     assert mock_ioctl.mock_calls == [
-        call(mock_pf_get_dev(), 3295691827, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3295691827, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
     ]
     assert mock_pfctl.mock_calls == [
         call('-s all'),
@@ -240,12 +241,12 @@ def test_setup_firewall_notdarwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
         False)
     assert mock_ioctl.mock_calls == [
-        call(mock_pf_get_dev(), 3295691827, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3295691827, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
-        call(mock_pf_get_dev(), 3424666650, ANY),
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCBE0441A, ANY),
+        call(mock_pf_get_dev(), 0xCBE0441A, ANY),
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCBE0441A, ANY),
+        call(mock_pf_get_dev(), 0xCBE0441A, ANY),
     ]
     assert mock_pfctl.mock_calls == [
         call('-s all'),
