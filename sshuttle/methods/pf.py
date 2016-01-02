@@ -228,9 +228,9 @@ class Method(BaseMethod):
 
         pf_status = pfctl('-s all')[0]
         if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(PF_RDR, "sshuttle")
+            pf_add_anchor_rule(PF_RDR, b"sshuttle")
         if b'\nanchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(PF_PASS, "sshuttle")
+            pf_add_anchor_rule(PF_PASS, b"sshuttle")
 
         pfctl('-a sshuttle -f /dev/stdin', rules)
         if sys.platform == "darwin":
