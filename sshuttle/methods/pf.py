@@ -30,9 +30,13 @@ _pf_fd = None
 
 class OsDefs(object):
 
-    def __init__(self):
+    def __init__(self, platform=None):
+        if platform is None:
+            platform = sys.platform
+        self.platform = platform
+
         # This are some classes and functions used to support pf in yosemite.
-        if sys.platform == 'darwin':
+        if platform == 'darwin':
             class pf_state_xport(Union):
                 _fields_ = [("port", c_uint16),
                             ("call_id", c_uint16),
@@ -71,7 +75,7 @@ class OsDefs(object):
 
         # sizeof(struct pfioc_rule)
         self.pfioc_rule = c_char * \
-            (3104 if sys.platform == 'darwin' else 3040)
+            (3104 if platform == 'darwin' else 3040)
 
         # sizeof(struct pfioc_pooladdr)
         self.pfioc_pooladdr = c_char * 1136
@@ -99,6 +103,8 @@ class OsDefs(object):
 
         self.PF_OUT = 2
 
+osdefs = OsDefs()
+
 
 def pf_get_dev():
     global _pf_fd
@@ -109,8 +115,6 @@ def pf_get_dev():
 
 
 def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
-    osdefs = OsDefs()
-
     [proto, family, src_port, dst_port] = [
         int(v) for v in [proto, family, src_port, dst_port]]
 
@@ -126,30 +130,23 @@ def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
     pnl.af = family
     memmove(addressof(pnl.saddr), packed_src_ip, length)
     memmove(addressof(pnl.daddr), packed_dst_ip, length)
-    if sys.platform == 'darwin':
-        pnl.sxport.port = socket.htons(src_port)
-        pnl.dxport.port = socket.htons(dst_port)
-    else:
-        pnl.sxport = socket.htons(src_port)
-        pnl.dxport = socket.htons(dst_port)
+    pnl.sxport.port = socket.htons(src_port)
+    pnl.dxport.port = socket.htons(dst_port)
 
     ioctl(pf_get_dev(), osdefs.DIOCNATLOOK,
           (c_char * sizeof(pnl)).from_address(addressof(pnl)))
 
     ip = socket.inet_ntop(
         pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
-    rdxport = pnl.rdxport.port if sys.platform == 'darwin' else pnl.rdxport
-    port = socket.ntohs(rdxport)
+    port = socket.ntohs(pnl.rdxport.port)
     return (ip, port)
 
 
 def pf_add_anchor_rule(type, name):
-    osdefs = OsDefs()
-
     ACTION_OFFSET = 0
     POOL_TICKET_OFFSET = 8
     ANCHOR_CALL_OFFSET = 1040
-    RULE_ACTION_OFFSET = 3068 if sys.platform == 'darwin' else 2968
+    RULE_ACTION_OFFSET = 3068 if osdefs.platform == 'darwin' else 2968
 
     pr = osdefs.pfioc_rule()
     ppa = osdefs.pfioc_pooladdr()
@@ -194,8 +191,6 @@ class Method(BaseMethod):
         return sock.getsockname()
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
-        osdefs = OsDefs()
-
         tables = []
         translating_rules = []
         filtering_rules = []
@@ -246,12 +241,12 @@ class Method(BaseMethod):
 
         pf_status = pfctl('-s all')[0]
         if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(osdefs.PF_RDR, "sshuttle")
+            pf_add_anchor_rule(osdefs.PF_RDR, b"sshuttle")
         if b'\nanchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(osdefs.PF_PASS, "sshuttle")
+            pf_add_anchor_rule(osdefs.PF_PASS, b"sshuttle")
 
         pfctl('-a sshuttle -f /dev/stdin', rules)
-        if sys.platform == "darwin":
+        if osdefs.platform == "darwin":
             o = pfctl('-E')
             _pf_context['Xtoken'] = \
                 re.search(b'Token : (.+)', o[1]).group(1)
@@ -268,7 +263,7 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pfctl('-a sshuttle -F all')
-        if sys.platform == "darwin":
+        if osdefs.platform == "darwin":
             if _pf_context['Xtoken'] is not None:
                 pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
         elif _pf_context['started_by_sshuttle']:

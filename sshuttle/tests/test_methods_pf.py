@@ -4,6 +4,7 @@ import socket
 
 from sshuttle.methods import get_method
 from sshuttle.helpers import Fatal
+from sshuttle.methods.pf import OsDefs
 
 
 def test_get_supported_features():
@@ -84,11 +85,11 @@ def test_assert_features():
         method.assert_features(features)
 
 
-@patch('sshuttle.methods.pf.sys.platform', 'darwin')
+@patch('sshuttle.methods.pf.osdefs', OsDefs('darwin'))
 @patch('sshuttle.methods.pf.sys.stdout')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
-def test_firewall_command(mock_pf_get_dev, mock_ioctl, mock_stdout):
+def test_firewall_command_darwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
     method = get_method('pf')
     assert not method.firewall_command("somthing")
 
@@ -99,7 +100,30 @@ def test_firewall_command(mock_pf_get_dev, mock_ioctl, mock_stdout):
 
     assert mock_pf_get_dev.mock_calls == [call()]
     assert mock_ioctl.mock_calls == [
-        call(mock_pf_get_dev(), 3226747927, ANY),
+        call(mock_pf_get_dev(), 0xc0544417, ANY),
+    ]
+    assert mock_stdout.mock_calls == [
+        call.write('QUERY_PF_NAT_SUCCESS 0.0.0.0,0\n'),
+        call.flush(),
+    ]
+
+
+@patch('sshuttle.methods.pf.osdefs', OsDefs('notdarwin'))
+@patch('sshuttle.methods.pf.sys.stdout')
+@patch('sshuttle.methods.pf.ioctl')
+@patch('sshuttle.methods.pf.pf_get_dev')
+def test_firewall_command_notdarwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
+    method = get_method('pf')
+    assert not method.firewall_command("somthing")
+
+    command = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % (
+        socket.AF_INET, socket.IPPROTO_TCP,
+        "127.0.0.1", 1025, "127.0.0.2", 1024)
+    assert method.firewall_command(command)
+
+    assert mock_pf_get_dev.mock_calls == [call()]
+    assert mock_ioctl.mock_calls == [
+        call(mock_pf_get_dev(), 0xc04c4417, ANY),
     ]
     assert mock_stdout.mock_calls == [
         call.write('QUERY_PF_NAT_SUCCESS 0.0.0.0,0\n'),
@@ -117,7 +141,7 @@ def pfctl(args, stdin=None):
 
 
 @patch('sshuttle.helpers.verbose', new=3)
-@patch('sshuttle.methods.pf.sys.platform', 'darwin')
+@patch('sshuttle.methods.pf.osdefs', OsDefs('darwin'))
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
@@ -198,7 +222,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
 
 @patch('sshuttle.helpers.verbose', new=3)
-@patch('sshuttle.methods.pf.sys.platform', 'notdarwin')
+@patch('sshuttle.methods.pf.osdefs', OsDefs('notdarwin'))
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
