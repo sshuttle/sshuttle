@@ -36,7 +36,7 @@ def write_host_cache():
     try:
         f = open(tmpname, 'wb')
         for name, ip in sorted(hostnames.items()):
-            f.write('%s,%s\n' % (name, ip))
+            f.write(('%s,%s\n' % (name, ip)).encode("ASCII"))
         f.close()
         os.chmod(tmpname, 0o600)
         os.rename(tmpname, CACHEFILE)
@@ -122,7 +122,7 @@ def _check_netstat():
     argv = ['netstat', '-n']
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
-        content = p.stdout.read()
+        content = p.stdout.read().decode("ASCII")
         p.wait()
     except OSError as e:
         log('%r failed: %r\n' % (argv, e))
