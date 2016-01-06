@@ -227,7 +227,7 @@ conflicts between client and server.
 
 Unlike most VPNs, sshuttle forwards sessions, not packets.
 That is, it uses kernel transparent proxying (`iptables
-REDIRECT` rules on Linux, or `ipfw fwd` rules on BSD) to
+REDIRECT` rules on Linux) to
 capture outgoing TCP sessions, then creates entirely
 separate TCP sessions out to the original destination at
 the other end of the tunnel.
@@ -254,24 +254,6 @@ the server-side kernel manage the outgoing tcp stream;
 there is no need for congestion control to be shared
 between the two separate streams, so a tcp-based tunnel is
 fine.
-
-
-# BUGS
-
-On MacOS 10.6 (at least up to 10.6.6), your network will
-stop responding about 10 minutes after the first time you
-start sshuttle, because of a MacOS kernel bug relating to
-arp and the net.inet.ip.scopedroute sysctl.  To fix it,
-just switch your wireless off and on. Sshuttle makes the
-kernel setting it changes permanent, so this won't happen
-again, even after a reboot.
-
-On MacOS, sshuttle will set the kernel boot flag
-net.inet.ip.scopedroute to 0, which interferes with OS X
-Internet Sharing and some VPN clients. To reset this flag,
-you can remove any reference to net.inet.ip.scopedroute from
-/Library/Preferences/SystemConfiguration/com.apple.Boot.plist
-and reboot.
 
 
 # SEE ALSO

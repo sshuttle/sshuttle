@@ -3,11 +3,22 @@ from mock import Mock, patch, call
 from sshuttle.methods import get_method
 
 
-def test_get_supported_features():
+@patch("sshuttle.methods.tproxy.recvmsg")
+def test_get_supported_features_recvmsg(mock_recvmsg):
     method = get_method('tproxy')
     features = method.get_supported_features()
     assert features.ipv6
     assert features.udp
+    assert features.dns
+
+
+@patch("sshuttle.methods.tproxy.recvmsg", None)
+def test_get_supported_features_norecvmsg():
+    method = get_method('tproxy')
+    features = method.get_supported_features()
+    assert features.ipv6
+    assert not features.udp
+    assert not features.dns
 
 
 def test_get_tcp_dstip():
@@ -66,10 +77,10 @@ def test_setup_udp_listener():
     ]
 
 
-def test_check_settings():
+def test_assert_features():
     method = get_method('tproxy')
-    method.check_settings(True, True)
-    method.check_settings(False, True)
+    features = method.get_supported_features()
+    method.assert_features(features)
 
 
 def test_firewall_command():
@@ -160,7 +171,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.setup_firewall(1025, 0, [], 10, [], True)
+    method.restore_firewall(1025, 10, True)
     assert mock_ipt_chain_exists.mock_calls == [
         call(10, 'mangle', 'sshuttle-m-1025'),
         call(10, 'mangle', 'sshuttle-t-1025'),
@@ -250,7 +261,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.setup_firewall(1025, 0, [], 2, [], True)
+    method.restore_firewall(1025, 2, True)
     assert mock_ipt_chain_exists.mock_calls == [
         call(2, 'mangle', 'sshuttle-m-1025'),
         call(2, 'mangle', 'sshuttle-t-1025'),

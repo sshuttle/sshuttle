@@ -9,7 +9,7 @@ import platform
 
 import subprocess as ssubprocess
 import sshuttle.helpers as helpers
-from sshuttle.helpers import log, debug1, debug2, debug3
+from sshuttle.helpers import b, log, debug1, debug2, debug3
 
 POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30
@@ -37,7 +37,7 @@ def write_host_cache():
     try:
         f = open(tmpname, 'wb')
         for name, ip in sorted(hostnames.items()):
-            f.write('%s,%s\n' % (name, ip))
+            f.write(b('%s,%s\n' % (name, ip)))
         f.close()
         os.chmod(tmpname, 384) # 600 in octal, 'rw-------'
         os.rename(tmpname, CACHEFILE)
@@ -124,7 +124,7 @@ def _check_netstat():
     argv = ['netstat', '-n']
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
-        content = p.stdout.read()
+        content = p.stdout.read().decode("ASCII")
         p.wait()
     except OSError:
         _, e = sys.exc_info()[:2]

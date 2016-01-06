@@ -17,9 +17,17 @@ else:
         return s
 
 def log(s):
+    global logprefix
     try:
         sys.stdout.flush()
-        sys.stderr.write(logprefix + s)
+        if s.find("\n") != -1:
+            prefix = logprefix
+            s = s.rstrip("\n")
+            for line in s.split("\n"):
+                sys.stderr.write(prefix + line + "\n")
+                prefix = "---> "
+        else:
+            sys.stderr.write(logprefix + s)
         sys.stderr.flush()
     except IOError:
         # this could happen if stderr gets forcibly disconnected, eg. because
