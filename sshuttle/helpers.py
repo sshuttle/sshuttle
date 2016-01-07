@@ -5,6 +5,16 @@ import errno
 logprefix = ''
 verbose = 0
 
+if sys.version_info[0] == 3:
+    binary_type = bytes
+
+    def b(s):
+        return s.encode("latin-1")
+else:
+    binary_type = str
+
+    def b(s):
+        return s
 
 def log(s):
     global logprefix
@@ -70,7 +80,8 @@ def islocal(ip, family):
     try:
         try:
             sock.bind((ip, 0))
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             if e.args[0] == errno.EADDRNOTAVAIL:
                 return False  # not a local IP
             else:

@@ -12,26 +12,26 @@ import sshuttle.helpers as helpers
 import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
-from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
+from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
 
 
 def _ipmatch(ipstr):
-    if ipstr == b'default':
-        ipstr = b'0.0.0.0/0'
-    m = re.match(b'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
+    if ipstr == b('default'):
+        ipstr = b('0.0.0.0/0')
+    m = re.match(b('^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$'), ipstr)
     if m:
         g = m.groups()
         ips = g[0]
         width = int(g[4] or 32)
         if g[1] is None:
-            ips += b'.0.0.0'
+            ips += b('.0.0.0')
             width = min(width, 8)
         elif g[2] is None:
-            ips += b'.0.0'
+            ips += b('.0.0')
             width = min(width, 16)
         elif g[3] is None:
-            ips += b'.0'
+            ips += b('.0')
             width = min(width, 24)
         ips = ips.decode("ASCII")
         return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
@@ -63,7 +63,7 @@ def _list_routes():
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
     routes = []
     for line in p.stdout:
-        cols = re.split(b'\s+', line)
+        cols = re.split(b('\s+'), line)
         ipw = _ipmatch(cols[0])
         if not ipw:
             continue  # some lines won't be parseable; never mind
@@ -149,7 +149,8 @@ class DnsProxy(Handler):
         try:
             sock.send(self.request)
             self.socks.append(sock)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             if e.args[0] in ssnet.NET_ERRS:
                 # might have been spurious; try again.
                 # Note: these errors sometimes are reported by recv(),
@@ -166,7 +167,8 @@ class DnsProxy(Handler):
 
         try:
             data = sock.recv(4096)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             self.socks.remove(sock)
             del self.peers[sock]
 
@@ -201,14 +203,16 @@ class UdpProxy(Handler):
         debug2('UDP: sending to %r port %d\n' % dstip)
         try:
             self.sock.sendto(data, dstip)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
     def callback(self, sock):
         try:
             data, peer = sock.recvfrom(4096)
-        except socket.error as e:
+        except socket.error:
+            _, e = sys.exc_info()[:2]
             log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
             return
         debug2('UDP response: %d bytes\n' % len(data))
@@ -241,26 +245,26 @@ def main(latency_control):
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
     handlers.append(mux)
-    routepkt = b''
+    routepkt = ''
     for r in routes:
-        routepkt += b'%d,%s,%d\n' % (r[0], r[1].encode("ASCII"), r[2])
-    mux.send(0, ssnet.CMD_ROUTES, routepkt)
+        routepkt += '%d,%s,%d\n' % r
+    mux.send(0, ssnet.CMD_ROUTES, b(routepkt))
 
     hw = Hostwatch()
-    hw.leftover = ''
+    hw.leftover = b('')
 
     def hostwatch_ready(sock):
         assert(hw.pid)
         content = hw.sock.recv(4096)
         if content:
-            lines = (hw.leftover + content).split('\n')
+            lines = (hw.leftover + content).split(b('\n'))
             if lines[-1]:
                 # no terminating newline: entry isn't complete yet!
                 hw.leftover = lines.pop()
                 lines.append('')
             else:
-                hw.leftover = ''
-            mux.send(0, ssnet.CMD_HOST_LIST, '\n'.join(lines))
+                hw.leftover = b('')
+            mux.send(0, ssnet.CMD_HOST_LIST, b('\n').join(lines))
         else:
             raise Fatal('hostwatch process died')
 
@@ -272,7 +276,7 @@ def main(latency_control):
     mux.got_host_req = got_host_req
 
     def new_channel(channel, data):
-        (family, dstip, dstport) = data.split(b',', 2)
+        (family, dstip, dstport) = data.split(b(','), 2)
         family = int(family)
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(family, dstip, dstport)

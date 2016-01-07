@@ -15,8 +15,9 @@ while 1:
         content = z.decompress(stdin.read(nbytes))
 
         module = imp.new_module(name)
-        parent, _, parent_name = name.rpartition(".")
-        if parent != "":
+        parents = name.rsplit(".", 1)
+        if len(parents) == 2:
+            parent, parent_name = parents
             setattr(sys.modules[parent], parent_name, module)
 
         code = compile(content, name, "exec")
