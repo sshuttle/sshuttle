@@ -49,7 +49,7 @@ Client side Requirements
 
 Server side Requirements
 ------------------------
-Python 2.7 or Python 3.5. This should match what is used on the client side.
+Python 2.7 or Python 3.5.
 
 
 Additional Suggested Software
