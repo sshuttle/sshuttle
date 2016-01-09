@@ -45,7 +45,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'sshuttle = sshuttle.__main__',
+            'sshuttle = sshuttle:__main__',
         ],
     },
     tests_require=['pytest', 'mock'],
