@@ -7,6 +7,7 @@ import sshuttle.client as client
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
+import sshuttle.version as version
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
@@ -126,6 +127,7 @@ r,remote=  ssh hostname (and optional username) of remote sshuttle server
 x,exclude= exclude this subnet (can be used more than once)
 X,exclude-from=  exclude the subnets in a file (whitespace separated)
 v,verbose  increase debug message verbosity
+V,version  print the sshuttle version number and exit
 e,ssh-cmd= the command to use to connect to the remote [ssh]
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 no-latency-control  sacrifice latency to improve bandwidth benchmarks
@@ -141,6 +143,9 @@ hostwatch  (internal use only)
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
+if opt.version:
+    print(version.__version__)
+    exit(0)
 if opt.daemon:
     opt.syslog = 1
 if opt.wrap:
