@@ -19,12 +19,11 @@
 
 from setuptools import setup, find_packages
 
-with open('VERSION.txt', 'r') as f:
-    version = f.readline().strip()
+exec(open('sshuttle/version.py').read())
 
 setup(
     name="sshuttle",
-    version=version,
+    version=__version__,
     url='https://github.com/sshuttle/sshuttle',
     author='Brian May',
     author_email='brian@linuxpenguins.xyz',
