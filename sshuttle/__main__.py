@@ -10,6 +10,7 @@ import sshuttle.ssyslog as ssyslog
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
+
 # 1.2.3.4/5 or just 1.2.3.4
 def parse_subnet4(s):
     m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
@@ -130,6 +131,7 @@ e,ssh-cmd= the command to use to connect to the remote [ssh]
 seed-hosts= with -H, use these hostnames for initial scan (comma-separated)
 no-latency-control  sacrifice latency to improve bandwidth benchmarks
 wrap=      restart counting channel numbers after this number (for testing)
+disable-ipv6 disables ipv6 support
 D,daemon   run in the background as a daemon
 s,subnets= file where the subnets are stored, instead of on the command line
 syslog     send log messages to syslog (default if you use --daemon)
@@ -186,10 +188,7 @@ try:
             method_name = opt.method
         else:
             o.fatal("method_name %s not supported" % opt.method)
-        if not opt.listen:
-            ipport_v6 = "auto"  # parse_ipport6('[::1]:0')
-            ipport_v4 = "auto"  # parse_ipport4('127.0.0.1:0')
-        else:
+        if opt.listen:
             ipport_v6 = None
             ipport_v4 = None
             list = opt.listen.split(",")
@@ -198,6 +197,11 @@ try:
                     ipport_v6 = parse_ipport6(ip)
                 else:
                     ipport_v4 = parse_ipport4(ip)
+        else:
+            # parse_ipport4('127.0.0.1:0')
+            ipport_v4 = "auto"
+            # parse_ipport6('[::1]:0')
+            ipport_v6 = "auto" if not opt.disable_ipv6 else None
         if opt.syslog:
             ssyslog.start_syslog()
             ssyslog.stderr_to_syslog()
