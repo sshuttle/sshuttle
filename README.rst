@@ -29,7 +29,7 @@ common case:
 Client side Requirements
 ------------------------
 
-- sudo, or logged in as root on your client machine.
+- sudo, or root access on your client machine.
   (The server doesn't need admin access.)
 - Python 2.7 or Python 3.5.
 
@@ -96,7 +96,7 @@ There are some things you need to consider for TPROXY to work:
   ``0.0.0.0/0`` or ``::/0`` that includes the IP address of the client. Use the
   ``--exclude`` parameter for this.
 
-- You do need the ``--method=tproxy`` parameter, as above.
+- You need the ``--method=tproxy`` parameter, as above.
 
 - The routes for the outgoing packets must already exist. For example, if your
   connection does not have IPv6 support, no IPv6 routes will exist, IPv6
