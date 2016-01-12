@@ -1,3 +1,9 @@
+Release 0.75 (Jan 12, 2016)
+===========================
+
+* Revert change that broke sshuttle entry point.
+
+
 Release 0.74 (Jan 10, 2016)
 ===========================
 
