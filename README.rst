@@ -63,7 +63,7 @@ Additional information for TPROXY
 ---------------------------------
 TPROXY is the only method that supports full support of IPv6 and UDP.
 
-Full UDP or DNS support with the TPROXY method requires the `recvmsg()`
+Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
 syscall. This is not available in Python 2.7, however is in Python 3.5 and
 later.
 
@@ -80,8 +80,8 @@ There are some things you need to consider for TPROXY to work:
       ip -6 route add local default dev lo table 100
       ip -6 rule add fwmark 1 lookup 100
 
-- The --auto-nets feature does not detect IPv6 routes automatically. Add IPv6
-  routes manually. e.g. by adding '::/0' to the end of the command line.
+- The ``--auto-nets`` feature does not detect IPv6 routes automatically. Add IPv6
+  routes manually. e.g. by adding ``'::/0'`` to the end of the command line.
 
 - The client needs to be run as root. e.g.::
 
@@ -89,14 +89,14 @@ There are some things you need to consider for TPROXY to work:
 
 - You may need to exclude the IP address of the server you are connecting to.
   Otherwise sshuttle may attempt to intercept the ssh packets, which will not
-  work. Use the `--exclude` parameter for this.
+  work. Use the ``--exclude`` parameter for this.
 
 - Similarly, UDP return packets (including DNS) could get intercepted and
   bounced back. This is the case if you have a broad subnet such as
   ``0.0.0.0/0`` or ``::/0`` that includes the IP address of the client. Use the
-  `--exclude` parameter for this.
+  ``--exclude`` parameter for this.
 
-- You do need the `--method=tproxy` parameter, as above.
+- You do need the ``--method=tproxy`` parameter, as above.
 
 - The routes for the outgoing packets must already exist. For example, if your
   connection does not have IPv6 support, no IPv6 routes will exist, IPv6
@@ -131,7 +131,7 @@ Usage
       sshuttle -r username@sshserver 0.0.0.0/0 -vv
 
 - By default sshuttle will automatically choose a method to use. Override with
-  the `--method=` parameter.
+  the ``--method=`` parameter.
 
 - There is a shortcut for 0.0.0.0/0 for those that value
   their wrists::
