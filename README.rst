@@ -128,7 +128,7 @@ Usage
 
 - Forward all traffic::
 
-      sshuttle -r username@sshserver 0.0.0.0/0 -vv
+      sshuttle -r username@sshserver 0.0.0.0/0
 
 - By default sshuttle will automatically choose a method to use. Override with
   the ``--method=`` parameter.
@@ -136,12 +136,12 @@ Usage
 - There is a shortcut for 0.0.0.0/0 for those that value
   their wrists::
 
-      sshuttle -r username@sshserver 0/0 -vv
+      sshuttle -r username@sshserver 0/0
 
 - If you would also like your DNS queries to be proxied
   through the DNS server of the server you are connect to::
 
-      sshuttle --dns -vvr username@sshserver 0/0
+      sshuttle --dns -r username@sshserver 0/0
 
   The above is probably what you want to use to prevent
   local network attacks such as Firesheep and friends.
