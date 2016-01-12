@@ -32,6 +32,7 @@ Client side Requirements
 - sudo, or root access on your client machine.
   (The server doesn't need admin access.)
 - Python 2.7 or Python 3.5.
+- For Python 2.7, you need PyXAPI, available `here <http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/>`_
 
 +-------+--------+------------+-----------------------------------------------+
 | OS    | Method | Features   | Requirements                                  |
@@ -66,9 +67,6 @@ TPROXY is the only method that supports full support of IPv6 and UDP.
 Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
 syscall. This is not available in Python 2.7, however is in Python 3.5 and
 later.
-
-- For Python 2.7, you need PyXAPI, available here:
-  http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
 
 There are some things you need to consider for TPROXY to work:
 
