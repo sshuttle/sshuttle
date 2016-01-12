@@ -40,12 +40,13 @@ Client side Requirements
 +       +--------+------------+-----------------------------------------------+
 |       | TPROXY | * IPv4 TCP + Linux with TPROXY support.                    |
 |       |        | * IPv4 UDP + Python 3.5 preferred (see below).             |
-|       |        | * IPv6 TCP +                                               |
+|       |        | * IPv6 TCP + Python 2 may require PyXAPI_ (see below).     |
 |       |        | * IPv6 UDP +                                               |
 +-------+--------+------------+-----------------------------------------------+
 | MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
 +-------+--------+------------+-----------------------------------------------+
 
+.. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/ 
 
 Server side Requirements
 ------------------------
@@ -64,11 +65,9 @@ Additional information for TPROXY
 TPROXY is the only method that supports full support of IPv6 and UDP.
 
 Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
-syscall. This is not available in Python 2.7, however is in Python 3.5 and
-later.
-
-- For Python 2.7, you need PyXAPI, available here:
-  http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+syscall. This is not available in Python 2, however is in Python 3.5 and
+later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
+the ``recvmsg()`` function.
 
 There are some things you need to consider for TPROXY to work:
 
