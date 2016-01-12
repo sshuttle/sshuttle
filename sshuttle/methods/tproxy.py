@@ -59,7 +59,6 @@ if recvmsg == "python":
                 ip = socket.inet_ntop(family, cmsg_data[start:start + length])
                 dstip = (ip, port)
                 break
-        print("xxxxx", srcip, dstip)
         return (srcip, dstip, data)
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
