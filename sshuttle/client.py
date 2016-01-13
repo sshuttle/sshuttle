@@ -487,7 +487,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     if seed_hosts is not None:
         debug1('seed_hosts: %r\n' % seed_hosts)
-        mux.send(0, ssnet.CMD_HOST_REQ, b'\n'.join(seed_hosts))
+        mux.send(0, ssnet.CMD_HOST_REQ, str.encode('\n'.join(seed_hosts)))
 
     while 1:
         rv = serverproc.poll()
