@@ -1,3 +1,4 @@
+sshuttle/version.py
 *.pyc
 *~
 *.8
