@@ -2,4 +2,7 @@ include *.txt
 include *.rst
 include *.py
 include MANIFEST.in
-recursive-include sshuttle *.py
+include LICENSE
+include run
+include tox.ini
+recursive-include sshuttle *.py *.md
