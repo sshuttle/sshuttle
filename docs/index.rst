@@ -14,6 +14,7 @@ Contents:
    how-it-works
    support
    trivia
+   changes
 
 
 Indices and tables
