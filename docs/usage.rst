@@ -55,13 +55,6 @@ Additional information for TPROXY
 ---------------------------------
 TPROXY is the only method that supports full support of IPv6 and UDP.
 
-.. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
-
-Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
-syscall. This is not available in Python 2, however is in Python 3.5 and
-later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
-the ``recvmsg()`` function.
-
 There are some things you need to consider for TPROXY to work:
 
 - The following commands need to be run first as root. This only needs to be

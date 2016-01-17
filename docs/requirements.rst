@@ -21,7 +21,13 @@ Client side Requirements
 | MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
 +-------+--------+------------+-----------------------------------------------+
 
-.. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/ 
+.. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
+
+Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
+syscall. This is not available in Python 2, however is in Python 3.5 and
+later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
+the ``recvmsg()`` function.
+
 
 Server side Requirements
 ------------------------
