@@ -15,7 +15,7 @@ Client side Requirements
 +       +--------+------------+-----------------------------------------------+
 |       | TPROXY | * IPv4 TCP + Linux with TPROXY support.                    |
 |       |        | * IPv4 UDP + Python 3.5 preferred (see below).             |
-|       |        | * IPv6 TCP + Python 2 may require PyXAPI_ (see below).     |
+|       |        | * IPv6 TCP + Python 2 may require PyXAPI (see below).      |
 |       |        | * IPv6 UDP +                                               |
 +-------+--------+------------+-----------------------------------------------+
 | MacOS | PF     | * IPv4 TCP + You need to have the pfctl command.           |
