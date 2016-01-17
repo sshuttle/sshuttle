@@ -5,4 +5,8 @@ include MANIFEST.in
 include LICENSE
 include run
 include tox.ini
-recursive-include sshuttle *.py *.md
+recursive-include docs *.bat
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs Makefile
+recursive-include sshuttle *.py
