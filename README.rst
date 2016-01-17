@@ -38,6 +38,11 @@ Obtaining sshuttle
       git clone https://github.com/sshuttle/sshuttle.git
       ./setup.py install
 
+Documentation
+-------------
+
+The documentation for the latest development version is available at:
+http://sshuttle.readthedocs.org/en/latest/
 
 
 
