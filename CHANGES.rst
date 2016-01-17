@@ -1,3 +1,12 @@
+Release 0.76 (Jan 17, 2016)
+===========================
+
+* Add option to disable IPv6 support.
+* Update documentation.
+* Move documentation, including man page, to Sphinx.
+* Use setuptools-scm for automatic versioning.
+
+
 Release 0.75 (Jan 12, 2016)
 ===========================
 

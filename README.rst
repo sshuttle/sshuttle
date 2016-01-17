@@ -40,13 +40,8 @@ Obtaining sshuttle
 
 Documentation
 -------------
+The documentation for the stable version is available at:
+http://sshuttle.readthedocs.org/
 
 The documentation for the latest development version is available at:
 http://sshuttle.readthedocs.org/en/latest/
-
-
-
-
-
-
-
