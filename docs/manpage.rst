@@ -49,6 +49,9 @@ Options
     run :program:`sshuttle` on a router) try enabling IP Forwarding in
     your kernel, then using ``--listen 0.0.0.0:0``.
 
+    For the tproxy method this can be an IPv6 address. Use this option twice if
+    required, to provide both IPv4 and IPv6 addresses.
+
 .. option:: -H, --auto-hosts
 
     Scan for remote hostnames and update the local /etc/hosts
@@ -160,6 +163,10 @@ Options
     when using :option:`--daemon`, save :program:`sshuttle`'s pid to
     *pidfilename*.  The default is ``sshuttle.pid`` in the
     current directory.
+
+.. option:: --disable-ipv6
+
+    If using the tproxy method, this will disable IPv6 support.
 
 .. option:: --firewall
 

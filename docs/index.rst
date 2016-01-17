@@ -10,7 +10,7 @@ Contents:
    requirements
    installation
    usage
-   Manpage <manpage>
+   Man Page <manpage>
    how-it-works
    support
    trivia
