@@ -3,7 +3,7 @@ Useless Trivia
 This section written by the original author, Avery Pennarun
 <apenwarr@gmail.com>.
 
-Back in 1998 (16 years ago!  Yikes!), I released the first version of `Tunnel
+Back in 1998 (18 years ago!  Yikes!), I released the first version of `Tunnel
 Vision <http://alumnit.ca/wiki/?TunnelVisionReadMe>`_, a semi-intelligent VPN
 client for Linux.  Unfortunately, I made two big mistakes: I implemented the
 key exchange myself (oops), and I ended up doing TCP-over-TCP (double oops).
