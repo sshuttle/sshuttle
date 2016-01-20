@@ -6,25 +6,28 @@ Usage
     For information on usage with Windows, see the :doc:`windows` section.
     For information on using the TProxy method, see the :doc:`tproxy` section.
 
-- Forward all traffic::
+Forward all traffic::
 
-      sshuttle -r username@sshserver 0.0.0.0/0
+    sshuttle -r username@sshserver 0.0.0.0/0
+
+- Use the :option:`sshuttle -r` parameter to specify a remote server.
 
 - By default sshuttle will automatically choose a method to use. Override with
-  the ``--method=`` parameter.
+  the :option:`sshuttle --method` parameter.
 
 - There is a shortcut for 0.0.0.0/0 for those that value
   their wrists::
 
       sshuttle -r username@sshserver 0/0
 
-- If you would also like your DNS queries to be proxied
-  through the DNS server of the server you are connect to::
+If you would also like your DNS queries to be proxied
+through the DNS server of the server you are connect to::
 
-      sshuttle --dns -r username@sshserver 0/0
+  sshuttle --dns -r username@sshserver 0/0
 
-  The above is probably what you want to use to prevent
-  local network attacks such as Firesheep and friends.
+The above is probably what you want to use to prevent
+local network attacks such as Firesheep and friends.
+See the documentation for the :option:`sshuttle --dns` parameter.
 
 (You may be prompted for one or more passwords; first, the local password to
 become root using sudo, and then the remote ssh password.  Or you might have

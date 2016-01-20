@@ -37,6 +37,12 @@ Options
     netmask), and 0/0 ('just route everything through the
     VPN').
 
+.. option:: --method [auto|nat|tproxy|pf]
+
+   Which firewall method should sshuttle use? For auto, sshuttle attempts to
+   guess the appropriate method depending on what it can find in PATH. The
+   default value is auto.
+
 .. option:: -l, --listen=[ip:]port
 
     Use this ip address and port number as the transparent
@@ -278,7 +284,6 @@ there is no need for congestion control to be shared
 between the two separate streams, so a tcp-based tunnel is
 fine.
 
+.. seealso::
 
-See Also
---------
-:manpage:`ssh(1)`, :manpage:`python(1)`
+   :manpage:`ssh(1)`, :manpage:`python(1)`
