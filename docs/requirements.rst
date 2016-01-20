@@ -37,7 +37,7 @@ Supports:
 Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
 syscall. This is not available in Python 2, however is in Python 3.5 and
 later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
-the ``recvmsg()`` function.
+the ``recvmsg()`` function. See :doc:`tproxy` for more information.
 
 
 MacOS with PF method
@@ -50,6 +50,12 @@ Supports:
 Requires:
 
 * You need to have the pfctl command.
+
+Windows
+~~~~~~~
+
+Not officially supported, however can be made to work with Vagrant. Requires
+cmd.exe with Administrator access. See :doc:`windows` for more information.
 
 
 Server side Requirements

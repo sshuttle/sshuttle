@@ -10,6 +10,7 @@ Contents:
    requirements
    installation
    usage
+   platform
    Man Page <manpage>
    how-it-works
    support
