@@ -95,7 +95,10 @@ def daemon_cleanup():
 class MultiListener:
 
     def __init__(self, type=socket.SOCK_STREAM, proto=0):
-        self.v6 = socket.socket(socket.AF_INET6, type, proto)
+        try:
+            self.v6 = socket.socket(socket.AF_INET6, type, proto)
+        except:
+            self.v6 = None
         self.v4 = socket.socket(socket.AF_INET, type, proto)
 
     def setsockopt(self, level, optname, value):
