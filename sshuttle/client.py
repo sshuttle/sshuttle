@@ -95,16 +95,21 @@ def daemon_cleanup():
 class MultiListener:
 
     def __init__(self, type=socket.SOCK_STREAM, proto=0):
-        self.v6 = socket.socket(socket.AF_INET6, type, proto)
-        self.v4 = socket.socket(socket.AF_INET, type, proto)
+        self.type = type
+        self.proto = proto
+        self.v6 = None
+        self.v4 = None
+        self.bind_called = False
 
     def setsockopt(self, level, optname, value):
+        assert(self.bind_called)
         if self.v6:
             self.v6.setsockopt(level, optname, value)
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
+        assert(self.bind_called)
         socks = []
         if self.v6:
             socks.append(self.v6)
@@ -119,6 +124,7 @@ class MultiListener:
         )
 
     def listen(self, backlog):
+        assert(self.bind_called)
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
@@ -133,16 +139,23 @@ class MultiListener:
                     raise e
 
     def bind(self, address_v6, address_v4):
+        assert(not self.bind_called)
+        self.bind_called = True
         if address_v6 and self.v6:
+            self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
+            self.v6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.v6.bind(address_v6)
         else:
             self.v6 = None
         if address_v4 and self.v4:
+            self.v4 = socket.socket(socket.AF_INET, self.type, self.proto)
+            self.v4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.v4.bind(address_v4)
         else:
             self.v4 = None
 
     def print_listening(self, what):
+        assert(self.bind_called)
         if self.v6:
             listenip = self.v6.getsockname()
             debug1('%s listening on %r.\n' % (what, listenip))
@@ -569,11 +582,9 @@ def main(listenip_v6, listenip_v4,
     for port in ports:
         debug2(' %d' % port)
         tcp_listener = MultiListener()
-        tcp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if required.udp:
             udp_listener = MultiListener(socket.SOCK_DGRAM)
-            udp_listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         else:
             udp_listener = None
 
