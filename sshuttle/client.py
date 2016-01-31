@@ -141,13 +141,13 @@ class MultiListener:
     def bind(self, address_v6, address_v4):
         assert(not self.bind_called)
         self.bind_called = True
-        if address_v6 and self.v6:
+        if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
             self.v6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.v6.bind(address_v6)
         else:
             self.v6 = None
-        if address_v4 and self.v4:
+        if address_v4 is not None:
             self.v4 = socket.socket(socket.AF_INET, self.type, self.proto)
             self.v4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.v4.bind(address_v4)
