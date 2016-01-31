@@ -257,7 +257,7 @@ def main(latency_control):
             if lines[-1]:
                 # no terminating newline: entry isn't complete yet!
                 hw.leftover = lines.pop()
-                lines.append('')
+                lines.append(b'')
             else:
                 hw.leftover = b''
             mux.send(0, ssnet.CMD_HOST_LIST, b'\n'.join(lines))
