@@ -4,7 +4,7 @@ import socket
 
 from sshuttle.methods import get_method
 from sshuttle.helpers import Fatal
-from sshuttle.methods.pf import OsDefs
+from sshuttle.methods.pf import FreeBsd, Darwin
 
 
 def test_get_supported_features():
@@ -85,7 +85,7 @@ def test_assert_features():
         method.assert_features(features)
 
 
-@patch('sshuttle.methods.pf.osdefs', OsDefs('darwin'))
+@patch('sshuttle.methods.pf.pf', Darwin())
 @patch('sshuttle.methods.pf.sys.stdout')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
@@ -108,11 +108,11 @@ def test_firewall_command_darwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
     ]
 
 
-@patch('sshuttle.methods.pf.osdefs', OsDefs('notdarwin'))
+@patch('sshuttle.methods.pf.pf', FreeBsd())
 @patch('sshuttle.methods.pf.sys.stdout')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
-def test_firewall_command_notdarwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
+def test_firewall_command_freebsd(mock_pf_get_dev, mock_ioctl, mock_stdout):
     method = get_method('pf')
     assert not method.firewall_command("somthing")
 
@@ -141,7 +141,7 @@ def pfctl(args, stdin=None):
 
 
 @patch('sshuttle.helpers.verbose', new=3)
-@patch('sshuttle.methods.pf.osdefs', OsDefs('darwin'))
+@patch('sshuttle.methods.pf.pf', Darwin())
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
@@ -222,11 +222,11 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
 
 @patch('sshuttle.helpers.verbose', new=3)
-@patch('sshuttle.methods.pf.osdefs', OsDefs('notdarwin'))
+@patch('sshuttle.methods.pf.pf', FreeBsd())
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
-def test_setup_firewall_notdarwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
+def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pfctl.side_effect = pfctl
 
     method = get_method('pf')
