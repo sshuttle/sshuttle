@@ -11,6 +11,243 @@ from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string
 from sshuttle.methods import BaseMethod
 
 
+_pf_context = {'started_by_sshuttle': False, 'Xtoken': None}
+_pf_fd = None
+
+
+class Generic(object):
+    MAXPATHLEN = 1024
+    PF_CHANGE_ADD_TAIL = 2
+    PF_CHANGE_GET_TICKET = 6
+    PF_PASS = 0
+    PF_RDR = 8
+    PF_OUT = 2
+    ACTION_OFFSET = 0
+    POOL_TICKET_OFFSET = 8
+    ANCHOR_CALL_OFFSET = 1040
+
+    class pf_addr(Structure):
+        class _pfa(Union):
+             _fields_ = [("v4", c_uint32),     # struct in_addr
+                        ("v6", c_uint32 * 4),  # struct in6_addr
+                        ("addr8", c_uint8 * 16),
+                        ("addr16", c_uint16 * 8),
+                        ("addr32", c_uint32 * 4)]
+
+        _fields_ = [("pfa", _pfa)]
+        _anonymous_ = ("pfa",)
+
+    def __init__(self):
+        self.status = b''
+        self.pfioc_pooladdr = c_char * 1136
+
+        self.DIOCNATLOOK = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(self.pfioc_natlook) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (23))
+        self.DIOCCHANGERULE = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(self.pfioc_rule) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (26))
+        self.DIOCBEGINADDRS = (
+            (0x40000000 | 0x80000000) |
+            ((sizeof(self.pfioc_pooladdr) & 0x1fff) << 16) |
+            ((ord('D')) << 8) | (51))
+
+    def enable(self):
+        if b'INFO:\nStatus: Disabled' in self.status:
+            pfctl('-e')
+            _pf_context['started_by_sshuttle'] = True
+
+    def disable(self):
+        if _pf_context['started_by_sshuttle']:
+            pfctl('-d')
+
+    def query_nat(self, family, proto, src_ip, src_port, dst_ip, dst_port):
+        [proto, family, src_port, dst_port] = [
+            int(v) for v in [proto, family, src_port, dst_port]]
+
+        packed_src_ip = socket.inet_pton(family, src_ip)
+        packed_dst_ip = socket.inet_pton(family, dst_ip)
+
+        assert len(packed_src_ip) == len(packed_dst_ip)
+        length = len(packed_src_ip)
+
+        pnl = self.pfioc_natlook()
+        pnl.proto = proto
+        pnl.direction = self.PF_OUT
+        pnl.af = family
+        memmove(addressof(pnl.saddr), packed_src_ip, length)
+        memmove(addressof(pnl.daddr), packed_dst_ip, length)
+        self._add_natlook_ports(pnl, src_port, dst_port)
+
+        ioctl(pf_get_dev(), self.DIOCNATLOOK,
+              (c_char * sizeof(pnl)).from_address(addressof(pnl)))
+
+        ip = socket.inet_ntop(
+            pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
+        port = socket.ntohs(self._get_natlook_port(pnl.rdxport))
+        return (ip, port)
+
+    def _add_natlook_ports(self, pnl, src_port, dst_port):
+        pnl.sxport = socket.htons(src_port)
+        pnl.dxport = socket.htons(dst_port)
+
+    def _get_natlook_port(self, xport):
+        return xport
+
+    def add_anchors(self, status=None):
+        if status is None:
+            status = pfctl('-s all')[0]
+        if b'\nanchor "sshuttle"' not in status:
+            self._add_anchor_rule(self.PF_PASS, b"sshuttle")
+
+    def _add_anchor_rule(self, type, name, pr=None):
+        if pr is None:
+            pr = self.pfioc_rule()
+
+        memmove(addressof(pr) + self.ANCHOR_CALL_OFFSET, name,
+                min(self.MAXPATHLEN, len(name)))  # anchor_call = name
+        memmove(addressof(pr) + self.RULE_ACTION_OFFSET,
+                struct.pack('I', type), 4)  # rule.action = type
+
+        memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
+            'I', self.PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
+        ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
+
+        memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
+            'I', self.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
+        ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
+
+    def add_rules(self, rules):
+        assert isinstance(rules, bytes)
+        debug3("rules:\n" + rules.decode("ASCII"))
+        pfctl('-a sshuttle -f /dev/stdin', rules)
+
+
+class FreeBsd(Generic):
+    RULE_ACTION_OFFSET = 2968
+
+    def __new__(cls):
+        class pfioc_natlook(Structure):
+            pf_addr = Generic.pf_addr
+            _fields_ = [("saddr", pf_addr),
+                        ("daddr", pf_addr),
+                        ("rsaddr", pf_addr),
+                        ("rdaddr", pf_addr),
+                        ("sxport", c_uint16),
+                        ("dxport", c_uint16),
+                        ("rsxport", c_uint16),
+                        ("rdxport", c_uint16),
+                        ("af", c_uint8),                      # sa_family_t
+                        ("proto", c_uint8),
+                        ("proto_variant", c_uint8),
+                        ("direction", c_uint8)]
+
+        freebsd = Generic.__new__(cls)
+        freebsd.pfioc_rule = c_char * 3040
+        freebsd.pfioc_natlook = pfioc_natlook
+        return freebsd
+
+    def __init__(self):
+        super(FreeBsd, self).__init__()
+
+    def add_anchors(self):
+        status = pfctl('-s all')[0]
+        if b'\nrdr-anchor "sshuttle"' not in status:
+            self._add_anchor_rule(self.PF_RDR, b'sshuttle')
+        super(FreeBsd, self).add_anchors(status=status)
+
+    def _add_anchor_rule(self, type, name):
+        pr = self.pfioc_rule()
+        ppa = self.pfioc_pooladdr()
+
+        ioctl(pf_get_dev(), self.DIOCBEGINADDRS, ppa)
+        # pool ticket
+        memmove(addressof(pr) + self.POOL_TICKET_OFFSET, ppa[4:8], 4)
+        super(FreeBsd, self)._add_anchor_rule(type, name, pr=pr)
+
+    def add_rules(self, includes, port, dnsport, nslist):
+        tables = [
+            b'table <forward_subnets> {%s}' % b','.join(includes)
+        ]
+        translating_rules = [
+            b'rdr pass on lo0 proto tcp '
+            b'to <forward_subnets> -> 127.0.0.1 port %r' % port
+        ]
+        filtering_rules = [
+            b'pass out route-to lo0 inet proto tcp '
+            b'to <forward_subnets> keep state'
+        ]
+
+        if len(nslist) > 0:
+            tables.append(
+                b'table <dns_servers> {%s}' %
+                b','.join([ns[1].encode("ASCII") for ns in nslist]))
+            translating_rules.append(
+                b'rdr pass on lo0 proto udp to '
+                b'<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
+            filtering_rules.append(
+                b'pass out route-to lo0 inet proto udp to '
+                b'<dns_servers> port 53 keep state')
+
+        rules = b'\n'.join(tables + translating_rules + filtering_rules) \
+                + b'\n'
+
+        super(FreeBsd, self).add_rules(rules)
+
+
+class Darwin(FreeBsd):
+    RULE_ACTION_OFFSET = 3068
+
+    def __init__(self):
+        class pf_state_xport(Union):
+            _fields_ = [("port", c_uint16),
+                        ("call_id", c_uint16),
+                        ("spi", c_uint32)]
+
+        class pfioc_natlook(Structure):
+            pf_addr = Generic.pf_addr
+            _fields_ = [("saddr", pf_addr),
+                        ("daddr", pf_addr),
+                        ("rsaddr", pf_addr),
+                        ("rdaddr", pf_addr),
+                        ("sxport", pf_state_xport),
+                        ("dxport", pf_state_xport),
+                        ("rsxport", pf_state_xport),
+                        ("rdxport", pf_state_xport),
+                        ("af", c_uint8),                      # sa_family_t
+                        ("proto", c_uint8),
+                        ("proto_variant", c_uint8),
+                        ("direction", c_uint8)]
+
+        self.pfioc_rule = c_char * 3104
+        self.pfioc_natlook = pfioc_natlook
+        super(Darwin, self).__init__()
+
+    def enable(self):
+        o = pfctl('-E')
+        _pf_context['Xtoken'] = \
+            re.search(b'Token : (.+)', o[1]).group(1)
+
+    def disable(self):
+        if _pf_context['Xtoken'] is not None:
+            pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
+
+    def _add_natlook_ports(self, pnl, src_port, dst_port):
+        pnl.sxport.port = socket.htons(src_port)
+        pnl.dxport.port = socket.htons(dst_port)
+
+    def _get_natlook_port(self, xport):
+        return xport.port
+
+
+if sys.platform == 'darwin':
+    pf = Darwin()
+else:
+    pf = FreeBsd()
+
+
 def pfctl(args, stdin=None):
     argv = ['pfctl'] + list(args.split(" "))
     debug1('>> %s\n' % ' '.join(argv))
@@ -24,87 +261,6 @@ def pfctl(args, stdin=None):
 
     return o
 
-_pf_context = {'started_by_sshuttle': False, 'Xtoken': None}
-_pf_fd = None
-
-
-class OsDefs(object):
-
-    def __init__(self, platform=None):
-        if platform is None:
-            platform = sys.platform
-        self.platform = platform
-
-        # This are some classes and functions used to support pf in yosemite.
-        if platform == 'darwin':
-            class pf_state_xport(Union):
-                _fields_ = [("port", c_uint16),
-                            ("call_id", c_uint16),
-                            ("spi", c_uint32)]
-        else:
-            class pf_state_xport(Union):
-                _fields_ = [("port", c_uint16),
-                            ("call_id", c_uint16)]
-
-        class pf_addr(Structure):
-
-            class _pfa(Union):
-                _fields_ = [("v4",            c_uint32),      # struct in_addr
-                            ("v6",            c_uint32 * 4),  # struct in6_addr
-                            ("addr8",         c_uint8 * 16),
-                            ("addr16",        c_uint16 * 8),
-                            ("addr32",        c_uint32 * 4)]
-
-            _fields_ = [("pfa",               _pfa)]
-            _anonymous_ = ("pfa",)
-
-        class pfioc_natlook(Structure):
-            _fields_ = [("saddr", pf_addr),
-                        ("daddr", pf_addr),
-                        ("rsaddr", pf_addr),
-                        ("rdaddr", pf_addr),
-                        ("sxport", pf_state_xport),
-                        ("dxport", pf_state_xport),
-                        ("rsxport", pf_state_xport),
-                        ("rdxport", pf_state_xport),
-                        ("af", c_uint8),                      # sa_family_t
-                        ("proto", c_uint8),
-                        ("proto_variant", c_uint8),
-                        ("direction", c_uint8)]
-        self.pfioc_natlook = pfioc_natlook
-
-        # sizeof(struct pfioc_rule)
-        self.pfioc_rule = c_char * \
-            (3104 if platform == 'darwin' else 3040)
-
-        # sizeof(struct pfioc_pooladdr)
-        self.pfioc_pooladdr = c_char * 1136
-
-        self.MAXPATHLEN = 1024
-
-        self.DIOCNATLOOK = (
-            (0x40000000 | 0x80000000) |
-            ((sizeof(pfioc_natlook) & 0x1fff) << 16) |
-            ((ord('D')) << 8) | (23))
-        self.DIOCCHANGERULE = (
-            (0x40000000 | 0x80000000) |
-            ((sizeof(self.pfioc_rule) & 0x1fff) << 16) |
-            ((ord('D')) << 8) | (26))
-        self.DIOCBEGINADDRS = (
-            (0x40000000 | 0x80000000) |
-            ((sizeof(self.pfioc_pooladdr) & 0x1fff) << 16) |
-            ((ord('D')) << 8) | (51))
-
-        self.PF_CHANGE_ADD_TAIL = 2
-        self.PF_CHANGE_GET_TICKET = 6
-
-        self.PF_PASS = 0
-        self.PF_RDR = 8
-
-        self.PF_OUT = 2
-
-osdefs = OsDefs()
-
 
 def pf_get_dev():
     global _pf_fd
@@ -113,59 +269,6 @@ def pf_get_dev():
 
     return _pf_fd
 
-
-def pf_query_nat(family, proto, src_ip, src_port, dst_ip, dst_port):
-    [proto, family, src_port, dst_port] = [
-        int(v) for v in [proto, family, src_port, dst_port]]
-
-    packed_src_ip = socket.inet_pton(family, src_ip)
-    packed_dst_ip = socket.inet_pton(family, dst_ip)
-
-    assert len(packed_src_ip) == len(packed_dst_ip)
-    length = len(packed_src_ip)
-
-    pnl = osdefs.pfioc_natlook()
-    pnl.proto = proto
-    pnl.direction = osdefs.PF_OUT
-    pnl.af = family
-    memmove(addressof(pnl.saddr), packed_src_ip, length)
-    memmove(addressof(pnl.daddr), packed_dst_ip, length)
-    pnl.sxport.port = socket.htons(src_port)
-    pnl.dxport.port = socket.htons(dst_port)
-
-    ioctl(pf_get_dev(), osdefs.DIOCNATLOOK,
-          (c_char * sizeof(pnl)).from_address(addressof(pnl)))
-
-    ip = socket.inet_ntop(
-        pnl.af, (c_char * length).from_address(addressof(pnl.rdaddr)).raw)
-    port = socket.ntohs(pnl.rdxport.port)
-    return (ip, port)
-
-
-def pf_add_anchor_rule(type, name):
-    ACTION_OFFSET = 0
-    POOL_TICKET_OFFSET = 8
-    ANCHOR_CALL_OFFSET = 1040
-    RULE_ACTION_OFFSET = 3068 if osdefs.platform == 'darwin' else 2968
-
-    pr = osdefs.pfioc_rule()
-    ppa = osdefs.pfioc_pooladdr()
-
-    ioctl(pf_get_dev(), osdefs.DIOCBEGINADDRS, ppa)
-
-    memmove(addressof(pr) + POOL_TICKET_OFFSET, ppa[4:8], 4)  # pool_ticket
-    memmove(addressof(pr) + ANCHOR_CALL_OFFSET, name,
-            min(osdefs.MAXPATHLEN, len(name)))  # anchor_call = name
-    memmove(addressof(pr) + RULE_ACTION_OFFSET,
-            struct.pack('I', type), 4)  # rule.action = type
-
-    memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
-        'I', osdefs.PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
-    ioctl(pf_get_dev(), osdefs.DIOCCHANGERULE, pr)
-
-    memmove(addressof(pr) + ACTION_OFFSET, struct.pack(
-        'I', osdefs.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
-    ioctl(pf_get_dev(), osdefs.DIOCCHANGERULE, pr)
 
 
 class Method(BaseMethod):
@@ -214,45 +317,9 @@ class Method(BaseMethod):
                                     snet.encode("ASCII"),
                                     swidth))
 
-            tables.append(
-                b'table <forward_subnets> {%s}' % b','.join(includes))
-            translating_rules.append(
-                b'rdr pass on lo0 proto tcp '
-                b'to <forward_subnets> -> 127.0.0.1 port %r' % port)
-            filtering_rules.append(
-                b'pass out route-to lo0 inet proto tcp '
-                b'to <forward_subnets> keep state')
-
-        if len(nslist) > 0:
-            tables.append(
-                b'table <dns_servers> {%s}' %
-                b','.join([ns[1].encode("ASCII") for ns in nslist]))
-            translating_rules.append(
-                b'rdr pass on lo0 proto udp to '
-                b'<dns_servers> port 53 -> 127.0.0.1 port %r' % dnsport)
-            filtering_rules.append(
-                b'pass out route-to lo0 inet proto udp to '
-                b'<dns_servers> port 53 keep state')
-
-        rules = b'\n'.join(tables + translating_rules + filtering_rules) \
-                + b'\n'
-        assert isinstance(rules, bytes)
-        debug3("rules:\n" + rules.decode("ASCII"))
-
-        pf_status = pfctl('-s all')[0]
-        if b'\nrdr-anchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(osdefs.PF_RDR, b"sshuttle")
-        if b'\nanchor "sshuttle" all\n' not in pf_status:
-            pf_add_anchor_rule(osdefs.PF_PASS, b"sshuttle")
-
-        pfctl('-a sshuttle -f /dev/stdin', rules)
-        if osdefs.platform == "darwin":
-            o = pfctl('-E')
-            _pf_context['Xtoken'] = \
-                re.search(b'Token : (.+)', o[1]).group(1)
-        elif b'INFO:\nStatus: Disabled' in pf_status:
-            pfctl('-e')
-            _pf_context['started_by_sshuttle'] = True
+        pf.add_anchors()
+        pf.add_rules(includes, port, dnsport, nslist)
+        pf.enable()
 
     def restore_firewall(self, port, family, udp):
         if family != socket.AF_INET:
@@ -263,16 +330,12 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pfctl('-a sshuttle -F all')
-        if osdefs.platform == "darwin":
-            if _pf_context['Xtoken'] is not None:
-                pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
-        elif _pf_context['started_by_sshuttle']:
-            pfctl('-d')
+        pf.disable()
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):
             try:
-                dst = pf_query_nat(*(line[13:].split(',')))
+                dst = pf.query_nat(*(line[13:].split(',')))
                 sys.stdout.write('QUERY_PF_NAT_SUCCESS %s,%r\n' % dst)
             except IOError as e:
                 sys.stdout.write('QUERY_PF_NAT_FAILURE %s\n' % e)
