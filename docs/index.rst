@@ -1,6 +1,9 @@
 sshuttle: where transparent proxy meets VPN meets ssh
 =====================================================
 
+:Date: |today|
+:Version: |version|
+
 Contents:
 
 .. toctree::
