@@ -192,7 +192,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call(mock_pf_get_dev(), 0xCC20441A, ANY),
     ]
     assert mock_pfctl.mock_calls == [
-        call('-f /dev/stdin', 'pass on lo\n'),
+        call('-f /dev/stdin', b'pass on lo\n'),
         call('-s all'),
         call('-a sshuttle -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
