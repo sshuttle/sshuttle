@@ -235,6 +235,13 @@ class Darwin(FreeBsd):
         if _pf_context['Xtoken'] is not None:
             pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
 
+    def add_anchors(self):
+        # before adding anchors and rules we must override the skip lo
+        # that in some cases ends up in the chain so the rules we will add,
+        # which rely on translating/filtering  packets on lo, can work
+        pfctl('-f /dev/stdin', b'pass on lo\n')
+        super(Darwin, self).add_anchors()
+
     def _add_natlook_ports(self, pnl, src_port, dst_port):
         pnl.sxport.port = socket.htons(src_port)
         pnl.dxport.port = socket.htons(dst_port)
