@@ -1,3 +1,12 @@
+Release 0.77 (UNRELEASED)
+=========================
+
+* Various bug fixes.
+* Fix Documentation.
+* Add fix for MacOS X issue.
+* Add support for OpenBSD.
+
+
 Release 0.76 (Jan 17, 2016)
 ===========================
 

@@ -40,8 +40,10 @@ later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
 the ``recvmsg()`` function. See :doc:`tproxy` for more information.
 
 
-MacOS with PF method
-~~~~~~~~~~~~~~~~~~~~
+MacOS / FreeBSD / OpenBSD
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Method: pf
+
 Supports:
 
 * IPv4 TCP
