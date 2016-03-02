@@ -1,5 +1,5 @@
-Release 0.77 (UNRELEASED)
-=========================
+Release 0.77 (Mar 3, 2016)
+==========================
 
 * Various bug fixes.
 * Fix Documentation.
