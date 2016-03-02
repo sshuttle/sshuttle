@@ -197,6 +197,70 @@ class FreeBsd(Generic):
         super(FreeBsd, self).add_rules(rules)
 
 
+class OpenBsd(Generic):
+    POOL_TICKET_OFFSET = 4
+    RULE_ACTION_OFFSET = 3324
+    ANCHOR_CALL_OFFSET = 1036
+
+    def __init__(self):
+        class pfioc_natlook(Structure):
+            pf_addr = Generic.pf_addr
+            _fields_ = [("saddr", pf_addr),
+                        ("daddr", pf_addr),
+                        ("rsaddr", pf_addr),
+                        ("rdaddr", pf_addr),
+                        ("rdomain", c_uint16),
+                        ("rrdomain", c_uint16),
+                        ("sxport", c_uint16),
+                        ("dxport", c_uint16),
+                        ("rsxport", c_uint16),
+                        ("rdxport", c_uint16),
+                        ("af", c_uint8),                      # sa_family_t
+                        ("proto", c_uint8),
+                        ("proto_variant", c_uint8),
+                        ("direction", c_uint8)]
+
+        self.pfioc_rule = c_char * 3400
+        self.pfioc_natlook = pfioc_natlook
+        super(OpenBsd, self).__init__()
+
+    def add_anchors(self):
+        # before adding anchors and rules we must override the skip lo
+        # that comes by default in openbsd pf.conf so the rules we will add,
+        # which rely on translating/filtering  packets on lo, can work
+        pfctl('-f /dev/stdin', b'match on lo\n')
+        super(OpenBsd, self).add_anchors()
+
+    def add_rules(self, includes, port, dnsport, nslist):
+        tables = [
+            b'table <forward_subnets> {%s}' % b','.join(includes)
+        ]
+        translating_rules = [
+            b'pass in on lo0 inet proto tcp '
+            b'divert-to 127.0.0.1 port %r' % port
+        ]
+        filtering_rules = [
+            b'pass out inet proto tcp '
+            b'to <forward_subnets> route-to lo0 keep state'
+        ]
+
+        if len(nslist) > 0:
+            tables.append(
+                b'table <dns_servers> {%s}' %
+                b','.join([ns[1].encode("ASCII") for ns in nslist]))
+            translating_rules.append(
+                b'pass in on lo0 inet proto udp to <dns_servers>'
+                b'port 53 rdr-to 127.0.0.1 port %r' % dnsport)
+            filtering_rules.append(
+                b'pass out inet proto udp to '
+                b'<dns_servers> port 53 route-to lo0 keep state')
+
+        rules = b'\n'.join(tables + translating_rules + filtering_rules) \
+                + b'\n'
+
+        super(OpenBsd, self).add_rules(rules)
+
+
 class Darwin(FreeBsd):
     RULE_ACTION_OFFSET = 3068
 
@@ -251,6 +315,8 @@ class Darwin(FreeBsd):
 
 if sys.platform == 'darwin':
     pf = Darwin()
+elif sys.platform.startswith('openbsd'):
+    pf = OpenBsd()
 else:
     pf = FreeBsd()
 
