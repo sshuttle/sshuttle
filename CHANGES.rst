@@ -1,3 +1,11 @@
+Release 0.77.1 (Mar 7, 2016)
+============================
+
+* Use semantic versioning. http://semver.org/
+* Update GPL 2 license text.
+* New release to fix PyPI.
+
+
 Release 0.77 (Mar 3, 2016)
 ==========================
 
