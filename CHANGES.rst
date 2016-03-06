@@ -1,3 +1,9 @@
+Release 0.77.2 (Mar 7, 2016)
+============================
+
+* Accidentally switched LGPL2 license with GPL2 license in 0.77.1 - now fixed.
+
+
 Release 0.77.1 (Mar 7, 2016)
 ============================
 
