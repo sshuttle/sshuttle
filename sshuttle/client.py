@@ -547,10 +547,14 @@ def main(listenip_v6, listenip_v4,
         else:
             listenip_v6 = None
 
-    required.ipv6 = len(subnets_v6) > 0 or len(nslist_v6) > 0 \
-        or listenip_v6 is not None
+    required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
     required.udp = avail.udp
     required.dns = len(nslist) > 0
+
+    # if IPv6 not supported, ignore IPv6 DNS servers
+    if not required.ipv6:
+        nslist_v6 = []
+        nslist = nslist_v4
 
     fw.method.assert_features(required)
 
