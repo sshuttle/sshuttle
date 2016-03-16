@@ -8,6 +8,12 @@ import subprocess as ssubprocess
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
+try:
+    # Python >= 3.5
+    from shlex import quote
+except ImportError:
+    # Python 2.x
+    from pipes import quote
 
 def readfile(name):
     tokens = name.split(".")
@@ -108,8 +114,9 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         if python:
             pycmd = "'%s' -c '%s'" % (python, pyscript)
         else:
-            pycmd = ("exec /bin/sh -c \'P=python3.5; $P -V 2>/dev/null || P=python; "
-                     "exec \"$P\" -c \\'%s\\'\'") % pyscript
+            pycmd = ("P=python3.5; $P -V 2>/dev/null || P=python; "
+                     "exec \"$P\" -c %s") % quote(pyscript)
+            pycmd = ("exec /bin/sh -c %s" % quote(pycmd))
         argv = (sshl +
                 portl +
                 [rhost, '--', pycmd])
