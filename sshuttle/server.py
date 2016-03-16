@@ -17,6 +17,7 @@ from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
 
 
 def _ipmatch(ipstr):
+    # FIXME: IPv4 only
     if ipstr == b'default':
         ipstr = b'0.0.0.0/0'
     m = re.match(b'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
@@ -38,6 +39,7 @@ def _ipmatch(ipstr):
 
 
 def _ipstr(ip, width):
+    # FIXME: IPv4 only
     if width >= 32:
         return ip
     else:
@@ -45,6 +47,7 @@ def _ipstr(ip, width):
 
 
 def _maskbits(netmask):
+    # FIXME: IPv4 only
     if not netmask:
         return 32
     for i in range(32):
