@@ -1,215 +1,312 @@
-"""Command-line options parser.
-With the help of an options spec string, easily parse command-line options.
-"""
-import sys
-import os
-import textwrap
-import getopt
 import re
-import struct
+import socket
+from argparse import ArgumentParser, Action, ArgumentTypeError as Fatal
+from sshuttle import __version__
+from sshuttle.helpers import family_ip_tuple
+
+# 1.2.3.4/5 or just 1.2.3.4
+def parse_subnet4(s):
+    m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
+    if not m:
+        raise Fatal('%r is not a valid IP subnet format' % s)
+    (a, b, c, d, width) = m.groups()
+    (a, b, c, d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
+    if width is None:
+        width = 32
+    else:
+        width = int(width)
+    if a > 255 or b > 255 or c > 255 or d > 255:
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
+    if width > 32:
+        raise Fatal('*/%d is greater than the maximum of 32' % width)
+    return(socket.AF_INET, '%d.%d.%d.%d' % (a, b, c, d), width)
 
 
-class OptDict:
-
-    def __init__(self):
-        self._opts = {}
-
-    def __setitem__(self, k, v):
-        if k.startswith('no-') or k.startswith('no_'):
-            k = k[3:]
-            v = not v
-        self._opts[k] = v
-
-    def __getitem__(self, k):
-        if k.startswith('no-') or k.startswith('no_'):
-            return not self._opts[k[3:]]
-        return self._opts[k]
-
-    def __getattr__(self, k):
-        return self[k]
+# 1:2::3/64 or just 1:2::3
+def parse_subnet6(s):
+    m = re.match(r'(?:([a-fA-F\d:]+))?(?:/(\d+))?$', s)
+    if not m:
+        raise Fatal('%r is not a valid IP subnet format' % s)
+    (net, width) = m.groups()
+    if width is None:
+        width = 128
+    else:
+        width = int(width)
+    if width > 128:
+        raise Fatal('*/%d is greater than the maximum of 128' % width)
+    return(socket.AF_INET6, net, width)
 
 
-def _default_onabort(msg):
-    sys.exit(97)
-
-
-def _intify(v):
+# Subnet file, supporting empty lines and hash-started comment lines
+def parse_subnet_file(s):
     try:
-        vv = int(v or '')
-        if str(vv) == v:
-            return vv
-    except ValueError:
-        pass
-    return v
+        handle = open(s, 'r')
+    except OSError:
+        raise Fatal('Unable to open subnet file: %s' % s)
+
+    raw_config_lines = handle.readlines()
+    subnets = []
+    for line_no, line in enumerate(raw_config_lines):
+        line = line.strip()
+        if len(line) == 0:
+            continue
+        if line[0] == '#':
+            continue
+        subnets.append(parse_subnet(line))
+
+    return subnets
 
 
-def _atoi(v):
-    try:
-        return int(v or 0)
-    except ValueError:
-        return 0
+# 1.2.3.4/5 or just 1.2.3.4
+# 1:2::3/64 or just 1:2::3
+def parse_subnet(subnet_str):
+    if ':' in subnet_str:
+        return parse_subnet6(subnet_str)
+    else:
+        return parse_subnet4(subnet_str)
 
 
-def _remove_negative_kv(k, v):
-    if k.startswith('no-') or k.startswith('no_'):
-        return k[3:], not v
-    return k, v
+# 1.2.3.4:567 or just 1.2.3.4 or just 567
+def parse_ipport4(s):
+    s = str(s)
+    m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
+    if not m:
+        raise Fatal('%r is not a valid IP:port format' % s)
+    (a, b, c, d, port) = m.groups()
+    (a, b, c, d, port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
+                          int(port or 0))
+    if a > 255 or b > 255 or c > 255 or d > 255:
+        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
+    if port > 65535:
+        raise Fatal('*:%d is greater than the maximum of 65535' % port)
+    if a is None:
+        a = b = c = d = 0
+    return ('%d.%d.%d.%d' % (a, b, c, d), port)
 
 
-def _remove_negative_k(k):
-    return _remove_negative_kv(k, None)[0]
+# [1:2::3]:456 or [1:2::3] or 456
+def parse_ipport6(s):
+    s = str(s)
+    m = re.match(r'(?:\[([^]]*)])?(?::)?(?:(\d+))?$', s)
+    if not m:
+        raise Fatal('%s is not a valid IP:port format' % s)
+    (ip, port) = m.groups()
+    (ip, port) = (ip or '::', int(port or 0))
+    return (ip, port)
 
 
-def _tty_width():
-    if not hasattr(sys.stderr, "fileno"):
-        return _atoi(os.environ.get('WIDTH')) or 70
-    s = struct.pack("HHHH", 0, 0, 0, 0)
-    try:
-        import fcntl
-        import termios
-        s = fcntl.ioctl(sys.stderr.fileno(), termios.TIOCGWINSZ, s)
-    except (IOError, ImportError):
-        return _atoi(os.environ.get('WIDTH')) or 70
-    (ysize, xsize, ypix, xpix) = struct.unpack('HHHH', s)
-    return xsize or 70
+def parse_list(list):
+    return re.split(r'[\s,]+', list.strip()) if list else []
 
 
-class Options:
+class Concat(Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not supported")
+        super(Concat, self).__init__(option_strings, dest, **kwargs)
 
-    """Option parser.
-    When constructed, two strings are mandatory. The first one is the command
-    name showed before error messages. The second one is a string called an
-    optspec that specifies the synopsis and option flags and their description.
-    For more information about optspecs, consult the bup-options(1) man page.
+    def __call__(self, parser, namespace, values, option_string=None):
+        curr_value = getattr(namespace, self.dest, [])
+        setattr(namespace, self.dest, curr_value + values)
 
-    Two optional arguments specify an alternative parsing function and an
-    alternative behaviour on abort (after having output the usage string).
 
-    By default, the parser function is getopt.gnu_getopt, and the abort
-    behaviour is to exit the program.
+parser = ArgumentParser(
+    prog="sshuttle",
+    usage="%(prog)s [-l [ip:]port] [-r [user@]sshserver[:port]] <subnets...>"
+)
+parser.add_argument(
+    "subnets",
+    metavar="IP/MASK [IP/MASK...]",
+    nargs="*",
+    type=parse_subnet,
+    help="""
+    capture and forward traffic to these subnets (whitespace separated)
     """
-
-    def __init__(self, optspec, optfunc=getopt.gnu_getopt,
-                 onabort=_default_onabort):
-        self.optspec = optspec
-        self._onabort = onabort
-        self.optfunc = optfunc
-        self._aliases = {}
-        self._shortopts = 'h?'
-        self._longopts = ['help']
-        self._hasparms = {}
-        self._defaults = {}
-        self._usagestr = self._gen_usage()
-
-    def _gen_usage(self):
-        out = []
-        lines = self.optspec.strip().split('\n')
-        lines.reverse()
-        first_syn = True
-        while lines:
-            l = lines.pop()
-            if l == '--':
-                break
-            out.append('%s: %s\n' % (first_syn and 'usage' or '   or', l))
-            first_syn = False
-        out.append('\n')
-        last_was_option = False
-        while lines:
-            l = lines.pop()
-            if l.startswith(' '):
-                out.append('%s%s\n' % (last_was_option and '\n' or '',
-                                       l.lstrip()))
-                last_was_option = False
-            elif l:
-                (flags, extra) = l.split(' ', 1)
-                extra = extra.strip()
-                if flags.endswith('='):
-                    flags = flags[:-1]
-                    has_parm = 1
-                else:
-                    has_parm = 0
-                g = re.search(r'\[([^\]]*)\]$', extra)
-                if g:
-                    defval = g.group(1)
-                else:
-                    defval = None
-                flagl = flags.split(',')
-                flagl_nice = []
-                for _f in flagl:
-                    f, dvi = _remove_negative_kv(_f, _intify(defval))
-                    self._aliases[f] = _remove_negative_k(flagl[0])
-                    self._hasparms[f] = has_parm
-                    self._defaults[f] = dvi
-                    if len(f) == 1:
-                        self._shortopts += f + (has_parm and ':' or '')
-                        flagl_nice.append('-' + f)
-                    else:
-                        f_nice = re.sub(r'\W', '_', f)
-                        self._aliases[f_nice] = _remove_negative_k(flagl[0])
-                        self._longopts.append(f + (has_parm and '=' or ''))
-                        self._longopts.append('no-' + f)
-                        flagl_nice.append('--' + _f)
-                flags_nice = ', '.join(flagl_nice)
-                if has_parm:
-                    flags_nice += ' ...'
-                prefix = '    %-20s  ' % flags_nice
-                argtext = '\n'.join(textwrap.wrap(extra, width=_tty_width(),
-                                                  initial_indent=prefix,
-                                                  subsequent_indent=' ' * 28))
-                out.append(argtext + '\n')
-                last_was_option = True
-            else:
-                out.append('\n')
-                last_was_option = False
-        return ''.join(out).rstrip() + '\n'
-
-    def usage(self, msg=""):
-        """Print usage string to stderr and abort."""
-        sys.stderr.write(self._usagestr)
-        e = self._onabort and self._onabort(msg) or None
-        if e:
-            raise e
-
-    def fatal(self, s):
-        """Print an error message to stderr and abort with usage string."""
-        msg = 'error: %s\n' % s
-        sys.stderr.write(msg)
-        return self.usage(msg)
-
-    def parse(self, args):
-        """Parse a list of arguments and return (options, flags, extra).
-
-        In the returned tuple, "options" is an OptDict with known options,
-        "flags" is a list of option flags that were used on the command-line,
-        and "extra" is a list of positional arguments.
-        """
-        try:
-            (flags, extra) = self.optfunc(
-                args, self._shortopts, self._longopts)
-        except getopt.GetoptError as e:
-            self.fatal(e)
-
-        opt = OptDict()
-
-        for k, v in self._defaults.items():
-            k = self._aliases[k]
-            opt[k] = v
-
-        for (k, v) in flags:
-            k = k.lstrip('-')
-            if k in ('h', '?', 'help'):
-                self.usage()
-            if k.startswith('no-'):
-                k = self._aliases[k[3:]]
-                v = 0
-            else:
-                k = self._aliases[k]
-                if not self._hasparms[k]:
-                    assert(v == '')
-                    v = (opt._opts.get(k) or 0) + 1
-                else:
-                    v = _intify(v)
-            opt[k] = v
-        for (f1, f2) in self._aliases.items():
-            opt[f1] = opt._opts.get(f2)
-        return (opt, flags, extra)
+)
+parser.add_argument(
+    "-l", "--listen", 
+    metavar="[IP:]PORT",
+    help="""
+    transproxy to this ip address and port number
+    """
+)
+parser.add_argument(
+    "-H", "--auto-hosts",
+    action="store_true",
+    help="""
+    scan for remote hostnames and update local /etc/hosts
+    """
+)
+parser.add_argument(
+    "-N", "--auto-nets",
+    action="store_true",
+    help="""
+    automatically determine subnets to route
+    """
+)
+parser.add_argument(
+    "--dns",
+    action="store_true",
+    help="""
+    capture local DNS requests and forward to the remote DNS server
+    """
+)
+parser.add_argument(
+    "--ns-hosts",
+    metavar="IP[,IP]",
+    default=[],
+    type=parse_list,
+    help="""
+    capture and forward DNS requests made to the following servers
+    """
+)
+parser.add_argument(
+    "--method",
+    choices=["auto", "nat", "tproxy", "pf"],
+    metavar="TYPE",
+    default="auto",
+    help="""
+    %(choices)s
+    """
+)
+parser.add_argument(
+    "--python",
+    metavar="PATH",
+    help="""
+    path to python interpreter on the remote server
+    """
+)
+parser.add_argument(
+    "-r", "--remote",
+    metavar="[USERNAME@]ADDR[:PORT]",
+    help="""
+    ssh hostname (and optional username) of remote %(prog)s server
+    """
+)
+parser.add_argument(
+    "-x", "--exclude",
+    metavar="IP/MASK",
+    action="append",
+    default=[parse_subnet('127.0.0.1/8')],
+    type=parse_subnet,
+    help="""
+    exclude this subnet (can be used more than once)
+    """
+)
+parser.add_argument(
+    "-X", "--exclude-from",
+    metavar="PATH",
+    action=Concat,
+    dest="exclude",
+    type=parse_subnet_file,
+    help="""
+    exclude the subnets in a file (whitespace separated)
+    """
+)
+parser.add_argument(
+    "-v", "--verbose",
+    action="count",
+    default=0,
+    help="""
+    increase debug message verbosity
+    """
+)
+parser.add_argument(
+    "-V", "--version",
+    action="version",
+    version=__version__,
+    help="""
+    print the %(prog)s version number and exit
+    """
+)
+parser.add_argument(
+    "-e", "--ssh-cmd",
+    metavar="CMD",
+    default="ssh",
+    help="""
+    the command to use to connect to the remote [%(default)s]
+    """
+)
+parser.add_argument(
+    "--seed-hosts",
+    metavar="HOSTNAME[,HOSTNAME]",
+    default=[],
+    help="""
+    with -H, use these hostnames for initial scan (comma-separated)
+    """
+)
+parser.add_argument(
+    "--no-latency-control",
+    action="store_false",
+    dest="latency_control",
+    help="""
+    sacrifice latency to improve bandwidth benchmarks
+    """
+)
+parser.add_argument(
+    "--wrap",
+    metavar="NUM",
+    type=int,
+    help="""
+    restart counting channel numbers after this number (for testing)
+    """
+)
+parser.add_argument(
+    "--disable-ipv6",
+    action="store_true",
+    help="""
+    disable IPv6 support
+    """
+)
+parser.add_argument(
+    "-D", "--daemon",
+    action="store_true",
+    help="""
+    run in the background as a daemon
+    """
+)
+parser.add_argument(
+    "-s", "--subnets",
+    metavar="PATH",
+    dest="subnets_from_file",
+    type=parse_subnet_file,
+    help="""
+    file where the subnets are stored, instead of on the command line
+    """
+)
+parser.add_argument(
+    "--syslog",
+    action="store_true",
+    help="""
+    send log messages to syslog (default if you use --daemon)
+    """
+)
+parser.add_argument(
+    "--pidfile",
+    metavar="PATH",
+    default="./sshuttle.pid",
+    help="""
+    pidfile name (only if using --daemon) [%(default)s]
+    """
+)
+parser.add_argument(
+    "--server",
+    action="store_true",
+    help="""
+    (internal use only)
+    """
+)
+parser.add_argument(
+    "--firewall",
+    action="store_true",
+    help="""
+    (internal use only)
+    """
+)
+parser.add_argument(
+    "--hostwatch",
+    action="store_true",
+    help="""
+    (internal use only)
+    """
+)
