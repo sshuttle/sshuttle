@@ -1,13 +1,12 @@
-import sys
 import re
-import socket
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
-from sshuttle.options import parser
+from sshuttle.options import parser, parse_ipport6, parse_ipport4
 from sshuttle.helpers import family_ip_tuple, log, Fatal
+
 
 def main():
     opt = parser.parse_args()

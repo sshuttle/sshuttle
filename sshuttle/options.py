@@ -2,7 +2,7 @@ import re
 import socket
 from argparse import ArgumentParser, Action, ArgumentTypeError as Fatal
 from sshuttle import __version__
-from sshuttle.helpers import family_ip_tuple
+
 
 # 1.2.3.4/5 or just 1.2.3.4
 def parse_subnet4(s):
@@ -124,7 +124,7 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "-l", "--listen", 
+    "-l", "--listen",
     metavar="[IP:]PORT",
     help="""
     transproxy to this ip address and port number
