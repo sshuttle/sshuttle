@@ -18,23 +18,23 @@ from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
 
 def _ipmatch(ipstr):
     # FIXME: IPv4 only
-    if ipstr == b'default':
-        ipstr = b'0.0.0.0/0'
-    m = re.match(b'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
+    if ipstr == 'default':
+        ipstr = '0.0.0.0/0'
+    m = re.match('^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
     if m:
         g = m.groups()
         ips = g[0]
         width = int(g[4] or 32)
         if g[1] is None:
-            ips += b'.0.0.0'
+            ips += '.0.0.0'
             width = min(width, 8)
         elif g[2] is None:
-            ips += b'.0.0'
+            ips += '.0.0'
             width = min(width, 16)
         elif g[3] is None:
-            ips += b'.0'
+            ips += '.0'
             width = min(width, 24)
-        ips = ips.decode("ASCII")
+        ips = ips
         return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
 
 
@@ -248,26 +248,26 @@ def main(latency_control):
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
     handlers.append(mux)
-    routepkt = b''
+    routepkt = ''
     for r in routes:
         routepkt += '%d,%s,%d\n' % r
     mux.send(0, ssnet.CMD_ROUTES, b(routepkt))
 
     hw = Hostwatch()
-    hw.leftover = b''
+    hw.leftover = b('')
 
     def hostwatch_ready(sock):
         assert(hw.pid)
         content = hw.sock.recv(4096)
         if content:
-            lines = (hw.leftover + content).split(b'\n')
+            lines = (hw.leftover + content).split(b('\n'))
             if lines[-1]:
                 # no terminating newline: entry isn't complete yet!
                 hw.leftover = lines.pop()
-                lines.append(b'')
+                lines.append(b(''))
             else:
-                hw.leftover = b''
-            mux.send(0, ssnet.CMD_HOST_LIST, b'\n'.join(lines))
+                hw.leftover = b('')
+            mux.send(0, ssnet.CMD_HOST_LIST, b('\n').join(lines))
         else:
             raise Fatal('hostwatch process died')
 
