@@ -5,9 +5,9 @@ from mock import patch, Mock, call
 
 
 def test__ipmatch():
-    assert sshuttle.server._ipmatch(b"1.2.3.4") is not None
-    assert sshuttle.server._ipmatch(b"::1") is None   # ipv6 not supported
-    assert sshuttle.server._ipmatch(b"42 Example Street, Melbourne") is None
+    assert sshuttle.server._ipmatch("1.2.3.4") is not None
+    assert sshuttle.server._ipmatch("::1") is None   # ipv6 not supported
+    assert sshuttle.server._ipmatch("42 Example Street, Melbourne") is None
 
 
 def test__ipstr():
@@ -16,7 +16,7 @@ def test__ipstr():
 
 
 def test__maskbits():
-    netmask = sshuttle.server._ipmatch(b"255.255.255.0")
+    netmask = sshuttle.server._ipmatch("255.255.255.0")
     sshuttle.server._maskbits(netmask)
 
 
