@@ -290,13 +290,6 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "--server",
-    action="store_true",
-    help="""
-    (internal use only)
-    """
-)
-parser.add_argument(
     "--firewall",
     action="store_true",
     help="""
