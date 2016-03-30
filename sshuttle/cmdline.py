@@ -26,7 +26,7 @@ def main():
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets)
         else:
-            includes = opt.subnets_from_file or opt.subnets
+            includes = opt.subnets
             excludes = opt.exclude
             if not includes and not opt.auto_nets:
                 parser.error('at least one subnet, subnet file, or -N expected')

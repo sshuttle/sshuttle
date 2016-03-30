@@ -268,7 +268,8 @@ parser.add_argument(
 parser.add_argument(
     "-s", "--subnets",
     metavar="PATH",
-    dest="subnets_from_file",
+    action=Concat,
+    dest="subnets",
     type=parse_subnet_file,
     help="""
     file where the subnets are stored, instead of on the command line
