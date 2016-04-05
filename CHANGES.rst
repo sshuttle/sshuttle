@@ -1,3 +1,14 @@
+Release 0.78.0 (UNRELEASED)
+===========================
+
+* Don't force IPv6 if IPv6 nameservers supplied. Fixes #74.
+* Call /bin/sh as users shell may not be POSIX compliant. Fixes #77.
+* Use argparse for command line processing. Fixes #75.
+* Remove useless --server option.
+* Support multiple -s (subnet) options. Fixes #86.
+* Make server parts work with old versions of Python. Fixes #81.
+
+
 Release 0.77.2 (Mar 7, 2016)
 ============================
 
