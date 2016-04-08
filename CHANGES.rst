@@ -1,5 +1,5 @@
-Release 0.78.0 (UNRELEASED)
-===========================
+Release 0.78.0 (Apr 8, 2016)
+============================
 
 * Don't force IPv6 if IPv6 nameservers supplied. Fixes #74.
 * Call /bin/sh as users shell may not be POSIX compliant. Fixes #77.
