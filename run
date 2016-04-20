@@ -1,8 +1,8 @@
 #!/bin/sh
 if python3.5 -V 2>/dev/null; then
-    exec python3.5 -m "sshuttle" "$@"
+	exec python3.5 -m "sshuttle" "$@"
 elif python2.7 -V 2>/dev/null; then
-    exec python2.7 -m "sshuttle" "$@"
+	exec python2.7 -m "sshuttle" "$@"
 else
 	exec python -m "sshuttle" "$@"
 fi
