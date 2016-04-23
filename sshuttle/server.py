@@ -63,7 +63,11 @@ def _shl(n, bits):
 def _list_routes():
     # FIXME: IPv4 only
     argv = ['netstat', '-rn']
-    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
     routes = []
     for line in p.stdout:
         cols = re.split(r'\s+', line.decode("ASCII"))

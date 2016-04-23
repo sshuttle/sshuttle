@@ -1,3 +1,4 @@
+import os
 import socket
 import subprocess as ssubprocess
 from sshuttle.helpers import log, debug1, Fatal, family_to_string
@@ -18,7 +19,11 @@ def ipt_chain_exists(family, table, name):
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     argv = [cmd, '-t', table, '-nL']
-    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE)
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
     for line in p.stdout:
         if line.startswith(b'Chain %s ' % name.encode("ASCII")):
             return True
@@ -35,7 +40,11 @@ def ipt(family, table, *args):
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('>> %s\n' % ' '.join(argv))
-    rv = ssubprocess.call(argv)
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    rv = ssubprocess.call(argv, env=env)
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
 

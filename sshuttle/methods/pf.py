@@ -326,9 +326,14 @@ def pfctl(args, stdin=None):
     argv = ['pfctl'] + list(args.split(" "))
     debug1('>> %s\n' % ' '.join(argv))
 
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
     p = ssubprocess.Popen(argv, stdin=ssubprocess.PIPE,
                           stdout=ssubprocess.PIPE,
-                          stderr=ssubprocess.PIPE)
+                          stderr=ssubprocess.PIPE,
+                          env=env)
     o = p.communicate(stdin)
     if p.returncode:
         raise Fatal('%r returned %d' % (argv, p.returncode))
