@@ -1,3 +1,4 @@
+import os
 import io
 import socket
 import sshuttle.server
@@ -34,8 +35,12 @@ Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
 
     routes = sshuttle.server._list_routes()
 
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
     assert mock_popen.mock_calls == [
-        call(['netstat', '-rn'], stdout=-1),
+        call(['netstat', '-rn'], stdout=-1, env=env),
         call().wait()
     ]
     assert routes == [
