@@ -15,6 +15,7 @@
 
 # import sys
 # import os
+from setuptools_scm import get_version
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -54,7 +55,6 @@ copyright = '2016, Brian May'
 # built documents.
 #
 # The short X.Y version.
-from setuptools_scm import get_version
 version = get_version(root="..")
 # The full version, including alpha/beta/rc tags.
 release = version

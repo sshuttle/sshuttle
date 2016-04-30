@@ -39,7 +39,7 @@ def write_host_cache():
         for name, ip in sorted(hostnames.items()):
             f.write(('%s,%s\n' % (name, ip)).encode("ASCII"))
         f.close()
-        os.chmod(tmpname, 384) # 600 in octal, 'rw-------'
+        os.chmod(tmpname, 384)  # 600 in octal, 'rw-------'
         os.rename(tmpname, CACHEFILE)
     finally:
         try:
@@ -70,8 +70,8 @@ def read_host_cache():
 def found_host(hostname, ip):
     hostname = re.sub(r'\..*', '', hostname)
     hostname = re.sub(r'[^-\w]', '_', hostname)
-    if (ip.startswith('127.') or ip.startswith('255.')
-            or hostname == 'localhost'):
+    if (ip.startswith('127.') or ip.startswith('255.') or
+            hostname == 'localhost'):
         return
     oldip = hostnames.get(hostname)
     if oldip != ip:

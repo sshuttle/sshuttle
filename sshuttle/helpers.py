@@ -16,6 +16,7 @@ else:
     def b(s):
         return s
 
+
 def log(s):
     global logprefix
     try:

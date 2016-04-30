@@ -15,6 +15,7 @@ except ImportError:
     # Python 2.x
     from pipes import quote
 
+
 def readfile(name):
     tokens = name.split(".")
     f = None
