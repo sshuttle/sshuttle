@@ -255,7 +255,7 @@ def _stdin_still_ok(timeout):
     return True
 
 
-def hw_main(seed_hosts):
+def hw_main(seed_hosts, auto_hosts):
     if helpers.verbose >= 2:
         helpers.logprefix = 'HH: '
     else:
@@ -264,16 +264,17 @@ def hw_main(seed_hosts):
     debug1('Starting hostwatch with Python version %s\n'
            % platform.python_version())
 
-    read_host_cache()
-
-    _enqueue(_check_etc_hosts)
-    _enqueue(_check_netstat)
-    check_host('localhost')
-    check_host(socket.gethostname())
-    check_workgroup('workgroup')
-    check_workgroup('-')
     for h in seed_hosts:
         check_host(h)
+
+    if auto_hosts:
+        read_host_cache()
+        _enqueue(_check_etc_hosts)
+        _enqueue(_check_netstat)
+        check_host('localhost')
+        check_host(socket.gethostname())
+        check_workgroup('workgroup')
+        check_workgroup('-')
 
     while 1:
         now = time.time()

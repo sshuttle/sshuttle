@@ -98,7 +98,7 @@ def _exc_dump():
     return ''.join(traceback.format_exception(*exc_info))
 
 
-def start_hostwatch(seed_hosts):
+def start_hostwatch(seed_hosts, auto_hosts):
     s1, s2 = socket.socketpair()
     pid = os.fork()
     if not pid:
@@ -110,7 +110,7 @@ def start_hostwatch(seed_hosts):
                 os.dup2(s1.fileno(), 1)
                 os.dup2(s1.fileno(), 0)
                 s1.close()
-                rv = hostwatch.hw_main(seed_hosts) or 0
+                rv = hostwatch.hw_main(seed_hosts, auto_hosts) or 0
             except Exception:
                 log('%s\n' % _exc_dump())
                 rv = 98
@@ -227,7 +227,7 @@ class UdpProxy(Handler):
         self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr + data)
 
 
-def main(latency_control):
+def main(latency_control, auto_hosts):
     debug1('Starting server with Python version %s\n'
            % platform.python_version())
 
@@ -277,7 +277,8 @@ def main(latency_control):
 
     def got_host_req(data):
         if not hw.pid:
-            (hw.pid, hw.sock) = start_hostwatch(data.strip().split())
+            (hw.pid, hw.sock) = start_hostwatch(
+                    data.strip().split(), auto_hosts)
             handlers.append(Handler(socks=[hw.sock],
                                     callback=hostwatch_ready))
     mux.got_host_req = got_host_req

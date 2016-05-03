@@ -400,7 +400,7 @@ def ondns(listener, method, mux, handlers):
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
-          dns_listener, seed_hosts, auto_nets, daemon):
+          dns_listener, seed_hosts, auto_hosts, auto_nets, daemon):
 
     debug1('Starting client with Python version %s\n'
            % platform.python_version())
@@ -418,7 +418,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         (serverproc, serversock) = ssh.connect(
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
-            options=dict(latency_control=latency_control))
+            options=dict(latency_control=latency_control,
+                auto_hosts=auto_hosts))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -514,7 +515,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
-         method_name, seed_hosts, auto_nets,
+         method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, pidfile):
 
     if daemon:
@@ -713,7 +714,7 @@ def main(listenip_v6, listenip_v4,
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,
-                     seed_hosts, auto_nets, daemon)
+                     seed_hosts, auto_hosts, auto_nets, daemon)
     finally:
         try:
             if daemon:
