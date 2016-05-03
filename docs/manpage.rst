@@ -136,6 +136,10 @@ Options
     if you use this option to give it a few names to start
     from.
 
+    If this option is used *without* :option:`--auto-hosts`,
+    then the listed hostnames will be scanned and added, but
+    no further hostnames will be added.
+
 .. option:: --no-latency-control
 
     Sacrifice latency to improve bandwidth benchmarks. ssh

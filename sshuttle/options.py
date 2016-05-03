@@ -134,7 +134,7 @@ parser.add_argument(
     "-H", "--auto-hosts",
     action="store_true",
     help="""
-    scan for remote hostnames and update local /etc/hosts
+    continuously scan for remote hostnames and update local /etc/hosts as they are found
     """
 )
 parser.add_argument(
@@ -232,7 +232,7 @@ parser.add_argument(
     metavar="HOSTNAME[,HOSTNAME]",
     default=[],
     help="""
-    with -H, use these hostnames for initial scan (comma-separated)
+    comma-separated list of hostnames for initial scan (may be used with or without --auto-hosts)
     """
 )
 parser.add_argument(
