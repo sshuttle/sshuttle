@@ -217,7 +217,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     assert mock_pfctl.mock_calls == [
         call('-f /dev/stdin', b'pass on lo\n'),
         call('-s all'),
-        call('-a sshuttle -f /dev/stdin',
+        call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
              b'table <dns_servers> {1.2.3.33}\n'
              b'rdr pass on lo0 proto tcp '
@@ -237,7 +237,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     method.restore_firewall(1025, 2, False)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
-        call('-a sshuttle -F all'),
+        call('-a sshuttle-1025 -F all'),
         call("-X abcdefg"),
     ]
     mock_pf_get_dev.reset_mock()
@@ -298,7 +298,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     ]
     assert mock_pfctl.mock_calls == [
         call('-s all'),
-        call('-a sshuttle -f /dev/stdin',
+        call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
              b'table <dns_servers> {1.2.3.33}\n'
              b'rdr pass on lo0 proto tcp '
@@ -318,7 +318,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     method.restore_firewall(1025, 2, False)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
-        call('-a sshuttle -F all'),
+        call('-a sshuttle-1025 -F all'),
         call("-d"),
     ]
     mock_pf_get_dev.reset_mock()
@@ -376,7 +376,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     assert mock_pfctl.mock_calls == [
         call('-f /dev/stdin', b'match on lo\n'),
         call('-s all'),
-        call('-a sshuttle -f /dev/stdin',
+        call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
              b'table <dns_servers> {1.2.3.33}\n'
              b'pass in on lo0 inet proto tcp divert-to 127.0.0.1 port 1025\n'
@@ -395,7 +395,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     method.restore_firewall(1025, 2, False)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
-        call('-a sshuttle -F all'),
+        call('-a sshuttle-1025 -F all'),
         call("-d"),
     ]
     mock_pf_get_dev.reset_mock()

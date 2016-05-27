@@ -59,7 +59,8 @@ class Generic(object):
             pfctl('-e')
             _pf_context['started_by_sshuttle'] = True
 
-    def disable(self):
+    def disable(self, anchor):
+        pfctl('-a %s -F all' % anchor)
         if _pf_context['started_by_sshuttle']:
             pfctl('-d')
 
@@ -96,12 +97,12 @@ class Generic(object):
     def _get_natlook_port(self, xport):
         return xport
 
-    def add_anchors(self, status=None):
+    def add_anchors(self, anchor, status=None):
         if status is None:
             status = pfctl('-s all')[0]
         self.status = status
-        if b'\nanchor "sshuttle"' not in status:
-            self._add_anchor_rule(self.PF_PASS, b"sshuttle")
+        if ('\nanchor "%s"' % anchor).encode('ASCII') not in status:
+            self._add_anchor_rule(self.PF_PASS, anchor.encode('ASCII'))
 
     def _add_anchor_rule(self, type, name, pr=None):
         if pr is None:
@@ -120,10 +121,19 @@ class Generic(object):
             'I', self.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
-    def add_rules(self, rules):
+    def add_rules(self, anchor, rules):
         assert isinstance(rules, bytes)
         debug3("rules:\n" + rules.decode("ASCII"))
-        pfctl('-a sshuttle -f /dev/stdin', rules)
+        pfctl('-a %s -f /dev/stdin' % anchor, rules)
+
+    def has_running_instances(self):
+        # This should cover most scenarios.
+        p = ssubprocess.Popen(['pgrep', '-f', 'python.*sshuttle'],
+                              stdout=ssubprocess.PIPE,
+                              stderr=ssubprocess.PIPE)
+        o, e = p.communicate()
+        return len(o.splitlines()) > 0
+
 
 
 class FreeBsd(Generic):
@@ -153,11 +163,11 @@ class FreeBsd(Generic):
     def __init__(self):
         super(FreeBsd, self).__init__()
 
-    def add_anchors(self):
+    def add_anchors(self, anchor):
         status = pfctl('-s all')[0]
-        if b'\nrdr-anchor "sshuttle"' not in status:
-            self._add_anchor_rule(self.PF_RDR, b'sshuttle')
-        super(FreeBsd, self).add_anchors(status=status)
+        if ('\nrdr-anchor "%s"' % anchor).encode('ASCII') not in status:
+            self._add_anchor_rule(self.PF_RDR, anchor.encode('ASCII'))
+        super(FreeBsd, self).add_anchors(anchor, status=status)
 
     def _add_anchor_rule(self, type, name):
         pr = self.pfioc_rule()
@@ -168,7 +178,7 @@ class FreeBsd(Generic):
         memmove(addressof(pr) + self.POOL_TICKET_OFFSET, ppa[4:8], 4)
         super(FreeBsd, self)._add_anchor_rule(type, name, pr=pr)
 
-    def add_rules(self, includes, port, dnsport, nslist):
+    def add_rules(self, anchor, includes, port, dnsport, nslist):
         tables = [
             b'table <forward_subnets> {%s}' % b','.join(includes)
         ]
@@ -195,7 +205,7 @@ class FreeBsd(Generic):
         rules = b'\n'.join(tables + translating_rules + filtering_rules) \
                 + b'\n'
 
-        super(FreeBsd, self).add_rules(rules)
+        super(FreeBsd, self).add_rules(anchor, rules)
 
 
 class OpenBsd(Generic):
@@ -225,14 +235,15 @@ class OpenBsd(Generic):
         self.pfioc_natlook = pfioc_natlook
         super(OpenBsd, self).__init__()
 
-    def add_anchors(self):
+    def add_anchors(self, anchor):
         # before adding anchors and rules we must override the skip lo
         # that comes by default in openbsd pf.conf so the rules we will add,
         # which rely on translating/filtering  packets on lo, can work
-        pfctl('-f /dev/stdin', b'match on lo\n')
-        super(OpenBsd, self).add_anchors()
+        if not self.has_running_instances():
+            pfctl('-f /dev/stdin', b'match on lo\n')
+        super(OpenBsd, self).add_anchors(anchor)
 
-    def add_rules(self, includes, port, dnsport, nslist):
+    def add_rules(self, anchor, includes, port, dnsport, nslist):
         tables = [
             b'table <forward_subnets> {%s}' % b','.join(includes)
         ]
@@ -259,7 +270,7 @@ class OpenBsd(Generic):
         rules = b'\n'.join(tables + translating_rules + filtering_rules) \
                 + b'\n'
 
-        super(OpenBsd, self).add_rules(rules)
+        super(OpenBsd, self).add_rules(anchor, rules)
 
 
 class Darwin(FreeBsd):
@@ -295,16 +306,18 @@ class Darwin(FreeBsd):
         _pf_context['Xtoken'] = \
             re.search(b'Token : (.+)', o[1]).group(1)
 
-    def disable(self):
+    def disable(self, anchor):
+        pfctl('-a %s -F all' % anchor)
         if _pf_context['Xtoken'] is not None:
             pfctl('-X %s' % _pf_context['Xtoken'].decode("ASCII"))
 
-    def add_anchors(self):
+    def add_anchors(self, anchor):
         # before adding anchors and rules we must override the skip lo
         # that in some cases ends up in the chain so the rules we will add,
         # which rely on translating/filtering  packets on lo, can work
-        pfctl('-f /dev/stdin', b'pass on lo\n')
-        super(Darwin, self).add_anchors()
+        if not self.has_running_instances():
+            pfctl('-f /dev/stdin', b'pass on lo\n')
+        super(Darwin, self).add_anchors(anchor)
 
     def _add_natlook_ports(self, pnl, src_port, dst_port):
         pnl.sxport.port = socket.htons(src_port)
@@ -396,8 +409,9 @@ class Method(BaseMethod):
                                     snet.encode("ASCII"),
                                     swidth))
 
-        pf.add_anchors()
-        pf.add_rules(includes, port, dnsport, nslist)
+        anchor = 'sshuttle-%d' % port
+        pf.add_anchors(anchor)
+        pf.add_rules(anchor, includes, port, dnsport, nslist)
         pf.enable()
 
     def restore_firewall(self, port, family, udp):
@@ -408,8 +422,7 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by pf method_name")
 
-        pfctl('-a sshuttle -F all')
-        pf.disable()
+        pf.disable('sshuttle-%d' % port)
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):
