@@ -249,7 +249,7 @@ class OpenBsd(Generic):
         ]
         translating_rules = [
             b'pass in on lo0 inet proto tcp '
-            b'divert-to 127.0.0.1 port %r' % port
+            b'to <forward_subnets> divert-to 127.0.0.1 port %r' % port
         ]
         filtering_rules = [
             b'pass out inet proto tcp '
