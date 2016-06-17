@@ -379,7 +379,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
              b'table <dns_servers> {1.2.3.33}\n'
-             b'pass in on lo0 inet proto tcp divert-to 127.0.0.1 port 1025\n'
+             b'pass in on lo0 inet proto tcp to <forward_subnets> divert-to 127.0.0.1 port 1025\n'
              b'pass in on lo0 inet proto udp to '
              b'<dns_servers>port 53 rdr-to 127.0.0.1 port 1027\n'
              b'pass out inet proto tcp to '
