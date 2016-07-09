@@ -223,7 +223,7 @@ class UdpProxy(Handler):
             log('UDP recv from %r port %d: %s\n' % (peer[0], peer[1], e))
             return
         debug2('UDP response: %d bytes\n' % len(data))
-        hdr = "%s,%r," % (peer[0], peer[1])
+        hdr = b("%s,%r," % (peer[0], peer[1]))
         self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr + data)
 
 
@@ -305,7 +305,7 @@ def main(latency_control, auto_hosts):
     def udp_req(channel, cmd, data):
         debug2('Incoming UDP request channel=%d, cmd=%d\n' % (channel, cmd))
         if cmd == ssnet.CMD_UDP_DATA:
-            (dstip, dstport, data) = data.split(",", 2)
+            (dstip, dstport, data) = data.split(b(','), 2)
             dstport = int(dstport)
             debug2('is incoming UDP data. %r %d.\n' % (dstip, dstport))
             h = udphandlers[channel]
