@@ -36,7 +36,7 @@ setup(
         'write_to': "sshuttle/version.py",
         'version_scheme': version_scheme,
     },
-    setup_requires=['setuptools_scm'],
+    setup_requires=['setuptools_scm', 'pytest-runner'],
     # version=version,
     url='https://github.com/sshuttle/sshuttle',
     author='Brian May',
