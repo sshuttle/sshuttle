@@ -200,8 +200,8 @@ class FreeBsd(Generic):
                 b'table <dns_servers> {%s}' %
                 b','.join([ns[1].encode("ASCII") for ns in nslist]))
             translating_rules.append(
-                b'rdr pass on lo0 proto udp to <dns_servers> '
-                b'port 53 -> %s port %r' % (lo_addr, dnsport))
+                b'rdr pass on lo0 %s proto udp to <dns_servers> '
+                b'port 53 -> %s port %r' % (inet_version, lo_addr, dnsport))
             filtering_rules.append(
                 b'pass out route-to lo0 %s proto udp to '
                 b'<dns_servers> port 53 keep state' % inet_version)
@@ -255,8 +255,8 @@ class OpenBsd(Generic):
             b'table <forward_subnets> {%s}' % b','.join(includes)
         ]
         translating_rules = [
-            b'pass in on lo0 %s proto tcp divert-to '
-            b'%s port %r' % (inet_version, lo_addr, port)
+            b'pass in on lo0 %s proto tcp to <forward_subnets> '
+            b'divert-to %s port %r' % (inet_version, lo_addr, port)
         ]
         filtering_rules = [
             b'pass out %s proto tcp to <forward_subnets> '
