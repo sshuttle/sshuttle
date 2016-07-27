@@ -156,7 +156,7 @@ def test_firewall_command_openbsd(mock_pf_get_dev, mock_ioctl, mock_stdout):
 
 def pfctl(args, stdin=None):
     if args == '-s Interfaces -i lo -v':
-        return (b'lo0 (skip)')
+        return (b'lo0 (skip)',)
     if args == '-s all':
         return (b'INFO:\nStatus: Disabled\nanother mary had a little lamb\n',
                 b'little lamb\n')
@@ -195,6 +195,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
+        call('-f /dev/stdin', b'pass on lo\n'),
         call('-s all'),
         call('-a sshuttle6-1024 -f /dev/stdin',
              b'table <forward_subnets> {'
@@ -243,6 +244,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
+        call('-f /dev/stdin', b'pass on lo\n'),
         call('-s all'),
         call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
@@ -393,6 +395,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
+        call('-f /dev/stdin', b'match on lo\n'),
         call('-s all'),
         call('-a sshuttle6-1024 -f /dev/stdin',
              b'table <forward_subnets> {'
@@ -437,6 +440,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
+        call('-f /dev/stdin', b'match on lo\n'),
         call('-s all'),
         call('-a sshuttle-1025 -f /dev/stdin',
              b'table <forward_subnets> {!1.2.3.66/32,1.2.3.0/24}\n'
