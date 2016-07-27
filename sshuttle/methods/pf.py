@@ -122,10 +122,10 @@ class Generic(object):
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
     def _inet_version(self, family):
-        return b'inet' if family is socket.AF_INET else b'inet6'
+        return b'inet' if family == socket.AF_INET else b'inet6'
 
     def _lo_addr(self, family):
-        return b'127.0.0.1' if family is socket.AF_INET else b'::1'
+        return b'127.0.0.1' if family == socket.AF_INET else b'::1'
 
     def add_rules(self, anchor, rules):
         assert isinstance(rules, bytes)
@@ -369,7 +369,7 @@ def pf_get_dev():
 
 
 def pf_get_anchor(family, port):
-    return 'sshuttle%s-%d' % ('' if family is socket.AF_INET else '6', port)
+    return 'sshuttle%s-%d' % ('' if family == socket.AF_INET else '6', port)
 
 
 class Method(BaseMethod):
