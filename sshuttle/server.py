@@ -286,6 +286,12 @@ def main(latency_control, auto_hosts):
     def new_channel(channel, data):
         (family, dstip, dstport) = data.decode("ASCII").split(',', 2)
         family = int(family)
+        # AF_INET is the same constant on Linux and BSD but AF_INET6
+        # is different. As the client and server can be running on
+        # different platforms we can not just set the socket family
+        # to what comes in the wire.
+        if family != socket.AF_INET:
+            family = socket.AF_INET6
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(family, dstip, dstport)
         handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))

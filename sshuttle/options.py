@@ -187,7 +187,7 @@ parser.add_argument(
     "-x", "--exclude",
     metavar="IP/MASK",
     action="append",
-    default=[parse_subnet('127.0.0.1/8')],
+    default=[],
     type=parse_subnet,
     help="""
     exclude this subnet (can be used more than once)

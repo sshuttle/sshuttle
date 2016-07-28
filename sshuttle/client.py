@@ -549,6 +549,7 @@ def main(listenip_v6, listenip_v4,
             listenip_v6 = None
 
     required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
+    required.ipv4 = len(subnets_v4) > 0 or listenip_v4 is not None
     required.udp = avail.udp
     required.dns = len(nslist) > 0
 
@@ -570,6 +571,14 @@ def main(listenip_v6, listenip_v4,
     # bind to required ports
     if listenip_v4 == "auto":
         listenip_v4 = ('127.0.0.1', 0)
+
+    if required.ipv4 and \
+            not any(listenip_v4[0] == sex[1] for sex in subnets_v4):
+        subnets_exclude.append((socket.AF_INET, listenip_v4[0], 32))
+
+    if required.ipv6 and \
+            not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
+        subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128))
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
