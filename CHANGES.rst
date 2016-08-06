@@ -1,5 +1,5 @@
-Release 0.78.1 (UNRELEASED)
-===========================
+Release 0.78.1 (6th August, 2016)
+=================================
 * Fix readthedocs versioning.
 * Don't crash on ENETUNREACH.
 * Various bug fixes.
