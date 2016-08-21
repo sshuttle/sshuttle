@@ -351,7 +351,10 @@ def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
-    method.send_udp(sock, srcip, dstip, data)
+    try:
+        method.send_udp(sock, srcip, dstip, data)
+    except socket.error as e:
+        debug3('send_udp: %s: %r\n' % (e, dstip))
 
 
 def onaccept_udp(listener, method, mux, handlers):
