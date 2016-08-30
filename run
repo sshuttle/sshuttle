@@ -1,4 +1,5 @@
 #!/bin/sh
+./setup.py --version > /dev/null
 export PYTHONPATH=$PWD:$PYTHONPATH
 if python3.5 -V >/dev/null 2>&1; then
 	exec python3.5 -m "sshuttle" "$@"
