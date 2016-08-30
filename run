@@ -1,4 +1,5 @@
 #!/bin/sh
+export PYTHONPATH=$PWD:$PYTHONPATH
 if python3.5 -V 2>/dev/null; then
 	exec python3.5 -m "sshuttle" "$@"
 elif python2.7 -V 2>/dev/null; then
