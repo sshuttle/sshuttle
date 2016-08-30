@@ -1,8 +1,8 @@
 #!/bin/sh
 export PYTHONPATH=$PWD:$PYTHONPATH
-if python3.5 -V 2>/dev/null; then
+if python3.5 -V >/dev/null 2>&1; then
 	exec python3.5 -m "sshuttle" "$@"
-elif python2.7 -V 2>/dev/null; then
+elif python2.7 -V >/dev/null 2>&1; then
 	exec python2.7 -m "sshuttle" "$@"
 else
 	exec python -m "sshuttle" "$@"
