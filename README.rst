@@ -29,12 +29,31 @@ common case:
 Obtaining sshuttle
 ------------------
 
+- Debian stretch or later::
+
+      apt-get install sshuttle
+
 - From PyPI::
 
+      sudo pip install sshuttle
+
+- Clone::
+
+      git clone https://github.com/sshuttle/sshuttle.git
+      sudo ./setup.py install
+
+It is also possible to install into a virtualenv as a non-root user.
+
+- From PyPI::
+
+      virtualenv -p python 3 /tmp/sshuttle
+      . /tmp/sshuttle/bin/activate
       pip install sshuttle
 
 - Clone::
 
+      virtualenv -p python 3 /tmp/sshuttle
+      . /tmp/sshuttle/bin/activate
       git clone https://github.com/sshuttle/sshuttle.git
       ./setup.py install
 
