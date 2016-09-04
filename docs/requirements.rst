@@ -26,18 +26,19 @@ Linux with TPROXY method
 Supports:
 
 * IPv4 TCP
-* IPv4 UDP (requires ``recmsg`` - see below)
-* IPv6 DNS (requires ``recmsg`` - see below)
+* IPv4 UDP (requires ``recvmsg`` - see below)
+* IPv6 DNS (requires ``recvmsg`` - see below)
 * IPv6 TCP
-* IPv6 UDP (requires ``recmsg`` - see below)
-* IPv6 DNS (requires ``recmsg`` - see below)
+* IPv6 UDP (requires ``recvmsg`` - see below)
+* IPv6 DNS (requires ``recvmsg`` - see below)
 
 .. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
 
 Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
-syscall. This is not available in Python 2, however is in Python 3.5 and
-later. Under Python 2 you might find it sufficient installing PyXAPI_ to get
-the ``recvmsg()`` function. See :doc:`tproxy` for more information.
+syscall. This is not available in Python 2, however it is in Python 3.5 and
+later. Under Python 2 you might find it sufficient to install PyXAPI_ in
+order to get the ``recvmsg()`` function. See :doc:`tproxy` for more
+information.
 
 
 MacOS / FreeBSD / OpenBSD
