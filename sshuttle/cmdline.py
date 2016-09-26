@@ -20,13 +20,13 @@ def main():
 
     try:
         if opt.firewall:
-            if opt.subnets:
+            if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
             return firewall.main(opt.method, opt.syslog)
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets)
         else:
-            includes = opt.subnets
+            includes = opt.subnets + opt.subnets_file
             excludes = opt.exclude
             if not includes and not opt.auto_nets:
                 parser.error('at least one subnet, subnet file, '
