@@ -106,7 +106,7 @@ class Concat(Action):
         super(Concat, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        curr_value = getattr(namespace, self.dest, [])
+        curr_value = getattr(namespace, self.dest, None) or []
         setattr(namespace, self.dest, curr_value + values)
 
 
@@ -269,7 +269,7 @@ parser.add_argument(
     "-s", "--subnets",
     metavar="PATH",
     action=Concat,
-    dest="subnets",
+    dest="subnets_file",
     type=parse_subnet_file,
     help="""
     file where the subnets are stored, instead of on the command line
