@@ -5,6 +5,7 @@ import socket
 import zlib
 import imp
 import subprocess as ssubprocess
+import shlex
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -109,7 +110,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         argv = [sys.executable, '-c', pyscript]
     else:
         if ssh_cmd:
-            sshl = ssh_cmd.split(' ')
+            sshl = shlex.split(ssh_cmd)
         else:
             sshl = ['ssh']
         if python:
