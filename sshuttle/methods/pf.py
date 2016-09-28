@@ -4,6 +4,7 @@ import re
 import socket
 import struct
 import subprocess as ssubprocess
+import shlex
 from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
@@ -342,7 +343,7 @@ else:
 
 
 def pfctl(args, stdin=None):
-    argv = ['pfctl'] + list(args.split(" "))
+    argv = ['pfctl'] + shlex.split(args)
     debug1('>> %s\n' % ' '.join(argv))
 
     env = {
