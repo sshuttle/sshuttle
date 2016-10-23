@@ -9,6 +9,7 @@ import os
 import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
+import sshuttle.sdnotify as sdnotify
 import sys
 import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
@@ -502,6 +503,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     if seed_hosts is not None:
         debug1('seed_hosts: %r\n' % seed_hosts)
         mux.send(0, ssnet.CMD_HOST_REQ, str.encode('\n'.join(seed_hosts)))
+
+    sdnotify.send(sdnotify.ready(),
+                  sdnotify.status('Connected to %s.' % remotename))
 
     while 1:
         rv = serverproc.poll()

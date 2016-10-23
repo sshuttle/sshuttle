@@ -221,6 +221,7 @@ def main(method_name, syslog):
                 break
     finally:
         try:
+            sdnotify.send(sdnotify.stop())
             debug1('firewall manager: undoing changes.\n')
         except:
             pass
