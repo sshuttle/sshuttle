@@ -504,16 +504,24 @@ class MuxWrapper(SockWrapper):
 
     def noread(self):
         if not self.shut_read:
+            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, b(''))
+            self.setnoread()
+
+    def setnoread(self):
+        if not self.shut_read:
             debug2('%r: done reading\n' % self)
             self.shut_read = True
-            self.mux.send(self.channel, CMD_TCP_STOP_SENDING, b(''))
             self.maybe_close()
 
     def nowrite(self):
         if not self.shut_write:
+            self.mux.send(self.channel, CMD_TCP_EOF, b(''))
+            self.setnowrite()
+
+    def setnowrite(self):
+        if not self.shut_write:
             debug2('%r: done writing\n' % self)
             self.shut_write = True
-            self.mux.send(self.channel, CMD_TCP_EOF, b(''))
             self.maybe_close()
 
     def maybe_close(self):
@@ -542,9 +550,11 @@ class MuxWrapper(SockWrapper):
 
     def got_packet(self, cmd, data):
         if cmd == CMD_TCP_EOF:
-            self.noread()
+            # Remote side already knows the status - set flag but don't notify
+            self.setnoread()
         elif cmd == CMD_TCP_STOP_SENDING:
-            self.nowrite()
+            # Remote side already knows the status - set flag but don't notify
+            self.setnowrite()
         elif cmd == CMD_TCP_DATA:
             self.buf.append(data)
         else:
