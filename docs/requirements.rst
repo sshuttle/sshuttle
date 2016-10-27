@@ -49,6 +49,8 @@ Supports:
 
 * IPv4 TCP
 * IPv4 DNS
+* IPv6 TCP
+* IPv6 DNS
 
 Requires:
 
@@ -72,3 +74,19 @@ Additional Suggested Software
 
 - You may want to use autossh, available in various package management
   systems
+- If you are using systemd, sshuttle can notify it when the connection to
+  the remote end is established and the firewall rules are installed
+
+.. code-block:: ini
+   :emphasize-lines: 6
+
+   [Unit]
+   Description=sshuttle
+   After=network.target
+   
+   [Service]
+   Type=notify
+   ExecStart=/usr/bin/sshuttle --dns --remote <user>@<server> <subnets...>
+   
+   [Install]
+   WantedBy=multi-user.target
