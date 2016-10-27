@@ -1,6 +1,6 @@
 import socket
 import os
-from sshuttle.helpers import debug1, debug2, debug3
+from sshuttle.helpers import debug1
 
 def _notify(message):
     addr = os.environ.get("NOTIFY_SOCKET", None)
@@ -12,17 +12,18 @@ def _notify(message):
     
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    except socket.error as e:
-        debug1("Error creating socket to notify to systemd: %s\n" % e)
+    except (OSError, IOError) as e:
+        debug1("Error creating socket to notify systemd: %s\n" % e)
+        return False
 
-    if not (sock and message): 
+    if not message: 
         return False
 
     assert isinstance(message, bytes)
 
     try:
         return (sock.sendto(message, addr) > 0)
-    except socket.error as e:
+    except (OSError, IOError) as e:
         debug1("Error notifying systemd: %s\n" % e)
         return False
 
