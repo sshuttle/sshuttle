@@ -73,9 +73,11 @@ Additional Suggested Software
 -----------------------------
 
 - You may want to use autossh, available in various package management
-  systems
+  systems.
 - If you are using systemd, sshuttle can notify it when the connection to
-  the remote end is established and the firewall rules are installed
+  the remote end is established and the firewall rules are installed. For
+  this feature to work you must configure the process start-up type for the
+  sshuttle service unit to notify, as shown in the example below. 
 
 .. code-block:: ini
    :emphasize-lines: 6
