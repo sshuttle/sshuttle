@@ -64,6 +64,7 @@ class Generic(object):
         pfctl('-a %s -F all' % anchor)
         if _pf_context['started_by_sshuttle']:
             pfctl('-d')
+            _pf_context['started_by_sshuttle'] = False
 
     def query_nat(self, family, proto, src_ip, src_port, dst_ip, dst_port):
         [proto, family, src_port, dst_port] = [
