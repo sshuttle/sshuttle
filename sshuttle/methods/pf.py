@@ -1,5 +1,6 @@
 import os
 import sys
+import platform
 import re
 import socket
 import struct
@@ -335,10 +336,20 @@ class Darwin(FreeBsd):
         return xport.port
 
 
+class PfSense(FreeBsd):
+    RULE_ACTION_OFFSET = 3040
+
+    def __init__(self):
+        self.pfioc_rule = c_char * 3112
+        super(PfSense, self).__init__()
+
+
 if sys.platform == 'darwin':
     pf = Darwin()
 elif sys.platform.startswith('openbsd'):
     pf = OpenBsd()
+elif platform.version().endswith('pfSense'):
+    pf = PfSense()
 else:
     pf = FreeBsd()
 
