@@ -70,7 +70,10 @@ def _list_routes():
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
     routes = []
     for line in p.stdout:
-        cols = re.split(r'\s+', line.decode("ASCII"))
+        try:
+            cols = re.split(r'\s+', line.decode("ASCII"))
+        except UnicodeDecodeError:
+            cols = re.split(r'\s+', line.decode("utf-8"))
         ipw = _ipmatch(cols[0])
         if not ipw:
             continue  # some lines won't be parseable; never mind
