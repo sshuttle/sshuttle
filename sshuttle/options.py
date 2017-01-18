@@ -162,7 +162,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--method",
-    choices=["auto", "nat", "tproxy", "pf"],
+    choices=["auto", "nat", "tproxy", "pf", "ipfw"],
     metavar="TYPE",
     default="auto",
     help="""
