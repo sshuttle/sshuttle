@@ -98,6 +98,8 @@ def get_auto_method():
         method_name = "nat"
     elif _program_exists('pfctl'):
         method_name = "pf"
+    elif _program_exists('ipfw'):
+        method_name = "ipfw"
     else:
         raise Fatal(
             "can't find either iptables or pfctl; check your PATH")
