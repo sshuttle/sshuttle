@@ -63,7 +63,7 @@ def empackage(z, name, data=None):
 def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
 
-    if (rhostport or '').count(':') > 1:
+    if re.sub(r'.*@', '', rhostport or '').count(':') > 1:
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
             rhost = result[0].strip('[')
@@ -76,7 +76,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         else:
             rhost = rhostport
     else:  # IPv4
-        l = (rhostport or '').split(':', 1)
+        l = (rhostport or '').rsplit(':', 1)
         rhost = l[0]
         if len(l) > 1:
             portl = ['-p', str(int(l[1]))]
