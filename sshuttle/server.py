@@ -66,23 +66,19 @@ def _shl(n, bits):
 
 
 def _route_netstat(line):
-    cols = re.split(r'\s+', line.decode("ASCII"))
+    cols = line.split(None)
     ipw = _ipmatch(cols[0])
-    if not ipw:
-        return None, None  # some lines won't be parseable; never mind
     maskw = _ipmatch(cols[2])  # linux only
     mask = _maskbits(maskw)   # returns 32 if maskw is null
     return ipw, mask
 
 
 def _route_iproute(line):
-    ipm = line.decode("ASCII").split(None, 1)[0]
-    if ipm == 'default':
+    ipm = line.split(None, 1)[0]
+    if '/' not in ipm:
         return None, None
     ip, mask = ipm.split('/')
     ipw = _ipmatch(ip)
-    if not ipw:
-        return None, None  # some lines won't be parseable; never mind
     return ipw, int(mask)
 
 
@@ -95,7 +91,9 @@ def _list_routes(argv, extract_route):
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
     routes = []
     for line in p.stdout:
-        ipw, mask = extract_route(line)
+        if not line.strip():
+            continue
+        ipw, mask = extract_route(line.decode("ASCII"))
         if not ipw:
             continue
         width = min(ipw[1], mask)
