@@ -1,4 +1,3 @@
-import socket
 import errno
 import re
 import signal
@@ -16,6 +15,20 @@ from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
+
+try:
+    # try getting recvmsg from python
+    import socket as pythonsocket
+    getattr(pythonsocket.socket, "recvmsg")
+    socket = pythonsocket
+except AttributeError:
+    # try getting recvmsg from socket_ext library
+    try:
+        import socket_ext
+        getattr(socket_ext.socket, "recvmsg")
+        socket = socket_ext
+    except ImportError:
+        import socket
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
