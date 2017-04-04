@@ -67,6 +67,8 @@ def _shl(n, bits):
 
 def _route_netstat(line):
     cols = line.split(None)
+    if len(cols) < 3:
+        return None, None
     ipw = _ipmatch(cols[0])
     maskw = _ipmatch(cols[2])  # linux only
     mask = _maskbits(maskw)   # returns 32 if maskw is null
