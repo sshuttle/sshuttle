@@ -38,7 +38,7 @@ def parse_subnet6(s):
 
 
 # Subnet file, supporting empty lines and hash-started comment lines
-def parse_subnet_file(s):
+def parse_subnetport_file(s):
     try:
         handle = open(s, 'r')
     except OSError:
@@ -52,18 +52,38 @@ def parse_subnet_file(s):
             continue
         if line[0] == '#':
             continue
-        subnets.append(parse_subnet(line))
+        subnets.append(parse_subnetport(line))
 
     return subnets
 
 
-# 1.2.3.4/5 or just 1.2.3.4
-# 1:2::3/64 or just 1:2::3
-def parse_subnet(subnet_str):
-    if ':' in subnet_str:
-        return parse_subnet6(subnet_str)
+# 1.2.3.4/5:6, 1.2.3.4:5, 1.2.3.4/5 or just 1.2.3.4
+def parse_subnetport4(s):
+    m = re.match(r'([\d\.\/]+)(?:\:?(\d+)(?:-(\d+))?)?$', s)
+    if not m:
+        raise Fatal('%r is not a valid subnet:port format' % s)
+    (subnet, fport, lport) = m.groups()
+
+    return parse_subnet4(subnet) + (int(fport or 0), int(lport or fport or 0))
+
+
+# [1:2::3/64]:4, [1:2::3]:4, 1:2::3/64 or just 1:2::3
+def parse_subnetport6(s):
+    m = re.match(r'(?:\[?([a-fA-F\d\:\/]+)]?)(?:\:?(\d+)(?:-(\d+))?)?$', s)
+    if not m:
+        raise Fatal('%r is not a valid subnet:port format' % s)
+    (subnet, fport, lport) = m.groups()
+
+    return parse_subnet6(subnet) + (int(fport or 0), int(lport or fport or 0))
+
+
+# 1.2.3.4/5:6, 1.2.3.4:5, 1.2.3.4/5 or just 1.2.3.4
+# [1:2::3/64]:4, [1:2::3]:4, 1:2::3/64 or just 1:2::3
+def parse_subnetport(s):
+    if '.' in s:
+        return parse_subnetport4(s)
     else:
-        return parse_subnet4(subnet_str)
+        return parse_subnetport6(s)
 
 
 # 1.2.3.4:567 or just 1.2.3.4 or just 567
@@ -116,9 +136,9 @@ parser = ArgumentParser(
 )
 parser.add_argument(
     "subnets",
-    metavar="IP/MASK [IP/MASK...]",
+    metavar="IP/MASK[:PORT[-PORT]]...",
     nargs="*",
-    type=parse_subnet,
+    type=parse_subnetport,
     help="""
     capture and forward traffic to these subnets (whitespace separated)
     """
@@ -185,10 +205,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "-x", "--exclude",
-    metavar="IP/MASK",
+    metavar="IP/MASK[:PORT[-PORT]]",
     action="append",
     default=[],
-    type=parse_subnet,
+    type=parse_subnetport,
     help="""
     exclude this subnet (can be used more than once)
     """
@@ -198,7 +218,7 @@ parser.add_argument(
     metavar="PATH",
     action=Concat,
     dest="exclude",
-    type=parse_subnet_file,
+    type=parse_subnetport_file,
     help="""
     exclude the subnets in a file (whitespace separated)
     """
@@ -271,7 +291,7 @@ parser.add_argument(
     action=Concat,
     dest="subnets_file",
     default=[],
-    type=parse_subnet_file,
+    type=parse_subnetport_file,
     help="""
     file where the subnets are stored, instead of on the command line
     """

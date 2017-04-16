@@ -1,4 +1,5 @@
 import struct
+from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
 from sshuttle.methods import BaseMethod
@@ -163,6 +164,11 @@ class Method(BaseMethod):
         def _ipt_ttl(*args):
             return ipt_ttl(family, table, *args)
 
+        def _ipt_proto_ports(proto, fport, lport):
+            return proto + ('--dport', '%d:%d' % (fport, lport)) \
+                    if fport else proto
+
+
         mark_chain = 'sshuttle-m-%s' % port
         tproxy_chain = 'sshuttle-t-%s' % port
         divert_chain = 'sshuttle-d-%s' % port
@@ -197,33 +203,45 @@ class Method(BaseMethod):
                  '-m', 'udp', '-p', 'udp', '--dport', '53',
                  '--on-port', str(dnsport))
 
-        for f, swidth, sexclude, snet \
-                in sorted(subnets, key=lambda s: s[1], reverse=True):
+        for f, swidth, sexclude, snet, fport, lport \
+                in sorted(subnets, key=subnet_weight, reverse=True):
+            tcp_ports = ('-p', 'tcp')
+            tcp_ports = _ipt_proto_ports(tcp_ports, fport, lport)
+
             if sexclude:
                 _ipt('-A', mark_chain, '-j', 'RETURN',
                      '--dest', '%s/%s' % (snet, swidth),
-                     '-m', 'tcp', '-p', 'tcp')
+                     '-m', 'tcp',
+                     *tcp_ports)
                 _ipt('-A', tproxy_chain, '-j', 'RETURN',
                      '--dest', '%s/%s' % (snet, swidth),
-                     '-m', 'tcp', '-p', 'tcp')
+                     '-m', 'tcp',
+                     *tcp_ports)
             else:
                 _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                      '--dest', '%s/%s' % (snet, swidth),
-                     '-m', 'tcp', '-p', 'tcp')
+                     '-m', 'tcp',
+                     *tcp_ports)
                 _ipt('-A', tproxy_chain, '-j', 'TPROXY',
                      '--tproxy-mark', '0x1/0x1',
                      '--dest', '%s/%s' % (snet, swidth),
-                     '-m', 'tcp', '-p', 'tcp',
+                     '-m', 'tcp',
+                     *tcp_ports,
                      '--on-port', str(port))
 
             if udp:
+                udp_ports = ('-p', 'udp')
+                udp_ports = _ipt_proto_ports(udp_ports, fport, lport)
+
                 if sexclude:
                     _ipt('-A', mark_chain, '-j', 'RETURN',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp')
+                         '-m', 'udp',
+                         *udp_ports)
                     _ipt('-A', tproxy_chain, '-j', 'RETURN',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp')
+                         '-m', 'udp',
+                         *udp_ports)
                 else:
                     _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                          '--dest', '%s/%s' % (snet, swidth),
@@ -231,7 +249,8 @@ class Method(BaseMethod):
                     _ipt('-A', tproxy_chain, '-j', 'TPROXY',
                          '--tproxy-mark', '0x1/0x1',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp',
+                         '-m', 'udp',
+                         *udp_ports,
                          '--on-port', str(port))
 
     def restore_firewall(self, port, family, udp):
