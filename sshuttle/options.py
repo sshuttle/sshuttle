@@ -4,39 +4,6 @@ from argparse import ArgumentParser, Action, ArgumentTypeError as Fatal
 from sshuttle import __version__
 
 
-# 1.2.3.4/5 or just 1.2.3.4
-def parse_subnet4(s):
-    m = re.match(r'(\d+)(?:\.(\d+)\.(\d+)\.(\d+))?(?:/(\d+))?$', s)
-    if not m:
-        raise Fatal('%r is not a valid IP subnet format' % s)
-    (a, b, c, d, width) = m.groups()
-    (a, b, c, d) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0))
-    if width is None:
-        width = 32
-    else:
-        width = int(width)
-    if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
-    if width > 32:
-        raise Fatal('*/%d is greater than the maximum of 32' % width)
-    return(socket.AF_INET, '%d.%d.%d.%d' % (a, b, c, d), width)
-
-
-# 1:2::3/64 or just 1:2::3
-def parse_subnet6(s):
-    m = re.match(r'(?:([a-fA-F\d:]+))?(?:/(\d+))?$', s)
-    if not m:
-        raise Fatal('%r is not a valid IP subnet format' % s)
-    (net, width) = m.groups()
-    if width is None:
-        width = 128
-    else:
-        width = int(width)
-    if width > 128:
-        raise Fatal('*/%d is greater than the maximum of 128' % width)
-    return(socket.AF_INET6, net, width)
-
-
 # Subnet file, supporting empty lines and hash-started comment lines
 def parse_subnetport_file(s):
     try:
@@ -58,32 +25,30 @@ def parse_subnetport_file(s):
 
 
 # 1.2.3.4/5:6, 1.2.3.4:5, 1.2.3.4/5 or just 1.2.3.4
-def parse_subnetport4(s):
-    m = re.match(r'([\d\.\/]+)(?:\:?(\d+)(?:-(\d+))?)?$', s)
-    if not m:
-        raise Fatal('%r is not a valid subnet:port format' % s)
-    (subnet, fport, lport) = m.groups()
-
-    return parse_subnet4(subnet) + (int(fport or 0), int(lport or fport or 0))
-
-
-# [1:2::3/64]:4, [1:2::3]:4, 1:2::3/64 or just 1:2::3
-def parse_subnetport6(s):
-    m = re.match(r'(?:\[?([a-fA-F\d\:\/]+)]?)(?:\:?(\d+)(?:-(\d+))?)?$', s)
-    if not m:
-        raise Fatal('%r is not a valid subnet:port format' % s)
-    (subnet, fport, lport) = m.groups()
-
-    return parse_subnet6(subnet) + (int(fport or 0), int(lport or fport or 0))
-
-
-# 1.2.3.4/5:6, 1.2.3.4:5, 1.2.3.4/5 or just 1.2.3.4
 # [1:2::3/64]:4, [1:2::3]:4, 1:2::3/64 or just 1:2::3
 def parse_subnetport(s):
     if '.' in s:
-        return parse_subnetport4(s)
+        rx = r'([\w\.]+)(?:\/(\d+))?(?:\:?(\d+)(?:-(\d+))?)?$'
     else:
-        return parse_subnetport6(s)
+        rx = r'(?:\[?([\w\:]+(?:\/(\d+))?)]?)(?:\:?(\d+)(?:-(\d+))?)?$'
+
+    m = re.match(rx, s)
+    if not m:
+        raise Fatal('%r is not a valid address/mask:port format' % s)
+
+    addr, width, fport, lport = m.groups()
+    try:
+        addrinfo = socket.getaddrinfo(addr, 0, 0, socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise Fatal('Unable to resolve address: %s' % addr)
+
+    family, _, _, _, addr = min(addrinfo)
+    max_width = 32 if family == socket.AF_INET else 128
+    width = int(width or max_width)
+    if not 0 <= width <= max_width:
+        raise Fatal('width %d is not between 0 and %d' % (width, max_width))
+
+    return (family, addr[0], width, int(fport or 0), int(lport or fport or 0))
 
 
 # 1.2.3.4:567 or just 1.2.3.4 or just 567
