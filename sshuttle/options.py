@@ -24,8 +24,9 @@ def parse_subnetport_file(s):
     return subnets
 
 
-# 1.2.3.4/5:6, 1.2.3.4:5, 1.2.3.4/5 or just 1.2.3.4
-# [1:2::3/64]:4, [1:2::3]:4, 1:2::3/64 or just 1:2::3
+# 1.2.3.4/5:678, 1.2.3.4:567, 1.2.3.4/16 or just 1.2.3.4
+# [1:2::3/64]:456, [1:2::3]:456, 1:2::3/64 or just 1:2::3
+# example.com:123 or just example.com
 def parse_subnetport(s):
     if '.' in s:
         rx = r'([\w\.]+)(?:\/(\d+))?(?:\:?(\d+)(?:-(\d+))?)?$'
@@ -52,32 +53,32 @@ def parse_subnetport(s):
 
 
 # 1.2.3.4:567 or just 1.2.3.4 or just 567
-def parse_ipport4(s):
+# [1:2::3]:456 or [1:2::3] or just [::]:567
+# example.com:123 or just example.com
+def parse_ipport(s):
     s = str(s)
-    m = re.match(r'(?:(\d+)\.(\d+)\.(\d+)\.(\d+))?(?::)?(?:(\d+))?$', s)
+    if s.isdigit():
+        rx = r'()(\d+)$'
+    elif ']' in s:
+        rx = r'(?:\[([^]]+)])(?::(\d+))?$'
+    else:
+        rx = r'([\w\.]+)(?::(\d+))?$'
+
+    m = re.match(rx, s)
     if not m:
         raise Fatal('%r is not a valid IP:port format' % s)
-    (a, b, c, d, port) = m.groups()
-    (a, b, c, d, port) = (int(a or 0), int(b or 0), int(c or 0), int(d or 0),
-                          int(port or 0))
-    if a > 255 or b > 255 or c > 255 or d > 255:
-        raise Fatal('%d.%d.%d.%d has numbers > 255' % (a, b, c, d))
-    if port > 65535:
-        raise Fatal('*:%d is greater than the maximum of 65535' % port)
-    if a is None:
-        a = b = c = d = 0
-    return ('%d.%d.%d.%d' % (a, b, c, d), port)
 
+    ip, port = m.groups()
+    ip = ip or '0.0.0.0'
+    port = int(port or 0)
 
-# [1:2::3]:456 or [1:2::3] or 456
-def parse_ipport6(s):
-    s = str(s)
-    m = re.match(r'(?:\[([^]]*)])?(?::)?(?:(\d+))?$', s)
-    if not m:
-        raise Fatal('%s is not a valid IP:port format' % s)
-    (ip, port) = m.groups()
-    (ip, port) = (ip or '::', int(port or 0))
-    return (ip, port)
+    try:
+        addrinfo = socket.getaddrinfo(ip, port, 0, socket.SOCK_STREAM)
+    except socket.gaierror:
+        raise Fatal('%r is not a valid IP:port format' % s)
+
+    family, _, _, _, addr = min(addrinfo)
+    return (family,) + addr[:2]
 
 
 def parse_list(list):
