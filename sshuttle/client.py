@@ -193,8 +193,8 @@ class FirewallClient:
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
-            ['sudo', '-p', '[local sudo] Password: ',
-                ('PYTHONPATH=%s' % python_path), '--'] + argvbase,
+            ['sudo', '-p', '[local sudo] Password: ', '/usr/bin/env',
+                ('PYTHONPATH=%s' % python_path)] + argvbase,
             argvbase
         ]
 
