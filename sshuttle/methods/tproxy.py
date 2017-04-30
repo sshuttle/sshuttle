@@ -226,8 +226,7 @@ class Method(BaseMethod):
                      '--tproxy-mark', '0x1/0x1',
                      '--dest', '%s/%s' % (snet, swidth),
                      '-m', 'tcp',
-                     *tcp_ports,
-                     '--on-port', str(port))
+                     *(tcp_ports + ('--on-port', str(port))))
 
             if udp:
                 udp_ports = ('-p', 'udp')
@@ -250,8 +249,7 @@ class Method(BaseMethod):
                          '--tproxy-mark', '0x1/0x1',
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp',
-                         *udp_ports,
-                         '--on-port', str(port))
+                         *(udp_ports + ('--on-port', str(port))))
 
     def restore_firewall(self, port, family, udp):
         if family not in [socket.AF_INET, socket.AF_INET6]:

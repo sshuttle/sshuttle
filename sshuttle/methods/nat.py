@@ -53,8 +53,7 @@ class Method(BaseMethod):
             else:
                 _ipt_ttl('-A', chain, '-j', 'REDIRECT',
                          '--dest', '%s/%s' % (snet, swidth),
-                         *tcp_ports,
-                         '--to-ports', str(port))
+                         *(tcp_ports + ('--to-ports', str(port))))
 
         for f, ip in [i for i in nslist if i[0] == family]:
             _ipt_ttl('-A', chain, '-j', 'REDIRECT',
