@@ -86,8 +86,8 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
             1024, 1026,
             [(10, u'2404:6800:4004:80c::33')],
             10,
-            [(10, 64, False, u'2404:6800:4004:80c::'),
-                (10, 128, True, u'2404:6800:4004:80c::101f')],
+            [(10, 64, False, u'2404:6800:4004:80c::', 0, 0),
+                (10, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
             True)
     assert str(excinfo.value) \
         == 'Address family "AF_INET6" unsupported by nat method_name'
@@ -100,7 +100,8 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
             1025, 1027,
             [(2, u'1.2.3.33')],
             2,
-            [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
+            [(2, 24, False, u'1.2.3.0', 8000, 9000),
+                (2, 32, True, u'1.2.3.66', 8080, 8080)],
             True)
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
     assert mock_ipt_chain_exists.mock_calls == []
@@ -111,14 +112,16 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         1025, 1027,
         [(2, u'1.2.3.33')],
         2,
-        [(2, 24, False, u'1.2.3.0'), (2, 32, True, u'1.2.3.66')],
+        [(2, 24, False, u'1.2.3.0', 8000, 9000),
+            (2, 32, True, u'1.2.3.66', 8080, 8080)],
         False)
     assert mock_ipt_chain_exists.mock_calls == [
         call(2, 'nat', 'sshuttle-1025')
     ]
     assert mock_ipt_ttl.mock_calls == [
         call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
-             '--dest', u'1.2.3.0/24', '-p', 'tcp', '--to-ports', '1025'),
+            '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
+             '--to-ports', '1025'),
         call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
              '--dest', u'1.2.3.33/32', '-p', 'udp',
              '--dport', '53', '--to-ports', '1027')
@@ -133,7 +136,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         call(2, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
         call(2, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
         call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
-             '--dest', u'1.2.3.66/32', '-p', 'tcp')
+            '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
