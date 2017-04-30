@@ -31,11 +31,18 @@ Options
 .. option:: subnets
 
     A list of subnets to route over the VPN, in the form
-    ``a.b.c.d[/width]``.  Valid examples are 1.2.3.4 (a
+    ``a.b.c.d[/width][port[-port]]``.  Valid examples are 1.2.3.4 (a
     single IP address), 1.2.3.4/32 (equivalent to 1.2.3.4),
     1.2.3.0/24 (a 24-bit subnet, ie. with a 255.255.255.0
     netmask), and 0/0 ('just route everything through the
-    VPN').
+    VPN'). Any of the previous examples are also valid if you append
+    a port or a port range, so 1.2.3.4:8000 will only tunnel traffic
+    that has as the destination port 8000 of 1.2.3.4 and 
+    1.2.3.0/24:8000-9000 will tunnel traffic going to any port between
+    8000 and 9000 (inclusive) for all IPs in the 1.2.3.0/24 subnet.
+    It is also possible to use a name in which case the first IP it resolves
+    to during startup will be routed over the VPN. Valid examples are
+    example.com, example.com:8000 and example.com:8000-9000.
 
 .. option:: --method [auto|nat|tproxy|pf]
 
@@ -54,9 +61,11 @@ Options
     connections from other machines on your network (ie. to
     run :program:`sshuttle` on a router) try enabling IP Forwarding in
     your kernel, then using ``--listen 0.0.0.0:0``.
+    You can use any name resolving to an IP address of the machine running
+    :program:`sshuttle`, e.g. ``--listen localhost``.
 
-    For the tproxy method this can be an IPv6 address. Use this option twice if
-    required, to provide both IPv4 and IPv6 addresses.
+    For the tproxy and pf methods this can be an IPv6 address. Use this option 
+    twice if required, to provide both IPv4 and IPv6 addresses.
 
 .. option:: -H, --auto-hosts
 
@@ -176,7 +185,7 @@ Options
 
 .. option:: --disable-ipv6
 
-    If using the tproxy method, this will disable IPv6 support.
+    If using tproxy or pf methods, this will disable IPv6 support.
 
 .. option:: --firewall
 

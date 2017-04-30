@@ -4,7 +4,7 @@ Overview
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
-- Your client machine (or router) is Linux, FreeBSD, or MacOS.
+- Your client machine (or router) is Linux, MacOS, FreeBSD, OpenBSD or pfSense.
 
 - You have access to a remote network via ssh.
 
