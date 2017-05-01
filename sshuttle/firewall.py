@@ -75,12 +75,13 @@ def setup_daemon():
 
 
 # Note that we're sorting in a very particular order:
-# we need to go from most-specific (largest swidth) to least-specific,
-# and at any given level of specificity, smaller port ranges come
-# before larger port ranges. On ties excludes come first.
+# we need to go from smaller, more specific, port ranges, to larger,
+# less-specific, port ranges. At each level, we order by subnet
+# width, from most-specific subnets (largest swidth) to
+# least-specific. On ties, excludes come first.
 # s:(inet, subnet width, exclude flag, subnet, first port, last port)
 def subnet_weight(s):
-    return (s[1], s[-2] or -65535 - s[-1], s[2])
+    return (-s[-1] + (s[-2] or -65535), s[1], s[2])
 
 
 # This is some voodoo for setting up the kernel's transparent
