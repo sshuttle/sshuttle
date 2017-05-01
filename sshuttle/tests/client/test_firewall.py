@@ -1,5 +1,6 @@
 from mock import Mock, patch, call
 import io
+import socket
 
 import sshuttle.firewall
 
@@ -56,6 +57,36 @@ def test_rewrite_etc_hosts(tmpdir):
     with patch('sshuttle.firewall.HOSTSFILE', new=str(new_hosts)):
         sshuttle.firewall.restore_etc_hosts(10)
     assert orig_hosts.computehash() == new_hosts.computehash()
+
+
+def test_subnet_weight():
+    subnets = [
+        (socket.AF_INET, 16, 0, '192.168.0.0', 0, 0),
+        (socket.AF_INET, 24, 0, '192.168.69.0', 0, 0),
+        (socket.AF_INET, 32, 0, '192.168.69.70', 0, 0),
+        (socket.AF_INET, 32, 1, '192.168.69.70', 0, 0),
+        (socket.AF_INET, 32, 1, '192.168.69.70', 80, 80),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 0, 0),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 9000),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 8500),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 8000),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 400, 450)
+    ]
+    subnets_sorted = [
+        (socket.AF_INET, 32, 1, '192.168.69.70', 80, 80),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 8000),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 400, 450),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 8500),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 8000, 9000),
+        (socket.AF_INET, 32, 1, '192.168.69.70', 0, 0),
+        (socket.AF_INET, 32, 0, '192.168.69.70', 0, 0),
+        (socket.AF_INET, 24, 0, '192.168.69.0', 0, 0),
+        (socket.AF_INET, 16, 0, '192.168.0.0', 0, 0),
+        (socket.AF_INET, 0, 1, '0.0.0.0', 0, 0)
+    ]
+    
+    assert subnets_sorted == \
+            sorted(subnets, key=sshuttle.firewall.subnet_weight, reverse=True)
 
 
 @patch('sshuttle.firewall.rewrite_etc_hosts')
