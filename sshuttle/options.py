@@ -28,10 +28,10 @@ def parse_subnetport_file(s):
 # [1:2::3/64]:456, [1:2::3]:456, 1:2::3/64 or just 1:2::3
 # example.com:123 or just example.com
 def parse_subnetport(s):
-    if '.' in s:
-        rx = r'([\w\.]+)(?:\/(\d+))?(?:\:?(\d+)(?:-(\d+))?)?$'
+    if s.count(':') > 1:
+        rx = r'(?:\[?([\w\:]+)(?:/(\d+))?]?)(?::(\d+)(?:-(\d+))?)?$'
     else:
-        rx = r'(?:\[?([\w\:]+(?:\/(\d+))?)]?)(?:\:?(\d+)(?:-(\d+))?)?$'
+        rx = r'([\w\.]+)(?:/(\d+))?(?::(\d+)(?:-(\d+))?)?$'
 
     m = re.match(rx, s)
     if not m:
