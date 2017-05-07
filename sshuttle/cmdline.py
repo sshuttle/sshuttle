@@ -1,10 +1,11 @@
 import re
+import socket
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
-from sshuttle.options import parser, parse_ipport6, parse_ipport4
+from sshuttle.options import parser, parse_ipport
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
@@ -46,10 +47,11 @@ def main():
                 ipport_v4 = None
                 list = opt.listen.split(",")
                 for ip in list:
-                    if '[' in ip and ']' in ip:
-                        ipport_v6 = parse_ipport6(ip)
+                    family, ip, port = parse_ipport(ip)
+                    if family == socket.AF_INET6:
+                        ipport_v6 = (ip, port)
                     else:
-                        ipport_v4 = parse_ipport4(ip)
+                        ipport_v4 = (ip, port)
             else:
                 # parse_ipport4('127.0.0.1:0')
                 ipport_v4 = "auto"

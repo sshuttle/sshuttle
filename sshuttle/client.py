@@ -255,12 +255,13 @@ class FirewallClient:
 
     def start(self):
         self.pfile.write(b'ROUTES\n')
-        for (family, ip, width) in self.subnets_include + self.auto_nets:
-            self.pfile.write(b'%d,%d,0,%s\n'
-                             % (family, width, ip.encode("ASCII")))
-        for (family, ip, width) in self.subnets_exclude:
-            self.pfile.write(b'%d,%d,1,%s\n'
-                             % (family, width, ip.encode("ASCII")))
+        for (family, ip, width, fport, lport) \
+                in self.subnets_include + self.auto_nets:
+            self.pfile.write(b'%d,%d,0,%s,%d,%d\n'
+                    % (family, width, ip.encode("ASCII"), fport, lport))
+        for (family, ip, width, fport, lport) in self.subnets_exclude:
+            self.pfile.write(b'%d,%d,1,%s,%d,%d\n'
+                    % (family, width, ip.encode("ASCII"), fport, lport))
 
         self.pfile.write(b'NSLIST\n')
         for (family, ip) in self.nslist:
@@ -484,7 +485,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                     debug2("Ignored auto net %d/%s/%d\n" % (family, ip, width))
                 else:
                     debug2("Adding auto net %d/%s/%d\n" % (family, ip, width))
-                    fw.auto_nets.append((family, ip, width))
+                    fw.auto_nets.append((family, ip, width, 0, 0))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!
@@ -591,11 +592,11 @@ def main(listenip_v6, listenip_v4,
 
     if required.ipv4 and \
             not any(listenip_v4[0] == sex[1] for sex in subnets_v4):
-        subnets_exclude.append((socket.AF_INET, listenip_v4[0], 32))
+        subnets_exclude.append((socket.AF_INET, listenip_v4[0], 32, 0, 0))
 
     if required.ipv6 and \
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
-        subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128))
+        subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port

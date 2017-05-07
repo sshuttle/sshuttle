@@ -41,7 +41,7 @@ order to get the ``recvmsg()`` function. See :doc:`tproxy` for more
 information.
 
 
-MacOS / FreeBSD / OpenBSD
+MacOS / FreeBSD / OpenBSD / pfSense
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 Method: pf
 
@@ -65,8 +65,9 @@ cmd.exe with Administrator access. See :doc:`windows` for more information.
 
 Server side Requirements
 ------------------------
-Server requirements are more relaxed, however it is recommended that you use
-Python 2.7 or Python 3.5.
+The server can run in any version of Python between 2.4 and 3.6.
+However it is recommended that you use Python 2.7, Python 3.5 or later whenever
+possible as support for older versions might be dropped in the future.
 
 
 Additional Suggested Software

@@ -1,4 +1,5 @@
 import socket
+from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
@@ -38,22 +39,21 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', '-j', chain)
         _ipt('-I', 'PREROUTING', '1', '-j', chain)
 
-        # create new subnet entries.  Note that we're sorting in a very
-        # particular order: we need to go from most-specific (largest
-        # swidth) to least-specific, and at any given level of specificity,
-        # we want excludes to come first.  That's why the columns are in
-        # such a non- intuitive order.
-        for f, swidth, sexclude, snet \
-                in sorted(subnets, key=lambda s: s[1], reverse=True):
+        # create new subnet entries.
+        for f, swidth, sexclude, snet, fport, lport \
+                in sorted(subnets, key=subnet_weight, reverse=True):
+            tcp_ports = ('-p', 'tcp')
+            if fport:
+                tcp_ports = tcp_ports + ('--dport', '%d:%d' % (fport, lport))
+
             if sexclude:
                 _ipt('-A', chain, '-j', 'RETURN',
                      '--dest', '%s/%s' % (snet, swidth),
-                     '-p', 'tcp')
+                     *tcp_ports)
             else:
                 _ipt_ttl('-A', chain, '-j', 'REDIRECT',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-p', 'tcp',
-                         '--to-ports', str(port))
+                         *(tcp_ports + ('--to-ports', str(port))))
 
         for f, ip in [i for i in nslist if i[0] == family]:
             _ipt_ttl('-A', chain, '-j', 'REDIRECT',

@@ -74,6 +74,15 @@ def setup_daemon():
     return sys.stdin, sys.stdout
 
 
+# Note that we're sorting in a very particular order:
+# we need to go from most-specific (largest swidth) to least-specific,
+# and at any given level of specificity, smaller port ranges come
+# before larger port ranges. On ties excludes come first.
+# s:(inet, subnet width, exclude flag, subnet, first port, last port)
+def subnet_weight(s):
+    return (s[1], s[-2] or -65535 - s[-1], s[2])
+
+
 # This is some voodoo for setting up the kernel's transparent
 # proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
 # otherwise we delete it, then make them from scratch.
@@ -119,10 +128,17 @@ def main(method_name, syslog):
         elif line.startswith("NSLIST\n"):
             break
         try:
-            (family, width, exclude, ip) = line.strip().split(',', 3)
+            (family, width, exclude, ip, fport, lport) = \
+                    line.strip().split(',', 5)
         except:
             raise Fatal('firewall: expected route or NSLIST but got %r' % line)
-        subnets.append((int(family), int(width), bool(int(exclude)), ip))
+        subnets.append((
+            int(family),
+            int(width),
+            bool(int(exclude)),
+            ip,
+            int(fport),
+            int(lport)))
     debug2('firewall manager: Got subnets: %r\n' % subnets)
 
     nslist = []
