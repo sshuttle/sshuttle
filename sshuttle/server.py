@@ -179,7 +179,10 @@ class DnsProxy(Handler):
 
         sock = socket.socket(family, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        sock.connect((peer, 53))
+        # Connect to custom DNS server running in the Telepresence pod:
+        # XXX eventually this should be configured via command-line
+        # option and submitted to upstream as improvement.
+        sock.connect(('127.0.0.1', 9053))
 
         self.peers[sock] = peer
 
