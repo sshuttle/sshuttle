@@ -665,19 +665,24 @@ def main(listenip_v6, listenip_v4,
     if required.dns:
         # search for spare port for DNS
         debug2('Binding DNS:')
-        ports = range(12300, 9000, -1)
         for port in ports:
             debug2(' %d' % port)
             dns_listener = MultiListener(socket.SOCK_DGRAM)
 
-            if listenip_v6:
+            if listenip_v6 and listenip_v6[1]:
+                lv6 = listenip_v6
+                dnsport_v6 = lv6[1]
+            elif listenip_v6:
                 lv6 = (listenip_v6[0], port)
                 dnsport_v6 = port
             else:
                 lv6 = None
                 dnsport_v6 = 0
 
-            if listenip_v4:
+            if listenip_v4 and listenip_v4[1]:
+                lv4 = listenip_v4
+                dnsport_v4 = lv4[1]
+            elif listenip_v4:
                 lv4 = (listenip_v4[0], port)
                 dnsport_v4 = port
             else:
