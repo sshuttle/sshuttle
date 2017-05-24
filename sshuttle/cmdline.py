@@ -66,6 +66,7 @@ def main():
                                       opt.python,
                                       opt.latency_control,
                                       opt.dns,
+                                      opt.dns_server_only,
                                       nslist,
                                       opt.method,
                                       sh,

@@ -138,6 +138,13 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--dns-server-only",
+    action="store_true",
+    help="""
+    don't capture local DNS requests but run the dns proxy to be sent DNS queries directly
+    """
+)
+parser.add_argument(
     "--ns-hosts",
     metavar="IP[,IP]",
     default=[],

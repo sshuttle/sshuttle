@@ -532,8 +532,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 
 def main(listenip_v6, listenip_v4,
-         ssh_cmd, remotename, python, latency_control, dns, nslist,
-         method_name, seed_hosts, auto_hosts, auto_nets,
+         ssh_cmd, remotename, python, latency_control, dns, dns_server_only,
+         nslist, method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, pidfile):
 
     if daemon:
@@ -547,7 +547,7 @@ def main(listenip_v6, listenip_v4,
     fw = FirewallClient(method_name)
 
     # Get family specific subnet lists
-    if dns:
+    if dns or dns_server_only:
         nslist += resolvconf_nameservers()
 
     subnets = subnets_include + subnets_exclude  # we don't care here
@@ -736,6 +736,10 @@ def main(listenip_v6, listenip_v4,
         fw.method.setup_udp_listener(udp_listener)
     if dns_listener:
         fw.method.setup_udp_listener(dns_listener)
+
+    # don't install the firewall DNS capture rule if we just want the proxy
+    if dns_server_only:
+        nslist = []
 
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
