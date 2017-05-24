@@ -532,8 +532,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 
 def main(listenip_v6, listenip_v4,
-         ssh_cmd, remotename, python, latency_control, dns, nslist,
-         method_name, seed_hosts, auto_hosts, auto_nets,
+         ssh_cmd, remotename, python, latency_control, dns, dns_server_only,
+         nslist, method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, pidfile):
 
     if daemon:
@@ -547,7 +547,7 @@ def main(listenip_v6, listenip_v4,
     fw = FirewallClient(method_name)
 
     # Get family specific subnet lists
-    if dns:
+    if dns or dns_server_only:
         nslist += resolvconf_nameservers()
 
     subnets = subnets_include + subnets_exclude  # we don't care here
@@ -665,19 +665,24 @@ def main(listenip_v6, listenip_v4,
     if required.dns:
         # search for spare port for DNS
         debug2('Binding DNS:')
-        ports = range(12300, 9000, -1)
         for port in ports:
             debug2(' %d' % port)
             dns_listener = MultiListener(socket.SOCK_DGRAM)
 
-            if listenip_v6:
+            if listenip_v6 and listenip_v6[1]:
+                lv6 = listenip_v6
+                dnsport_v6 = lv6[1]
+            elif listenip_v6:
                 lv6 = (listenip_v6[0], port)
                 dnsport_v6 = port
             else:
                 lv6 = None
                 dnsport_v6 = 0
 
-            if listenip_v4:
+            if listenip_v4 and listenip_v4[1]:
+                lv4 = listenip_v4
+                dnsport_v4 = lv4[1]
+            elif listenip_v4:
                 lv4 = (listenip_v4[0], port)
                 dnsport_v4 = port
             else:
@@ -731,6 +736,10 @@ def main(listenip_v6, listenip_v4,
         fw.method.setup_udp_listener(udp_listener)
     if dns_listener:
         fw.method.setup_udp_listener(dns_listener)
+
+    # don't install the firewall DNS capture rule if we just want the proxy
+    if dns_server_only:
+        nslist = []
 
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
