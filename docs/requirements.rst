@@ -42,7 +42,7 @@ information.
 
 
 MacOS / FreeBSD / OpenBSD / pfSense
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Method: pf
 
 Supports:

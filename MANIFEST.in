@@ -6,7 +6,6 @@ include LICENSE
 include run
 include tox.ini
 exclude sshuttle/version.py
-exclude docs/conf.py
 recursive-include docs *.bat
 recursive-include docs *.py
 recursive-include docs *.rst

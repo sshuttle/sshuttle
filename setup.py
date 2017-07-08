@@ -18,17 +18,13 @@
 # along with python-tldap  If not, see <http://www.gnu.org/licenses/>.
 
 from setuptools import setup, find_packages
-import shutil
 
-with open("./docs/conf.orig.py", "r") as src:
-    with open("./docs/conf.py", "w") as dst:
-        dst.write("# FILE COPIED FROM conf.orig.py; DO NOT CHANGE\n")
-        shutil.copyfileobj(src, dst)
 
 def version_scheme(version):
     from setuptools_scm.version import guess_next_dev_version
     version = guess_next_dev_version(version)
     return version.lstrip("v")
+
 
 setup(
     name="sshuttle",
