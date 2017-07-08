@@ -9,6 +9,15 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+0.78.3 - 2017-07-09
+-------------------
+The "I should have done a git pull" first release.
+
+Fixed
+~~~~~
+* Order first by port range and only then by swidth
+
+
 0.78.2 - 2017-07-09
 -------------------
 
