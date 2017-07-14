@@ -553,6 +553,9 @@ def main(listenip_v6, listenip_v4,
         nslist += resolvconf_nameservers()
         if to_nameserver is not None:
             to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
+    else:
+        # option doesn't make sense if we aren't proxying dns
+        to_nameserver = None
 
     subnets = subnets_include + subnets_exclude  # we don't care here
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
