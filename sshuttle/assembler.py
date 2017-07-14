@@ -34,4 +34,4 @@ sshuttle.helpers.verbose = verbosity
 
 import sshuttle.cmdline_options as options
 from sshuttle.server import main
-main(options.latency_control, options.auto_hosts)
+main(options.latency_control, options.auto_hosts, options.to_nameserver)

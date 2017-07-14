@@ -415,7 +415,8 @@ def ondns(listener, method, mux, handlers):
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
-          dns_listener, seed_hosts, auto_hosts, auto_nets, daemon):
+          dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
+          to_nameserver):
 
     debug1('Starting client with Python version %s\n'
            % platform.python_version())
@@ -434,7 +435,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             options=dict(latency_control=latency_control,
-                auto_hosts=auto_hosts))
+                         auto_hosts=auto_hosts,
+                         to_nameserver=to_nameserver))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -534,7 +536,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
-         subnets_include, subnets_exclude, daemon, pidfile):
+         subnets_include, subnets_exclude, daemon, to_nameserver, pidfile):
 
     if daemon:
         try:
@@ -549,6 +551,8 @@ def main(listenip_v6, listenip_v4,
     # Get family specific subnet lists
     if dns:
         nslist += resolvconf_nameservers()
+        if to_nameserver is not None:
+            to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
 
     subnets = subnets_include + subnets_exclude  # we don't care here
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
@@ -741,7 +745,7 @@ def main(listenip_v6, listenip_v4,
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, dns_listener,
-                     seed_hosts, auto_hosts, auto_nets, daemon)
+                     seed_hosts, auto_hosts, auto_nets, daemon, to_nameserver)
     finally:
         try:
             if daemon:
