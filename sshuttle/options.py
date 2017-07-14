@@ -147,6 +147,15 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--to-ns",
+    metavar="IP[:PORT]",
+    type=parse_ipport,
+    help="""
+    the DNS server to forward requests to; defaults to servers in /etc/resolv.conf on remote side if not given.
+    """
+)
+
+parser.add_argument(
     "--method",
     choices=["auto", "nat", "tproxy", "pf", "ipfw"],
     metavar="TYPE",

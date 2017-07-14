@@ -160,7 +160,7 @@ class Hostwatch:
 
 class DnsProxy(Handler):
 
-    def __init__(self, mux, chan, request):
+    def __init__(self, mux, chan, request, to_nameserver):
         Handler.__init__(self, [])
         self.timeout = time.time() + 30
         self.mux = mux
@@ -168,6 +168,15 @@ class DnsProxy(Handler):
         self.tries = 0
         self.request = request
         self.peers = {}
+        if to_nameserver is None:
+            self.to_nameserver = None
+        else:
+            peer, port = to_nameserver.split("@")
+            port = int(port)
+            if port == 0:
+                port = 53
+            family = socket.AF_INET6 if ":" in peer else socket.AF_INET
+            self.to_nameserver = family, peer, port
         self.try_send()
 
     def try_send(self):
@@ -175,18 +184,19 @@ class DnsProxy(Handler):
             return
         self.tries += 1
 
-        family, peer = resolvconf_random_nameserver()
+        if self.to_nameserver is None:
+            family, peer = resolvconf_random_nameserver()
+            port = 53
+        else:
+            family, peer, port = self.to_nameserver
 
         sock = socket.socket(family, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        # Connect to custom DNS server running in the Telepresence pod:
-        # XXX eventually this should be configured via command-line
-        # option and submitted to upstream as improvement.
-        sock.connect(('127.0.0.1', 9053))
+        sock.connect((peer, port))
 
         self.peers[sock] = peer
 
-        debug2('DNS: sending to %r (try %d)\n' % (peer, self.tries))
+        debug2('DNS: sending to %r:%d (try %d)\n' % (peer, port, self.tries))
         try:
             sock.send(self.request)
             self.socks.append(sock)
@@ -261,7 +271,7 @@ class UdpProxy(Handler):
         self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr + data)
 
 
-def main(latency_control, auto_hosts):
+def main(latency_control, auto_hosts, to_nameserver):
     debug1('Starting server with Python version %s\n'
            % platform.python_version())
 
@@ -335,7 +345,7 @@ def main(latency_control, auto_hosts):
 
     def dns_req(channel, data):
         debug2('Incoming DNS request channel=%d.\n' % channel)
-        h = DnsProxy(mux, channel, data)
+        h = DnsProxy(mux, channel, data, to_nameserver)
         handlers.append(h)
         dnshandlers[channel] = h
     mux.got_dns_req = dns_req
