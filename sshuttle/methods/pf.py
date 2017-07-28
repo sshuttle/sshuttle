@@ -189,8 +189,8 @@ class FreeBsd(Generic):
 
         tables = []
         translating_rules = [
-            b'rdr pass on lo0 %s proto tcp to %s '
-            b'-> %s port %r' % (inet_version, subnet, lo_addr, port)
+            b'rdr pass on lo0 %s proto tcp from ! %s to %s '
+            b'-> %s port %r' % (inet_version, lo_addr, subnet, lo_addr, port)
             for exclude, subnet in includes if not exclude
         ]
         filtering_rules = [
