@@ -57,6 +57,11 @@ It is also possible to install into a virtualenv as a non-root user.
       git clone https://github.com/sshuttle/sshuttle.git
       ./setup.py install
 
+- Homebrew::
+
+      brew install sshuttle
+
+
 Documentation
 -------------
 The documentation for the stable version is available at:
