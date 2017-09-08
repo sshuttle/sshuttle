@@ -40,6 +40,7 @@ class BaseMethod(object):
         result.ipv6 = False
         result.udp = False
         result.dns = True
+        result.user = False
         return result
 
     def get_tcp_dstip(self, sock):
@@ -64,16 +65,16 @@ class BaseMethod(object):
 
     def assert_features(self, features):
         avail = self.get_supported_features()
-        for key in ["udp", "dns", "ipv6"]:
+        for key in ["udp", "dns", "ipv6", "user"]:
             if getattr(features, key) and not getattr(avail, key):
                 raise Fatal(
                     "Feature %s not supported with method %s.\n" %
                     (key, self.name))
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
         raise NotImplementedError()
 
-    def restore_firewall(self, port, family, udp):
+    def restore_firewall(self, port, family, udp, user):
         raise NotImplementedError()
 
     def firewall_command(self, line):

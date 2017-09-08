@@ -417,7 +417,7 @@ class Method(BaseMethod):
 
         return sock.getsockname()
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
         tables = []
         translating_rules = []
         filtering_rules = []
@@ -446,7 +446,7 @@ class Method(BaseMethod):
         pf.add_rules(anchor, includes, port, dnsport, nslist, family)
         pf.enable()
 
-    def restore_firewall(self, port, family, udp):
+    def restore_firewall(self, port, family, udp, user):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'

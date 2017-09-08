@@ -188,9 +188,12 @@ def main(method_name, syslog):
     elif not line.startswith("GO "):
         raise Fatal('firewall: expected GO but got %r' % line)
 
-    _, _, udp = line.partition(" ")
+    _, _, args = line.partition(" ")
+    udp, user = args.strip().split(" ", 1)
     udp = bool(int(udp))
-    debug2('firewall manager: Got udp: %r\n' % udp)
+    if user == '-':
+        user = None
+    debug2('firewall manager: Got udp: %r, user: %r\n' % (udp, user))
 
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
     nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
@@ -204,13 +207,15 @@ def main(method_name, syslog):
             debug2('firewall manager: setting up IPv6.\n')
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
-                socket.AF_INET6, subnets_v6, udp)
+                socket.AF_INET6, subnets_v6, udp,
+                user)
 
         if len(subnets_v4) > 0 or len(nslist_v4) > 0:
             debug2('firewall manager: setting up IPv4.\n')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
-                socket.AF_INET, subnets_v4, udp)
+                socket.AF_INET, subnets_v4, udp,
+                user)
 
         stdout.write('STARTED\n')
 
@@ -246,7 +251,7 @@ def main(method_name, syslog):
         try:
             if len(subnets_v6) > 0 or len(nslist_v6) > 0:
                 debug2('firewall manager: undoing IPv6 changes.\n')
-                method.restore_firewall(port_v6, socket.AF_INET6, udp)
+                method.restore_firewall(port_v6, socket.AF_INET6, udp, user)
         except:
             try:
                 debug1("firewall manager: "
@@ -259,7 +264,7 @@ def main(method_name, syslog):
         try:
             if len(subnets_v4) > 0 or len(nslist_v4) > 0:
                 debug2('firewall manager: undoing IPv4 changes.\n')
-                method.restore_firewall(port_v4, socket.AF_INET, udp)
+                method.restore_firewall(port_v4, socket.AF_INET, udp, user)
         except:
             try:
                 debug1("firewall manager: "
