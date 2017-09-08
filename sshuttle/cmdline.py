@@ -75,7 +75,8 @@ def main():
                                       excludes,
                                       opt.daemon,
                                       opt.to_ns,
-                                      opt.pidfile)
+                                      opt.pidfile,
+                                      opt.user)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

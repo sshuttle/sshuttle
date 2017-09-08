@@ -15,7 +15,7 @@ NSLIST
 2,1.2.3.33
 10,2404:6800:4004:80c::33
 PORTS 1024,1025,1026,1027
-GO 1
+GO 1 -
 HOST 1.2.3.3,existing
 """)
     stdout = Mock()
@@ -121,14 +121,16 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
             10,
             [(10, 64, False, u'2404:6800:4004:80c::', 0, 0),
                 (10, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
-            True),
+            True,
+            None),
         call().setup_firewall(
             1025, 1027,
             [(2, u'1.2.3.33')],
             2,
             [(2, 24, False, u'1.2.3.0', 8000, 9000),
                 (2, 32, True, u'1.2.3.66', 8080, 8080)],
-            True),
-        call().restore_firewall(1024, 10, True),
-        call().restore_firewall(1025, 2, True),
+            True,
+            None),
+        call().restore_firewall(1024, 10, True, None),
+        call().restore_firewall(1025, 2, True, None),
     ]

@@ -15,6 +15,10 @@ from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
+try:
+    from pwd import getpwnam
+except ImportError:
+    getpwnam = None
 
 try:
     # try getting recvmsg from python
@@ -238,7 +242,8 @@ class FirewallClient:
         self.method.set_firewall(self)
 
     def setup(self, subnets_include, subnets_exclude, nslist,
-              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp):
+              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
+              user):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -247,6 +252,7 @@ class FirewallClient:
         self.dnsport_v6 = dnsport_v6
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
+        self.user = user
 
     def check(self):
         rv = self.p.poll()
@@ -276,8 +282,14 @@ class FirewallClient:
         udp = 0
         if self.udp:
             udp = 1
+        if self.user is None:
+            user = b'-'
+        elif isinstance(self.user, str):
+            user = bytes(self.user, 'utf-8')
+        else:
+            user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d\n' % udp)
+        self.pfile.write(b'GO %d %s\n' % (udp, user))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -536,7 +548,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
-         subnets_include, subnets_exclude, daemon, to_nameserver, pidfile):
+         subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
+         user):
 
     if daemon:
         try:
@@ -573,10 +586,19 @@ def main(listenip_v6, listenip_v4,
         else:
             listenip_v6 = None
 
+    if user is not None:
+        if getpwnam is None:
+            raise Fatal("Routing by user not available on this system.")
+        try:
+            user = getpwnam(user).pw_uid
+        except KeyError:
+            raise Fatal("User %s does not exist." % user)
+
     required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
     required.ipv4 = len(subnets_v4) > 0 or listenip_v4 is not None
     required.udp = avail.udp
     required.dns = len(nslist) > 0
+    required.user = False if user is None else True
 
     # if IPv6 not supported, ignore IPv6 DNS servers
     if not required.ipv6:
@@ -592,6 +614,7 @@ def main(listenip_v6, listenip_v4,
     debug1("IPv6 enabled: %r\n" % required.ipv6)
     debug1("UDP enabled: %r\n" % required.udp)
     debug1("DNS enabled: %r\n" % required.dns)
+    debug1("User enabled: %r\n" % required.user)
 
     # bind to required ports
     if listenip_v4 == "auto":
@@ -742,7 +765,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp)
+             required.udp, user)
 
     # start the client process
     try:
