@@ -2,6 +2,7 @@ from mock import patch, call
 import sys
 import io
 import socket
+from socket import AF_INET, AF_INET6
 import errno
 
 import sshuttle.helpers
@@ -133,10 +134,12 @@ nameserver 2404:6800:4004:80c::4
 
     ns = sshuttle.helpers.resolvconf_nameservers()
     assert ns == [
-        (2, u'192.168.1.1'), (2, u'192.168.2.1'),
-        (2, u'192.168.3.1'), (2, u'192.168.4.1'),
-        (10, u'2404:6800:4004:80c::1'), (10, u'2404:6800:4004:80c::2'),
-        (10, u'2404:6800:4004:80c::3'), (10, u'2404:6800:4004:80c::4')
+        (AF_INET, u'192.168.1.1'), (AF_INET, u'192.168.2.1'),
+        (AF_INET, u'192.168.3.1'), (AF_INET, u'192.168.4.1'),
+        (AF_INET6, u'2404:6800:4004:80c::1'),
+        (AF_INET6, u'2404:6800:4004:80c::2'),
+        (AF_INET6, u'2404:6800:4004:80c::3'),
+        (AF_INET6, u'2404:6800:4004:80c::4')
     ]
 
 
@@ -156,10 +159,12 @@ nameserver 2404:6800:4004:80c::4
 """)
     ns = sshuttle.helpers.resolvconf_random_nameserver()
     assert ns in [
-        (2, u'192.168.1.1'), (2, u'192.168.2.1'),
-        (2, u'192.168.3.1'), (2, u'192.168.4.1'),
-        (10, u'2404:6800:4004:80c::1'), (10, u'2404:6800:4004:80c::2'),
-        (10, u'2404:6800:4004:80c::3'), (10, u'2404:6800:4004:80c::4')
+        (AF_INET, u'192.168.1.1'), (AF_INET, u'192.168.2.1'),
+        (AF_INET, u'192.168.3.1'), (AF_INET, u'192.168.4.1'),
+        (AF_INET6, u'2404:6800:4004:80c::1'),
+        (AF_INET6, u'2404:6800:4004:80c::2'),
+        (AF_INET6, u'2404:6800:4004:80c::3'),
+        (AF_INET6, u'2404:6800:4004:80c::4')
     ]
 
 
@@ -168,26 +173,26 @@ def test_islocal(mock_bind):
     bind_error = socket.error(errno.EADDRNOTAVAIL)
     mock_bind.side_effect = [None, bind_error, None, bind_error]
 
-    assert sshuttle.helpers.islocal("127.0.0.1", socket.AF_INET)
-    assert not sshuttle.helpers.islocal("192.0.2.1", socket.AF_INET)
-    assert sshuttle.helpers.islocal("::1", socket.AF_INET6)
-    assert not sshuttle.helpers.islocal("2001:db8::1", socket.AF_INET6)
+    assert sshuttle.helpers.islocal("127.0.0.1", AF_INET)
+    assert not sshuttle.helpers.islocal("192.0.2.1", AF_INET)
+    assert sshuttle.helpers.islocal("::1", AF_INET6)
+    assert not sshuttle.helpers.islocal("2001:db8::1", AF_INET6)
 
 
 def test_family_ip_tuple():
     assert sshuttle.helpers.family_ip_tuple("127.0.0.1") \
-        == (socket.AF_INET, "127.0.0.1")
+        == (AF_INET, "127.0.0.1")
     assert sshuttle.helpers.family_ip_tuple("192.168.2.6") \
-        == (socket.AF_INET, "192.168.2.6")
+        == (AF_INET, "192.168.2.6")
     assert sshuttle.helpers.family_ip_tuple("::1") \
-        == (socket.AF_INET6, "::1")
+        == (AF_INET6, "::1")
     assert sshuttle.helpers.family_ip_tuple("2404:6800:4004:80c::1") \
-        == (socket.AF_INET6, "2404:6800:4004:80c::1")
+        == (AF_INET6, "2404:6800:4004:80c::1")
 
 
 def test_family_to_string():
-    assert sshuttle.helpers.family_to_string(socket.AF_INET) == "AF_INET"
-    assert sshuttle.helpers.family_to_string(socket.AF_INET6) == "AF_INET6"
+    assert sshuttle.helpers.family_to_string(AF_INET) == "AF_INET"
+    assert sshuttle.helpers.family_to_string(AF_INET6) == "AF_INET6"
     if sys.version_info < (3, 0):
         expected = "1"
         assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == "1"

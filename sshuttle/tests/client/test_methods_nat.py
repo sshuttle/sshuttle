@@ -1,6 +1,7 @@
 import pytest
 from mock import Mock, patch, call
 import socket
+from socket import AF_INET, AF_INET6
 import struct
 
 from sshuttle.helpers import Fatal
@@ -18,7 +19,7 @@ def test_get_supported_features():
 def test_get_tcp_dstip():
     sock = Mock()
     sock.getsockopt.return_value = struct.pack(
-        '!HHBBBB', socket.ntohs(socket.AF_INET), 1024, 127, 0, 0, 1)
+        '!HHBBBB', socket.ntohs(AF_INET), 1024, 127, 0, 0, 1)
     method = get_method('nat')
     assert method.get_tcp_dstip(sock) == ('127.0.0.1', 1024)
     assert sock.mock_calls == [call.getsockopt(0, 80, 16)]
@@ -84,10 +85,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1024, 1026,
-            [(10, u'2404:6800:4004:80c::33')],
-            10,
-            [(10, 64, False, u'2404:6800:4004:80c::', 0, 0),
-                (10, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
+            [(AF_INET6, u'2404:6800:4004:80c::33')],
+            AF_INET6,
+            [(AF_INET6, 64, False, u'2404:6800:4004:80c::', 0, 0),
+                (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
             True,
             None)
     assert str(excinfo.value) \
@@ -99,10 +100,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,
-            [(2, u'1.2.3.33')],
-            2,
-            [(2, 24, False, u'1.2.3.0', 8000, 9000),
-                (2, 32, True, u'1.2.3.66', 8080, 8080)],
+            [(AF_INET, u'1.2.3.33')],
+            AF_INET,
+            [(AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
+                (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
             None)
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
@@ -112,49 +113,49 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 8000, 9000),
-            (2, 32, True, u'1.2.3.66', 8080, 8080)],
+        [(AF_INET, u'1.2.3.33')],
+        AF_INET,
+        [(AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
+            (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
         False,
         None)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(2, 'nat', 'sshuttle-1025')
+        call(AF_INET, 'nat', 'sshuttle-1025')
     ]
     assert mock_ipt_ttl.mock_calls == [
-        call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
             '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
              '--to-ports', '1025'),
-        call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
              '--dest', u'1.2.3.33/32', '-p', 'udp',
              '--dport', '53', '--to-ports', '1027')
     ]
     assert mock_ipt.mock_calls == [
-        call(2, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-F', 'sshuttle-1025'),
-        call(2, 'nat', '-X', 'sshuttle-1025'),
-        call(2, 'nat', '-N', 'sshuttle-1025'),
-        call(2, 'nat', '-F', 'sshuttle-1025'),
-        call(2, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
+        call(AF_INET, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-X', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-N', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
             '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1025, AF_INET, False, None)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(2, 'nat', 'sshuttle-1025')
+        call(AF_INET, 'nat', 'sshuttle-1025')
     ]
     assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
-        call(2, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
-        call(2, 'nat', '-F', 'sshuttle-1025'),
-        call(2, 'nat', '-X', 'sshuttle-1025')
+        call(AF_INET, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-X', 'sshuttle-1025')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
