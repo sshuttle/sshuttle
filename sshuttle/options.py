@@ -147,15 +147,6 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "--to-ns",
-    metavar="IP[:PORT]",
-    type=parse_ipport,
-    help="""
-    the DNS server to forward requests to; defaults to servers in /etc/resolv.conf on remote side if not given.
-    """
-)
-
-parser.add_argument(
     "--method",
     choices=["auto", "nat", "tproxy", "pf", "ipfw"],
     metavar="TYPE",
@@ -284,12 +275,6 @@ parser.add_argument(
     default="./sshuttle.pid",
     help="""
     pidfile name (only if using --daemon) [%(default)s]
-    """
-)
-parser.add_argument(
-    "--user",
-    help="""
-    apply all the rules only to this linux user
     """
 )
 parser.add_argument(

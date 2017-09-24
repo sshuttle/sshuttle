@@ -180,10 +180,10 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1024, 1026,
-        [(10, u'2404:6800:4004:80c::33')],
-        10,
-        [(10, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
-            (10, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
+        [(socket.AF_INET6, u'2404:6800:4004:80c::33')],
+        socket.AF_INET6,
+        [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
+            (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
         None)
     assert mock_ioctl.mock_calls == [
@@ -200,7 +200,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call('-s all'),
         call('-a sshuttle6-1024 -f /dev/stdin',
              b'table <dns_servers> {2404:6800:4004:80c::33}\n'
-             b'rdr pass on lo0 inet6 proto tcp from ! ::1 to '
+             b'rdr pass on lo0 inet6 proto tcp to '
              b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
@@ -219,10 +219,10 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,
-            [(2, u'1.2.3.33')],
-            2,
-            [(2, 24, False, u'1.2.3.0', 0, 0),
-                (2, 32, True, u'1.2.3.66', 80, 80)],
+            [(socket.AF_INET, u'1.2.3.33')],
+            socket.AF_INET,
+            [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
+                (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
@@ -232,9 +232,9 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 0, 0), (2, 32, True, u'1.2.3.66', 80, 80)],
+        [(socket.AF_INET, u'1.2.3.33')],
+        socket.AF_INET,
+        [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0), (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
         None)
     assert mock_ioctl.mock_calls == [
@@ -251,7 +251,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call('-s all'),
         call('-a sshuttle-1025 -f /dev/stdin',
              b'table <dns_servers> {1.2.3.33}\n'
-             b'rdr pass on lo0 inet proto tcp from ! 127.0.0.1 to 1.2.3.0/24 '
+             b'rdr pass on lo0 inet proto tcp to 1.2.3.0/24 '
              b'-> 127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
@@ -265,7 +265,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
 
-    method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1025, socket.AF_INET, False, None)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),
@@ -289,10 +289,10 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1024, 1026,
-        [(10, u'2404:6800:4004:80c::33')],
-        10,
-        [(10, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
-            (10, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
+        [(socket.AF_INET6, u'2404:6800:4004:80c::33')],
+        socket.AF_INET6,
+        [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
+            (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
         None)
 
@@ -300,8 +300,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call('-s all'),
         call('-a sshuttle6-1024 -f /dev/stdin',
              b'table <dns_servers> {2404:6800:4004:80c::33}\n'
-             b'rdr pass on lo0 inet6 proto tcp from ! ::1 to '
-             b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
+             b'rdr pass on lo0 inet6 proto tcp to 2404:6800:4004:80c::/64 '
+             b'port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
              b'pass out quick inet6 proto tcp to '
@@ -319,10 +319,10 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,
-            [(2, u'1.2.3.33')],
-            2,
-            [(2, 24, False, u'1.2.3.0', 0, 0),
-                (2, 32, True, u'1.2.3.66', 80, 80)],
+            [(socket.AF_INET, u'1.2.3.33')],
+            socket.AF_INET,
+            [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
+                (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
@@ -332,9 +332,9 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 0, 0), (2, 32, True, u'1.2.3.66', 80, 80)],
+        [(socket.AF_INET, u'1.2.3.33')],
+        socket.AF_INET,
+        [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0), (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
         None)
     assert mock_ioctl.mock_calls == [
@@ -349,8 +349,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         call('-s all'),
         call('-a sshuttle-1025 -f /dev/stdin',
              b'table <dns_servers> {1.2.3.33}\n'
-             b'rdr pass on lo0 inet proto tcp from ! 127.0.0.1 '
-             b'to 1.2.3.0/24 -> 127.0.0.1 port 1025\n'
+             b'rdr pass on lo0 inet proto tcp to 1.2.3.0/24 -> '
+             b'127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
              b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
@@ -363,7 +363,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
 
-    method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1025, 2, False)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),
@@ -387,10 +387,10 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1024, 1026,
-        [(10, u'2404:6800:4004:80c::33')],
-        10,
-        [(10, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
-            (10, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
+        [(socket.AF_INET6, u'2404:6800:4004:80c::33')],
+        socket.AF_INET6,
+        [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
+            (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
         None)
 
@@ -423,10 +423,10 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,
-            [(2, u'1.2.3.33')],
-            2,
-            [(2, 24, False, u'1.2.3.0', 0, 0),
-                (2, 32, True, u'1.2.3.66', 80, 80)],
+            [(socket.AF_INET, u'1.2.3.33')],
+            socket.AF_INET,
+            [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
+                (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
@@ -436,10 +436,10 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 0, 0),
-            (2, 32, True, u'1.2.3.66', 80, 80)],
+        [(socket.AF_INET, u'1.2.3.33')],
+        socket.AF_INET,
+        [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
+            (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
         None)
     assert mock_ioctl.mock_calls == [
@@ -466,7 +466,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
 
-    method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1025, 2, False)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),

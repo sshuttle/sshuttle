@@ -12,7 +12,7 @@ class Method(BaseMethod):
     # the multiple copies shouldn't have overlapping subnets, or only the most-
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -29,25 +29,15 @@ class Method(BaseMethod):
         def _ipt_ttl(*args):
             return ipt_ttl(family, table, *args)
 
-        def _ipm(*args):
-            return ipt(family, "mangle", *args)
-
         chain = 'sshuttle-%s' % port
 
         # basic cleanup/setup of chains
-        self.restore_firewall(port, family, udp, user)
+        self.restore_firewall(port, family, udp)
 
         _ipt('-N', chain)
         _ipt('-F', chain)
-        if user is not None:
-            _ipm('-I', 'OUTPUT', '1', '-m', 'owner', '--uid-owner', str(user),
-                 '-j', 'MARK', '--set-mark', str(port))
-            args = '-m', 'mark', '--mark', str(port), '-j', chain
-        else:
-            args = '-j', chain
-
-        _ipt('-I', 'OUTPUT', '1', *args)
-        _ipt('-I', 'PREROUTING', '1', *args)
+        _ipt('-I', 'OUTPUT', '1', '-j', chain)
+        _ipt('-I', 'PREROUTING', '1', '-j', chain)
 
         # create new subnet entries.
         for f, swidth, sexclude, snet, fport, lport \
@@ -72,7 +62,7 @@ class Method(BaseMethod):
                      '--dport', '53',
                      '--to-ports', str(dnsport))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -89,25 +79,11 @@ class Method(BaseMethod):
         def _ipt_ttl(*args):
             return ipt_ttl(family, table, *args)
 
-        def _ipm(*args):
-            return ipt(family, "mangle", *args)
-
         chain = 'sshuttle-%s' % port
 
         # basic cleanup/setup of chains
         if ipt_chain_exists(family, table, chain):
-            if user is not None:
-                nonfatal(_ipm, '-D', 'OUTPUT', '-m', 'owner', '--uid-owner', str(user),
-                         '-j', 'MARK', '--set-mark', str(port))
-                args = '-m', 'mark', '--mark', str(port), '-j', chain
-            else:
-                args = '-j', chain
-            nonfatal(_ipt, '-D', 'OUTPUT', *args)
-            nonfatal(_ipt, '-D', 'PREROUTING', *args)
+            nonfatal(_ipt, '-D', 'OUTPUT', '-j', chain)
+            nonfatal(_ipt, '-D', 'PREROUTING', '-j', chain)
             nonfatal(_ipt, '-F', chain)
             _ipt('-X', chain)
-
-    def get_supported_features(self):
-        result = super(Method, self).get_supported_features()
-        result.user = True
-        return result

@@ -73,10 +73,7 @@ def main():
                                       opt.auto_nets,
                                       includes,
                                       excludes,
-                                      opt.daemon,
-                                      opt.to_ns,
-                                      opt.pidfile,
-                                      opt.user)
+                                      opt.daemon, opt.pidfile)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

@@ -84,10 +84,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1024, 1026,
-            [(10, u'2404:6800:4004:80c::33')],
-            10,
-            [(10, 64, False, u'2404:6800:4004:80c::', 0, 0),
-                (10, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
+            [(socket.AF_INET6, u'2404:6800:4004:80c::33')],
+            socket.AF_INET6,
+            [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 0, 0),
+                (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
             True,
             None)
     assert str(excinfo.value) \
@@ -99,10 +99,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,
-            [(2, u'1.2.3.33')],
-            2,
-            [(2, 24, False, u'1.2.3.0', 8000, 9000),
-                (2, 32, True, u'1.2.3.66', 8080, 8080)],
+            [(socket.AF_INET, u'1.2.3.33')],
+            socket.AF_INET,
+            [(socket.AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
+                (socket.AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
             None)
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
@@ -112,10 +112,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 8000, 9000),
-            (2, 32, True, u'1.2.3.66', 8080, 8080)],
+        [(socket.AF_INET, u'1.2.3.33')],
+        socket.AF_INET,
+        [(socket.AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
+            (socket.AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
         False,
         None)
     assert mock_ipt_chain_exists.mock_calls == [
@@ -145,7 +145,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1025, 2, False)
     assert mock_ipt_chain_exists.mock_calls == [
         call(2, 'nat', 'sshuttle-1025')
     ]

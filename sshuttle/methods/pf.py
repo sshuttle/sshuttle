@@ -189,8 +189,8 @@ class FreeBsd(Generic):
 
         tables = []
         translating_rules = [
-            b'rdr pass on lo0 %s proto tcp from ! %s to %s '
-            b'-> %s port %r' % (inet_version, lo_addr, subnet, lo_addr, port)
+            b'rdr pass on lo0 %s proto tcp to %s '
+            b'-> %s port %r' % (inet_version, subnet, lo_addr, port)
             for exclude, subnet in includes if not exclude
         ]
         filtering_rules = [
@@ -417,7 +417,7 @@ class Method(BaseMethod):
 
         return sock.getsockname()
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp):
         tables = []
         translating_rules = []
         filtering_rules = []
@@ -446,7 +446,7 @@ class Method(BaseMethod):
         pf.add_rules(anchor, includes, port, dnsport, nslist, family)
         pf.enable()
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'
