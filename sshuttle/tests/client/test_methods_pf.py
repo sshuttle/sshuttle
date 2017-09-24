@@ -184,7 +184,8 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         socket.AF_INET6,
         [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
-        False)
+        False,
+        None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
         call(mock_pf_get_dev(), 0xCC20441A, ANY),
@@ -222,7 +223,8 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
             socket.AF_INET,
             [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-            True)
+            True,
+            None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
     assert mock_ioctl.mock_calls == []
@@ -233,7 +235,8 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(socket.AF_INET, u'1.2.3.33')],
         socket.AF_INET,
         [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0), (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-        False)
+        False,
+        None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
         call(mock_pf_get_dev(), 0xCC20441A, ANY),
@@ -262,7 +265,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
 
-    method.restore_firewall(1025, socket.AF_INET, False)
+    method.restore_firewall(1025, socket.AF_INET, False, None)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),
@@ -290,7 +293,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         socket.AF_INET6,
         [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
-        False)
+        False,
+        None)
 
     assert mock_pfctl.mock_calls == [
         call('-s all'),
@@ -319,7 +323,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
             socket.AF_INET,
             [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-            True)
+            True,
+            None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
     assert mock_ioctl.mock_calls == []
@@ -330,7 +335,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(socket.AF_INET, u'1.2.3.33')],
         socket.AF_INET,
         [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0), (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-        False)
+        False,
+        None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
         call(mock_pf_get_dev(), 0xCBE0441A, ANY),
@@ -385,7 +391,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         socket.AF_INET6,
         [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
-        False)
+        False,
+        None)
 
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xcd48441a, ANY),
@@ -420,7 +427,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
             socket.AF_INET,
             [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-            True)
+            True,
+            None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
     assert mock_ioctl.mock_calls == []
@@ -432,7 +440,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         socket.AF_INET,
         [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0),
             (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
-        False)
+        False,
+        None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xcd48441a, ANY),
         call(mock_pf_get_dev(), 0xcd48441a, ANY),

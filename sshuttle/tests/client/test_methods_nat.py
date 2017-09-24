@@ -88,7 +88,8 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
             socket.AF_INET6,
             [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 0, 0),
                 (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
-            True)
+            True,
+            None)
     assert str(excinfo.value) \
         == 'Address family "AF_INET6" unsupported by nat method_name'
     assert mock_ipt_chain_exists.mock_calls == []
@@ -102,7 +103,8 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
             socket.AF_INET,
             [(socket.AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
                 (socket.AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
-            True)
+            True,
+            None)
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
     assert mock_ipt_chain_exists.mock_calls == []
     assert mock_ipt_ttl.mock_calls == []
@@ -114,7 +116,8 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         socket.AF_INET,
         [(socket.AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
             (socket.AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
-        False)
+        False,
+        None)
     assert mock_ipt_chain_exists.mock_calls == [
         call(2, 'nat', 'sshuttle-1025')
     ]
