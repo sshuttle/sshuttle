@@ -1,3 +1,5 @@
+import socket
+
 from mock import Mock, patch, call
 
 from sshuttle.methods import get_method
@@ -49,7 +51,7 @@ def test_send_udp(mock_socket):
     assert sock.mock_calls == []
     assert mock_socket.mock_calls == [
         call(sock.family, 2),
-        call().setsockopt(1, 2, 1),
+        call().setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1),
         call().setsockopt(0, 19, 1),
         call().bind('127.0.0.2'),
         call().sendto("2222222", '127.0.0.1'),
@@ -100,71 +102,71 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
 
     method.setup_firewall(
         1024, 1026,
-        [(10, u'2404:6800:4004:80c::33')],
-        10,
-        [(10, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
-            (10, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
+        [(socket.AF_INET6, u'2404:6800:4004:80c::33')],
+        socket.AF_INET6,
+        [(socket.AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
+            (socket.AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         True)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(10, 'mangle', 'sshuttle-m-1024'),
-        call(10, 'mangle', 'sshuttle-t-1024'),
-        call(10, 'mangle', 'sshuttle-d-1024')
+        call(socket.AF_INET6, 'mangle', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', 'sshuttle-d-1024')
     ]
     assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
-        call(10, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-X', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-X', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-d-1024'),
-        call(10, 'mangle', '-X', 'sshuttle-d-1024'),
-        call(10, 'mangle', '-N', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-N', 'sshuttle-d-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-d-1024'),
-        call(10, 'mangle', '-N', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-F', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-I', 'OUTPUT', '1', '-j', 'sshuttle-m-1024'),
-        call(10, 'mangle', '-I', 'PREROUTING', '1', '-j', 'sshuttle-t-1024'),
-        call(10, 'mangle', '-A', 'sshuttle-d-1024', '-j', 'MARK',
+        call(socket.AF_INET6, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-d-1024'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-d-1024'),
+        call(socket.AF_INET6, 'mangle', '-N', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-N', 'sshuttle-d-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-d-1024'),
+        call(socket.AF_INET6, 'mangle', '-N', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-I', 'OUTPUT', '1', '-j', 'sshuttle-m-1024'),
+        call(socket.AF_INET6, 'mangle', '-I', 'PREROUTING', '1', '-j', 'sshuttle-t-1024'),
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-d-1024', '-j', 'MARK',
              '--set-mark', '1'),
-        call(10, 'mangle', '-A', 'sshuttle-d-1024', '-j', 'ACCEPT'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-m', 'socket',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-d-1024', '-j', 'ACCEPT'),
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-m', 'socket',
              '-j', 'sshuttle-d-1024', '-m', 'tcp', '-p', 'tcp'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-m', 'socket',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-m', 'socket',
              '-j', 'sshuttle-d-1024', '-m', 'udp', '-p', 'udp'),
-        call(10, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'2404:6800:4004:80c::33/32',
              '-m', 'udp', '-p', 'udp', '--dport', '53'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1',
              '--dest', u'2404:6800:4004:80c::33/32',
              '-m', 'udp', '-p', 'udp', '--dport', '53', '--on-port', '1026'),
-        call(10, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'RETURN',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'RETURN',
              '--dest', u'2404:6800:4004:80c::101f/128',
              '-m', 'tcp', '-p', 'tcp', '--dport', '8080:8080'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'RETURN',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'RETURN',
              '--dest', u'2404:6800:4004:80c::101f/128',
              '-m', 'tcp', '-p', 'tcp', '--dport', '8080:8080'),
-        call(10, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'RETURN',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'RETURN',
              '--dest', u'2404:6800:4004:80c::101f/128',
              '-m', 'udp', '-p', 'udp', '--dport', '8080:8080'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'RETURN',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'RETURN',
              '--dest', u'2404:6800:4004:80c::101f/128',
              '-m', 'udp', '-p', 'udp', '--dport', '8080:8080'),
-        call(10, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'2404:6800:4004:80c::/64',
              '-m', 'tcp', '-p', 'tcp', '--dport', '8000:9000'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'2404:6800:4004:80c::/64',
              '-m', 'tcp', '-p', 'tcp', '--dport', '8000:9000',
              '--on-port', '1024'),
-        call(10, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'2404:6800:4004:80c::/64',
              '-m', 'udp', '-p', 'udp'),
-        call(10, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
+        call(socket.AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'2404:6800:4004:80c::/64',
              '-m', 'udp', '-p', 'udp', '--dport', '8000:9000',
              '--on-port', '1024')
@@ -173,22 +175,22 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, 10, True)
+    method.restore_firewall(1025, socket.AF_INET6, True)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(10, 'mangle', 'sshuttle-m-1025'),
-        call(10, 'mangle', 'sshuttle-t-1025'),
-        call(10, 'mangle', 'sshuttle-d-1025')
+        call(socket.AF_INET6, 'mangle', 'sshuttle-m-1025'),
+        call(socket.AF_INET6, 'mangle', 'sshuttle-t-1025'),
+        call(socket.AF_INET6, 'mangle', 'sshuttle-d-1025')
     ]
     assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
-        call(10, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
-        call(10, 'mangle', '-F', 'sshuttle-m-1025'),
-        call(10, 'mangle', '-X', 'sshuttle-m-1025'),
-        call(10, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
-        call(10, 'mangle', '-F', 'sshuttle-t-1025'),
-        call(10, 'mangle', '-X', 'sshuttle-t-1025'),
-        call(10, 'mangle', '-F', 'sshuttle-d-1025'),
-        call(10, 'mangle', '-X', 'sshuttle-d-1025')
+        call(socket.AF_INET6, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-m-1025'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-m-1025'),
+        call(socket.AF_INET6, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-t-1025'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-t-1025'),
+        call(socket.AF_INET6, 'mangle', '-F', 'sshuttle-d-1025'),
+        call(socket.AF_INET6, 'mangle', '-X', 'sshuttle-d-1025')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
@@ -198,68 +200,68 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
 
     method.setup_firewall(
         1025, 1027,
-        [(2, u'1.2.3.33')],
-        2,
-        [(2, 24, False, u'1.2.3.0', 0, 0), (2, 32, True, u'1.2.3.66', 80, 80)],
+        [(socket.AF_INET, u'1.2.3.33')],
+        socket.AF_INET,
+        [(socket.AF_INET, 24, False, u'1.2.3.0', 0, 0), (socket.AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         True)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(2, 'mangle', 'sshuttle-m-1025'),
-        call(2, 'mangle', 'sshuttle-t-1025'),
-        call(2, 'mangle', 'sshuttle-d-1025')
+        call(socket.AF_INET, 'mangle', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', 'sshuttle-d-1025')
     ]
     assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
-        call(2, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-d-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-d-1025'),
-        call(2, 'mangle', '-N', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-N', 'sshuttle-d-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-d-1025'),
-        call(2, 'mangle', '-N', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-I', 'OUTPUT', '1', '-j', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-I', 'PREROUTING', '1', '-j', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-A', 'sshuttle-d-1025',
+        call(socket.AF_INET, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-d-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-d-1025'),
+        call(socket.AF_INET, 'mangle', '-N', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-N', 'sshuttle-d-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-d-1025'),
+        call(socket.AF_INET, 'mangle', '-N', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-I', 'OUTPUT', '1', '-j', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-I', 'PREROUTING', '1', '-j', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-d-1025',
              '-j', 'MARK', '--set-mark', '1'),
-        call(2, 'mangle', '-A', 'sshuttle-d-1025', '-j', 'ACCEPT'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-m', 'socket',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-d-1025', '-j', 'ACCEPT'),
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-m', 'socket',
              '-j', 'sshuttle-d-1025', '-m', 'tcp', '-p', 'tcp'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-m', 'socket',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-m', 'socket',
              '-j', 'sshuttle-d-1025', '-m', 'udp', '-p', 'udp'),
-        call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'1.2.3.33/32',
              '-m', 'udp', '-p', 'udp', '--dport', '53'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'1.2.3.33/32',
              '-m', 'udp', '-p', 'udp', '--dport', '53', '--on-port', '1027'),
-        call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'RETURN',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-m', 'tcp', '-p', 'tcp', 
              '--dport', '80:80'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'RETURN',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-m', 'tcp', '-p', 'tcp',
              '--dport', '80:80'),
-        call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'RETURN',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-m', 'udp', '-p', 'udp',
              '--dport', '80:80'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'RETURN',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-m', 'udp', '-p', 'udp',
              '--dport', '80:80'),
-        call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'1.2.3.0/24',
              '-m', 'tcp', '-p', 'tcp'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'1.2.3.0/24',
              '-m', 'tcp', '-p', 'tcp', '--on-port', '1025'),
-        call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'1.2.3.0/24',
              '-m', 'udp', '-p', 'udp'),
-        call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
+        call(socket.AF_INET, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'1.2.3.0/24',
              '-m', 'udp', '-p', 'udp', '--on-port', '1025')
     ]
@@ -267,22 +269,22 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, 2, True)
+    method.restore_firewall(1025, socket.AF_INET, True)
     assert mock_ipt_chain_exists.mock_calls == [
-        call(2, 'mangle', 'sshuttle-m-1025'),
-        call(2, 'mangle', 'sshuttle-t-1025'),
-        call(2, 'mangle', 'sshuttle-d-1025')
+        call(socket.AF_INET, 'mangle', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', 'sshuttle-d-1025')
     ]
     assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
-        call(2, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-m-1025'),
-        call(2, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-t-1025'),
-        call(2, 'mangle', '-F', 'sshuttle-d-1025'),
-        call(2, 'mangle', '-X', 'sshuttle-d-1025')
+        call(socket.AF_INET, 'mangle', '-D', 'OUTPUT', '-j', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-m-1025'),
+        call(socket.AF_INET, 'mangle', '-D', 'PREROUTING', '-j', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-t-1025'),
+        call(socket.AF_INET, 'mangle', '-F', 'sshuttle-d-1025'),
+        call(socket.AF_INET, 'mangle', '-X', 'sshuttle-d-1025')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
