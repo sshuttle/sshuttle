@@ -172,12 +172,14 @@ class DnsProxy(Handler):
             self.to_nameserver = None
         else:
             peer, port = to_nameserver.split("@")
-            port = int(port)
-            if port == 0:
-                port = 53
-            family = socket.AF_INET6 if ":" in peer else socket.AF_INET
-            self.to_nameserver = family, peer, port
+            self.to_nameserver = self._addrinfo(peer, port)
         self.try_send()
+
+    def _addrinfo(self, peer, port):
+        if int(port) == 0:
+            port = 53
+        family, _, _, _, sockaddr = socket.getaddrinfo(peer, port)[0]
+        return (family, sockaddr)
 
     def try_send(self):
         if self.tries >= 3:
@@ -185,14 +187,15 @@ class DnsProxy(Handler):
         self.tries += 1
 
         if self.to_nameserver is None:
-            family, peer = resolvconf_random_nameserver()
+            _, peer = resolvconf_random_nameserver()
             port = 53
+            family, sockaddr = self._addrinfo(peer, port)
         else:
-            family, peer, port = self.to_nameserver
+            family, sockaddr = self.to_nameserver
 
         sock = socket.socket(family, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
-        sock.connect((peer, port))
+        sock.connect(sockaddr)
 
         self.peers[sock] = peer
 
