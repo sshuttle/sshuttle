@@ -489,6 +489,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     def onroutes(routestr):
         if auto_nets:
             for line in routestr.strip().split(b'\n'):
+                if not line: break
                 (family, ip, width) = line.split(b',', 2)
                 family = int(family)
                 width = int(width)
