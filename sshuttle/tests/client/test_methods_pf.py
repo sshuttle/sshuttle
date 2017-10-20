@@ -278,10 +278,12 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
 
 @patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.pf', FreeBsd())
+@patch('subprocess.call')
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
-def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
+def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
+                                mock_subprocess_call):
     mock_pfctl.side_effect = pfctl
 
     method = get_method('pf')
@@ -312,6 +314,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
     ]
+    assert call(['kldload', 'pf']) in mock_subprocess_call.mock_calls
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
@@ -364,9 +367,11 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pfctl.reset_mock()
 
     method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1024, 10, False, None)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),
+        call('-a sshuttle6-1024 -F all'),
         call("-d"),
     ]
     mock_pf_get_dev.reset_mock()
@@ -467,10 +472,12 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pfctl.reset_mock()
 
     method.restore_firewall(1025, 2, False, None)
+    method.restore_firewall(1024, 10, False, None)
     assert mock_ioctl.mock_calls == []
     assert mock_pfctl.mock_calls == [
         call('-a sshuttle-1025 -F all'),
-        call("-d"),
+        call('-a sshuttle6-1024 -F all'),
+        call('-d'),
     ]
     mock_pf_get_dev.reset_mock()
     mock_pfctl.reset_mock()
