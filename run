@@ -1,11 +1,17 @@
-#!/bin/sh
-source_dir="$(dirname $0)"
-(cd "$source_dir" && "$source_dir/setup.py" --version > /dev/null)
-export PYTHONPATH="$source_dir:$PYTHONPATH"
-if python3.5 -V >/dev/null 2>&1; then
-	exec python3.5 -m "sshuttle" "$@"
-elif python2.7 -V >/dev/null 2>&1; then
-	exec python2.7 -m "sshuttle" "$@"
-else
-	exec python -m "sshuttle" "$@"
-fi
+#!/usr/bin/env sh
+set -e
+export PYTHONPATH="$(dirname $0):$PYTHONPATH"
+
+python_best_version() {
+  if [ -x "$(command -v python3)" ]; then
+    if python3 -c "import sys; sys.exit(not sys.version_info > (3, 5))"; then
+      exec python3 "$@"
+    fi
+  elif [ -x "$(command -v python2.7)" ]; then
+    exec python2.7 "$@"
+  else
+    exec python "$@"
+  fi
+}
+
+python_best_version -m "sshuttle" "$@"
