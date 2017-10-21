@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -ex
+set -e
 export PYTHONPATH="$(dirname $0):$PYTHONPATH"
 
 python_best_version() {
