@@ -635,6 +635,9 @@ def main(listenip_v6, listenip_v4,
     else:
         # if at least one port missing, we have to search
         ports = range(12300, 9000, -1)
+        # keep track of failed bindings and used ports to avoid trying to
+        # bind to the same socket address twice in different listeners
+        used_ports = []
 
     # search for free ports and try to bind
     last_e = None
@@ -676,6 +679,7 @@ def main(listenip_v6, listenip_v4,
             if udp_listener:
                 udp_listener.bind(lv6, lv4)
             bound = True
+            used_ports.append(port)
             break
         except socket.error as e:
             if e.errno == errno.EADDRINUSE:
@@ -699,6 +703,8 @@ def main(listenip_v6, listenip_v4,
         ports = range(12300, 9000, -1)
         for port in ports:
             debug2(' %d' % port)
+            if port in used_ports: continue
+
             dns_listener = MultiListener(socket.SOCK_DGRAM)
 
             if listenip_v6:
