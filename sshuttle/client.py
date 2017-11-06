@@ -389,7 +389,7 @@ def onaccept_udp(listener, method, mux, handlers):
     srcip, dstip, data = t
     debug1('Accept UDP: %r -> %r.\n' % (srcip, dstip,))
     if srcip in udp_by_src:
-        chan, timeout = udp_by_src[srcip]
+        chan, _ = udp_by_src[srcip]
     else:
         chan = mux.next_channel()
         mux.channels[chan] = lambda cmd, data: udp_done(
