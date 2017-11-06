@@ -2,6 +2,7 @@ from mock import patch, call
 import sys
 import io
 import socket
+import errno
 
 import sshuttle.helpers
 
@@ -162,7 +163,11 @@ nameserver 2404:6800:4004:80c::4
     ]
 
 
-def test_islocal():
+@patch('sshuttle.helpers.socket.socket.bind')
+def test_islocal(mock_bind):
+    bind_error = socket.error(errno.EADDRNOTAVAIL)
+    mock_bind.side_effect = [None, bind_error, None, bind_error]
+
     assert sshuttle.helpers.islocal("127.0.0.1", socket.AF_INET)
     assert not sshuttle.helpers.islocal("192.0.2.1", socket.AF_INET)
     assert sshuttle.helpers.islocal("::1", socket.AF_INET6)
