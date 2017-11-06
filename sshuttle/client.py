@@ -684,6 +684,7 @@ def main(listenip_v6, listenip_v4,
         except socket.error as e:
             if e.errno == errno.EADDRINUSE:
                 last_e = e
+                used_ports.append(port)
             else:
                 raise e
 
@@ -724,10 +725,12 @@ def main(listenip_v6, listenip_v4,
             try:
                 dns_listener.bind(lv6, lv4)
                 bound = True
+                used_ports.append(port)
                 break
             except socket.error as e:
                 if e.errno == errno.EADDRINUSE:
                     last_e = e
+                    used_ports.append(port)
                 else:
                     raise e
         debug2('\n')
