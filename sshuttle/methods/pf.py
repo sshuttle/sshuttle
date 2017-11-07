@@ -35,11 +35,11 @@ class Generic(object):
 
     class pf_addr(Structure):
         class _pfa(Union):
-             _fields_ = [("v4", c_uint32),     # struct in_addr
-                        ("v6", c_uint32 * 4),  # struct in6_addr
-                        ("addr8", c_uint8 * 16),
-                        ("addr16", c_uint16 * 8),
-                        ("addr32", c_uint32 * 4)]
+            _fields_ = [("v4", c_uint32),     # struct in_addr
+                       ("v6", c_uint32 * 4),  # struct in6_addr
+                       ("addr8", c_uint8 * 16),
+                       ("addr16", c_uint16 * 8),
+                       ("addr32", c_uint32 * 4)]
 
         _fields_ = [("pfa", _pfa)]
         _anonymous_ = ("pfa",)
@@ -66,7 +66,8 @@ class Generic(object):
             pfctl('-e')
             _pf_context['started_by_sshuttle'] += 1
 
-    def disable(self, anchor):
+    @staticmethod
+    def disable(anchor):
         pfctl('-a %s -F all' % anchor)
         if _pf_context['started_by_sshuttle'] == 1:
             pfctl('-d')
@@ -98,11 +99,13 @@ class Generic(object):
         port = socket.ntohs(self._get_natlook_port(pnl.rdxport))
         return (ip, port)
 
-    def _add_natlook_ports(self, pnl, src_port, dst_port):
+    @staticmethod
+    def _add_natlook_ports(pnl, src_port, dst_port):
         pnl.sxport = socket.htons(src_port)
         pnl.dxport = socket.htons(dst_port)
 
-    def _get_natlook_port(self, xport):
+    @staticmethod
+    def _get_natlook_port(xport):
         return xport
 
     def add_anchors(self, anchor, status=None):
@@ -129,18 +132,22 @@ class Generic(object):
             'I', self.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
-    def _inet_version(self, family):
+    @staticmethod
+    def _inet_version(family):
         return b'inet' if family == socket.AF_INET else b'inet6'
 
-    def _lo_addr(self, family):
+    @staticmethod
+    def _lo_addr(family):
         return b'127.0.0.1' if family == socket.AF_INET else b'::1'
 
-    def add_rules(self, anchor, rules):
+    @staticmethod
+    def add_rules(anchor, rules):
         assert isinstance(rules, bytes)
         debug3("rules:\n" + rules.decode("ASCII"))
         pfctl('-a %s -f /dev/stdin' % anchor, rules)
 
-    def has_skip_loopback(self):
+    @staticmethod
+    def has_skip_loopback():
         return b'skip' in pfctl('-s Interfaces -i lo -v')[0]
 
 

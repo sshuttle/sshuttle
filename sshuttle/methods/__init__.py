@@ -35,7 +35,8 @@ class BaseMethod(object):
     def set_firewall(self, firewall):
         self.firewall = firewall
 
-    def get_supported_features(self):
+    @staticmethod
+    def get_supported_features():
         result = Features()
         result.ipv6 = False
         result.udp = False
@@ -43,10 +44,12 @@ class BaseMethod(object):
         result.user = False
         return result
 
-    def get_tcp_dstip(self, sock):
+    @staticmethod
+    def get_tcp_dstip(sock):
         return original_dst(sock)
 
-    def recv_udp(self, udp_listener, bufsize):
+    @staticmethod
+    def recv_udp(udp_listener, bufsize):
         debug3('Accept UDP using recvfrom.\n')
         data, srcip = udp_listener.recvfrom(bufsize)
         return (srcip, None, data)
@@ -77,7 +80,8 @@ class BaseMethod(object):
     def restore_firewall(self, port, family, udp, user):
         raise NotImplementedError()
 
-    def firewall_command(self, line):
+    @staticmethod
+    def firewall_command(line):
         return False
 
 
