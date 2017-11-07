@@ -175,7 +175,8 @@ class DnsProxy(Handler):
             self.to_nameserver = self._addrinfo(peer, port)
         self.try_send()
 
-    def _addrinfo(self, peer, port):
+    @staticmethod
+    def _addrinfo(peer, port):
         if int(port) == 0:
             port = 53
         family, _, _, _, sockaddr = socket.getaddrinfo(peer, port)[0]

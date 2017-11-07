@@ -200,7 +200,8 @@ class SockWrapper:
                 _, e = sys.exc_info()[:2]
                 self.seterr('nowrite: %s' % e)
 
-    def too_full(self):
+    @staticmethod
+    def too_full():
         return False  # fullness is determined by the socket's select() state
 
     def uwrite(self, buf):
