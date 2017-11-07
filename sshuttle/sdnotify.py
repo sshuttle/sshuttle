@@ -9,7 +9,7 @@ def _notify(message):
         return False
 
     addr = '\0' + addr[1:] if addr[0] == '@' else addr
-    
+
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     except (OSError, IOError) as e:
