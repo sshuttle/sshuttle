@@ -84,7 +84,7 @@ def test_subnet_weight():
         (socket.AF_INET, 16, 0, '192.168.0.0', 0, 0),
         (socket.AF_INET, 0, 1, '0.0.0.0', 0, 0)
     ]
-    
+
     assert subnets_sorted == \
             sorted(subnets, key=sshuttle.firewall.subnet_weight, reverse=True)
 

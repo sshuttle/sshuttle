@@ -241,7 +241,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
              '--tproxy-mark', '0x1/0x1', '--dest', u'1.2.3.33/32',
              '-m', 'udp', '-p', 'udp', '--dport', '53', '--on-port', '1027'),
         call(2, 'mangle', '-A', 'sshuttle-m-1025', '-j', 'RETURN',
-             '--dest', u'1.2.3.66/32', '-m', 'tcp', '-p', 'tcp', 
+             '--dest', u'1.2.3.66/32', '-m', 'tcp', '-p', 'tcp',
              '--dport', '80:80'),
         call(2, 'mangle', '-A', 'sshuttle-t-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-m', 'tcp', '-p', 'tcp',

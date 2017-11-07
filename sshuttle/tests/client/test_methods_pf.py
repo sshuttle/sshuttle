@@ -424,7 +424,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
-    
+
     with pytest.raises(Exception) as excinfo:
         method.setup_firewall(
             1025, 1027,

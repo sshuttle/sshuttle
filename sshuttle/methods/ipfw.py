@@ -150,17 +150,17 @@ def ipfw_noexit(*args):
     ssubprocess.call(argv)
 
 class Method(BaseMethod):
-    
+
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.ipv6 = False
         result.udp = False #NOTE: Almost there, kernel patch needed
         result.dns = True
         return result
-    
+
     def get_tcp_dstip(self, sock):
         return sock.getsockname()
-    
+
     def recv_udp(self, udp_listener, bufsize):
         srcip, dstip, data = recv_udp(udp_listener, bufsize)
         if not dstip:
@@ -199,7 +199,7 @@ class Method(BaseMethod):
             raise Exception(
                 'Address family "%s" unsupported by ipfw method_name'
                 % family_to_string(family))
-    
+
         #XXX: Any risk from this?
         ipfw_noexit('delete', '1')
 
@@ -207,13 +207,13 @@ class Method(BaseMethod):
             name = _changedctls.pop()
             oldval = _oldctls[name]
             _sysctl_set(name, oldval)
-    
+
         if subnets or dnsport:
             sysctl_set('net.inet.ip.fw.enable', 1)
-            
+
         ipfw('add', '1', 'check-state', 'ip',
              'from', 'any', 'to', 'any')
-        
+
         ipfw('add', '1', 'skipto', '2',
              'tcp',
              'from', 'any', 'to', 'table(125)')
