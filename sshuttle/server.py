@@ -13,7 +13,7 @@ import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
-    resolvconf_random_nameserver
+    ip_to_int, resolvconf_random_nameserver
 
 try:
     from shutil import which
@@ -40,7 +40,7 @@ def _ipmatch(ipstr):
             ips += '.0'
             width = min(width, 24)
         ips = ips
-        return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
+        return (ip_to_int(ips), width)
 
 
 def _ipstr(ip, width):

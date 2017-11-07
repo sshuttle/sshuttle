@@ -1,5 +1,6 @@
 import sys
 import socket
+import struct
 import errno
 
 logprefix = ''
@@ -90,6 +91,10 @@ def islocal(ip, family):
     finally:
         sock.close()
     return True  # it's a local IP, or there would have been an error
+
+
+def ip_to_int(ip):
+    return struct.unpack('!I', socket.inet_aton(ip))[0]
 
 
 def family_ip_tuple(ip):

@@ -13,7 +13,7 @@ import sys
 import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-    resolvconf_nameservers
+    ip_to_int, resolvconf_nameservers
 from sshuttle.methods import get_method, Features
 try:
     from pwd import getpwnam
@@ -699,6 +699,11 @@ def main(listenip_v6, listenip_v4,
 
     bound = False
     if required.dns:
+        if ip_to_int(listenip_v4[0]) == socket.INADDR_ANY:
+            listenip_v4 = ('127.0.0.1', listenip_v4[1])
+            log('WARNING: Requested --listen on all interfaces.\n')
+            log('WARNING: Because of this, --dns will only work locally.\n')
+
         # search for spare port for DNS
         debug2('Binding DNS:')
         ports = range(12300, 9000, -1)
