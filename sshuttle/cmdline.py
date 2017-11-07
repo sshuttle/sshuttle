@@ -25,7 +25,7 @@ def main():
                 parser.error('exactly zero arguments expected')
             return firewall.main(opt.method, opt.syslog)
         elif opt.hostwatch:
-            return hostwatch.hw_main(opt.subnets)
+            return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
         else:
             includes = opt.subnets + opt.subnets_file
             excludes = opt.exclude
