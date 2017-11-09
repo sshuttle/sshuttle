@@ -1,0 +1,3 @@
+[bandit]
+exclude: sshuttle/tests
+skips: B101,B104,B404,B603,B606,B607

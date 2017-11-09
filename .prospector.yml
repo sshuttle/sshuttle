@@ -1,0 +1,19 @@
+strictness: medium
+
+pylint:
+  disable:
+    - too-many-statements
+    - too-many-locals
+    - too-many-function-args
+    - too-many-arguments
+    - too-many-branches
+    - bare-except
+    - protected-access
+    - no-else-return
+
+pep8:
+  options:
+    max-line-length: 79
+
+mccabe:
+  run: false
