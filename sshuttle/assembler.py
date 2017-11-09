@@ -21,7 +21,7 @@ while 1:
             setattr(sys.modules[parent], parent_name, module)
 
         code = compile(content, name, "exec")
-        exec(code, module.__dict__)
+        exec(code, module.__dict__) # nosec
         sys.modules[name] = module
     else:
         break
