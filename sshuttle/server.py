@@ -326,7 +326,7 @@ def main(latency_control, auto_hosts, to_nameserver):
     def got_host_req(data):
         if not hw.pid:
             (hw.pid, hw.sock) = start_hostwatch(
-                    data.strip().split(), auto_hosts)
+                    data.decode("ASCII").strip().split(), auto_hosts)
             handlers.append(Handler(socks=[hw.sock],
                                     callback=hostwatch_ready))
     mux.got_host_req = got_host_req
