@@ -251,7 +251,7 @@ def _enqueue(op, *args):
 
 
 def _stdin_still_ok(timeout):
-    r, w, x = select.select([sys.stdin.fileno()], [], [], timeout)
+    r, _, _ = select.select([sys.stdin.fileno()], [], [], timeout)
     if r:
         b = os.read(sys.stdin.fileno(), 4096)
         if not b:

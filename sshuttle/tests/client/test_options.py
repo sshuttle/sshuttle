@@ -51,7 +51,7 @@ def test_parse_subnetport_ip4_with_port():
     for ip_repr, ip in _ip4_reprs.items():
         assert sshuttle.options.parse_subnetport(':'.join((ip_repr, '80'))) \
                 == (socket.AF_INET, ip, 32, 80, 80)
-        assert sshuttle.options.parse_subnetport(':'.join((ip_repr, '80-90'))) \
+        assert sshuttle.options.parse_subnetport(':'.join((ip_repr, '80-90')))\
                 == (socket.AF_INET, ip, 32, 80, 90)
 
 
@@ -97,5 +97,5 @@ def test_parse_subnetport_ip6_with_mask_and_port():
     for ip_repr, ip in _ip6_reprs.items():
         assert sshuttle.options.parse_subnetport('[' + ip_repr + '/128]:80') \
                 == (socket.AF_INET6, ip, 128, 80, 80)
-        assert sshuttle.options.parse_subnetport('[' + ip_repr + '/16]:80-90') \
+        assert sshuttle.options.parse_subnetport('[' + ip_repr + '/16]:80-90')\
                 == (socket.AF_INET6, ip, 16, 80, 90)

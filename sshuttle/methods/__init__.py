@@ -74,7 +74,8 @@ class BaseMethod(object):
                     "Feature %s not supported with method %s.\n" %
                     (key, self.name))
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
+                       user):
         raise NotImplementedError()
 
     def restore_firewall(self, port, family, udp, user):

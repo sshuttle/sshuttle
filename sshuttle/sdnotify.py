@@ -16,7 +16,7 @@ def _notify(message):
         debug1("Error creating socket to notify systemd: %s\n" % e)
         return False
 
-    if not message: 
+    if not message:
         return False
 
     assert isinstance(message, bytes)

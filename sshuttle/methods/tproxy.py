@@ -33,7 +33,7 @@ IPV6_RECVORIGDSTADDR = IPV6_ORIGDSTADDR
 if recvmsg == "python":
     def recv_udp(listener, bufsize):
         debug3('Accept UDP python using recvmsg.\n')
-        data, ancdata, msg_flags, srcip = listener.recvmsg(
+        data, ancdata, _, srcip = listener.recvmsg(
             4096, socket.CMSG_SPACE(24))
         dstip = None
         family = None
@@ -64,7 +64,7 @@ if recvmsg == "python":
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
         debug3('Accept UDP using socket_ext recvmsg.\n')
-        srcip, data, adata, flags = listener.recvmsg(
+        srcip, data, adata, _ = listener.recvmsg(
             (bufsize,), socket.CMSG_SPACE(24))
         dstip = None
         family = None
@@ -150,7 +150,8 @@ class Method(BaseMethod):
         if udp_listener.v6 is not None:
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
+                       user):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
@@ -193,7 +194,7 @@ class Method(BaseMethod):
             _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
                  '-m', 'udp', '-p', 'udp')
 
-        for f, ip in [i for i in nslist if i[0] == family]:
+        for _, ip in [i for i in nslist if i[0] == family]:
             _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                  '--dest', '%s/32' % ip,
                  '-m', 'udp', '-p', 'udp', '--dport', '53')
@@ -203,7 +204,7 @@ class Method(BaseMethod):
                  '-m', 'udp', '-p', 'udp', '--dport', '53',
                  '--on-port', str(dnsport))
 
-        for f, swidth, sexclude, snet, fport, lport \
+        for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
             tcp_ports = ('-p', 'tcp')
             tcp_ports = _ipt_proto_ports(tcp_ports, fport, lport)

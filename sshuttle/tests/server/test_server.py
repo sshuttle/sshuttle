@@ -1,8 +1,7 @@
-import os
 import io
 import socket
 import sshuttle.server
-from mock import patch, Mock, call
+from mock import patch, Mock
 
 
 def test__ipmatch():

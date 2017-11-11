@@ -115,21 +115,21 @@ class Generic(object):
         if ('\nanchor "%s"' % anchor).encode('ASCII') not in status:
             self._add_anchor_rule(self.PF_PASS, anchor.encode('ASCII'))
 
-    def _add_anchor_rule(self, type, name, pr=None):
+    def _add_anchor_rule(self, kind, name, pr=None):
         if pr is None:
             pr = self.pfioc_rule()
 
         memmove(addressof(pr) + self.ANCHOR_CALL_OFFSET, name,
-                min(self.MAXPATHLEN, len(name)))  # anchor_call = name
+                min(self.MAXPATHLEN, len(name))) # anchor_call = name
         memmove(addressof(pr) + self.RULE_ACTION_OFFSET,
-                struct.pack('I', type), 4)  # rule.action = type
+                struct.pack('I', kind), 4) # rule.action = kind
 
         memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
-            'I', self.PF_CHANGE_GET_TICKET), 4)  # action = PF_CHANGE_GET_TICKET
+            'I', self.PF_CHANGE_GET_TICKET), 4) # action = PF_CHANGE_GET_TICKET
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
         memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
-            'I', self.PF_CHANGE_ADD_TAIL), 4)  # action = PF_CHANGE_ADD_TAIL
+            'I', self.PF_CHANGE_ADD_TAIL), 4) # action = PF_CHANGE_ADD_TAIL
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
     @staticmethod
@@ -176,9 +176,6 @@ class FreeBsd(Generic):
         freebsd.pfioc_natlook = pfioc_natlook
         return freebsd
 
-    def __init__(self):
-        super(FreeBsd, self).__init__()
-
     def enable(self):
         returncode = ssubprocess.call(['kldload', 'pf'])
         super(FreeBsd, self).enable()
@@ -197,14 +194,14 @@ class FreeBsd(Generic):
             self._add_anchor_rule(self.PF_RDR, anchor.encode('ASCII'))
         super(FreeBsd, self).add_anchors(anchor, status=status)
 
-    def _add_anchor_rule(self, type, name):
-        pr = self.pfioc_rule()
+    def _add_anchor_rule(self, kind, name, pr=None):
+        pr = pr or self.pfioc_rule()
         ppa = self.pfioc_pooladdr()
 
         ioctl(pf_get_dev(), self.DIOCBEGINADDRS, ppa)
         # pool ticket
         memmove(addressof(pr) + self.POOL_TICKET_OFFSET, ppa[4:8], 4)
-        super(FreeBsd, self)._add_anchor_rule(type, name, pr=pr)
+        super(FreeBsd, self)._add_anchor_rule(kind, name, pr=pr)
 
     def add_rules(self, anchor, includes, port, dnsport, nslist, family):
         inet_version = self._inet_version(family)
@@ -224,7 +221,7 @@ class FreeBsd(Generic):
             for exclude, subnet in includes
         ]
 
-        if len(nslist) > 0:
+        if nslist:
             tables.append(
                 b'table <dns_servers> {%s}' %
                 b','.join([ns[1].encode("ASCII") for ns in nslist]))
@@ -294,7 +291,7 @@ class OpenBsd(Generic):
             for exclude, subnet in includes
         ]
 
-        if len(nslist) > 0:
+        if nslist:
             tables.append(
                 b'table <dns_servers> {%s}' %
                 b','.join([ns[1].encode("ASCII") for ns in nslist]))
@@ -440,11 +437,8 @@ class Method(BaseMethod):
 
         return sock.getsockname()
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
-        tables = []
-        translating_rules = []
-        filtering_rules = []
-
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
+                       user):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'
@@ -452,12 +446,12 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by pf method_name")
 
-        if len(subnets) > 0:
+        if subnets:
             includes = []
             # If a given subnet is both included and excluded, list the
             # exclusion first; the table will ignore the second, opposite
             # definition
-            for f, swidth, sexclude, snet, fport, lport \
+            for _, swidth, sexclude, snet, fport, lport \
                     in sorted(subnets, key=subnet_weight, reverse=True):
                 includes.append((sexclude, b"%s/%d%s" % (
                     snet.encode("ASCII"),

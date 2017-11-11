@@ -1,6 +1,4 @@
 from mock import Mock, patch, call
-import sys
-import io
 import socket
 
 import sshuttle.sdnotify
@@ -59,7 +57,7 @@ def test_notify(mock_get, mock_socket):
     sock.sendto.return_value = 1
     mock_get.return_value = '/run/valid_path'
     mock_socket.return_value = sock
-    
+
     assert sshuttle.sdnotify.send(*messages)
     assert sock.sendto.mock_calls == [
         call(b'\n'.join(messages), socket_path),
