@@ -2,6 +2,7 @@ import errno
 import socket
 import signal
 import sshuttle.ssyslog as ssyslog
+import sshuttle.sdnotify as sdnotify
 import sys
 import os
 import platform
@@ -164,7 +165,7 @@ def main(method_name, syslog):
     _, _, ports = line.partition(" ")
     ports = ports.split(",")
     if len(ports) != 4:
-        raise Fatal('firewall: expected 4 ports but got %n' % len(ports))
+        raise Fatal('firewall: expected 4 ports but got %d' % len(ports))
     port_v6 = int(ports[0])
     port_v4 = int(ports[1])
     dnsport_v6 = int(ports[2])
@@ -203,14 +204,14 @@ def main(method_name, syslog):
     try:
         debug1('firewall manager: setting up.\n')
 
-        if len(subnets_v6) > 0 or len(nslist_v6) > 0:
+        if subnets_v6 or nslist_v6:
             debug2('firewall manager: setting up IPv6.\n')
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
                 user)
 
-        if len(subnets_v4) > 0 or len(nslist_v4) > 0:
+        if subnets_v4 or nslist_v4:
             debug2('firewall manager: setting up IPv4.\n')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
@@ -249,7 +250,7 @@ def main(method_name, syslog):
             pass
 
         try:
-            if len(subnets_v6) > 0 or len(nslist_v6) > 0:
+            if subnets_v6 or nslist_v6:
                 debug2('firewall manager: undoing IPv6 changes.\n')
                 method.restore_firewall(port_v6, socket.AF_INET6, udp, user)
         except:
@@ -262,7 +263,7 @@ def main(method_name, syslog):
                 pass
 
         try:
-            if len(subnets_v4) > 0 or len(nslist_v4) > 0:
+            if subnets_v4 or nslist_v4:
                 debug2('firewall manager: undoing IPv4 changes.\n')
                 method.restore_firewall(port_v4, socket.AF_INET, udp, user)
         except:

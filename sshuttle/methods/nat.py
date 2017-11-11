@@ -12,7 +12,8 @@ class Method(BaseMethod):
     # the multiple copies shouldn't have overlapping subnets, or only the most-
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
+                       user):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -50,7 +51,7 @@ class Method(BaseMethod):
         _ipt('-I', 'PREROUTING', '1', *args)
 
         # create new subnet entries.
-        for f, swidth, sexclude, snet, fport, lport \
+        for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
             tcp_ports = ('-p', 'tcp')
             if fport:
@@ -65,7 +66,7 @@ class Method(BaseMethod):
                          '--dest', '%s/%s' % (snet, swidth),
                          *(tcp_ports + ('--to-ports', str(port))))
 
-        for f, ip in [i for i in nslist if i[0] == family]:
+        for _, ip in [i for i in nslist if i[0] == family]:
             _ipt_ttl('-A', chain, '-j', 'REDIRECT',
                      '--dest', '%s/32' % ip,
                      '-p', 'udp',
@@ -97,8 +98,8 @@ class Method(BaseMethod):
         # basic cleanup/setup of chains
         if ipt_chain_exists(family, table, chain):
             if user is not None:
-                nonfatal(_ipm, '-D', 'OUTPUT', '-m', 'owner', '--uid-owner', str(user),
-                         '-j', 'MARK', '--set-mark', str(port))
+                nonfatal(_ipm, '-D', 'OUTPUT', '-m', 'owner', '--uid-owner',
+                         str(user), '-j', 'MARK', '--set-mark', str(port))
                 args = '-m', 'mark', '--mark', str(port), '-j', chain
             else:
                 args = '-j', chain

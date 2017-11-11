@@ -112,8 +112,8 @@ def daemon_cleanup():
 
 class MultiListener:
 
-    def __init__(self, type=socket.SOCK_STREAM, proto=0):
-        self.type = type
+    def __init__(self, kind=socket.SOCK_STREAM, proto=0):
+        self.type = kind
         self.proto = proto
         self.v6 = None
         self.v4 = None
@@ -746,22 +746,22 @@ def main(listenip_v6, listenip_v4,
     # Last minute sanity checks.
     # These should never fail.
     # If these do fail, something is broken above.
-    if len(subnets_v6) > 0:
+    if subnets_v6:
         assert required.ipv6
         if redirectport_v6 == 0:
             raise Fatal("IPv6 subnets defined but not listening")
 
-    if len(nslist_v6) > 0:
+    if nslist_v6:
         assert required.dns
         assert required.ipv6
         if dnsport_v6 == 0:
             raise Fatal("IPv6 ns servers defined but not listening")
 
-    if len(subnets_v4) > 0:
+    if subnets_v4:
         if redirectport_v4 == 0:
             raise Fatal("IPv4 subnets defined but not listening")
 
-    if len(nslist_v4) > 0:
+    if nslist_v4:
         if dnsport_v4 == 0:
             raise Fatal("IPv4 ns servers defined but not listening")
 

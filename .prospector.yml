@@ -10,6 +10,11 @@ pylint:
     - bare-except
     - protected-access
     - no-else-return
+    - unused-argument
+    - method-hidden
+    - arguments-differ
+    - wrong-import-position
+    - raising-bad-type
 
 pep8:
   options:

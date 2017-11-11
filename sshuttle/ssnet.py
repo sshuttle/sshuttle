@@ -271,7 +271,7 @@ class Handler:
 
     def callback(self, sock):
         log('--no callback defined-- %r\n' % self)
-        (r, w, x) = select.select(self.socks, [], [], 0)
+        (r, _, _) = select.select(self.socks, [], [], 0)
         for s in r:
             v = s.recv(4096)
             if not v:
@@ -350,7 +350,7 @@ class Mux(Handler):
 
     def next_channel(self):
         # channel 0 is special, so we never allocate it
-        for timeout in range(1024):
+        for _ in range(1024):
             self.chani += 1
             if self.chani > MAX_CHANNEL:
                 self.chani = 1
@@ -479,7 +479,7 @@ class Mux(Handler):
             _add(w, self.wsock)
 
     def callback(self, sock):
-        (r, w, x) = select.select([self.rsock], [self.wsock], [], 0)
+        (r, w, _) = select.select([self.rsock], [self.wsock], [], 0)
         if self.rsock in r:
             self.handle()
         if self.outbuf and self.wsock in w:

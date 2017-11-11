@@ -45,8 +45,8 @@ def main():
             if opt.listen:
                 ipport_v6 = None
                 ipport_v4 = None
-                list = opt.listen.split(",")
-                for ip in list:
+                lst = opt.listen.split(",")
+                for ip in lst:
                     family, ip, port = parse_ipport(ip)
                     if family == socket.AF_INET6:
                         ipport_v6 = (ip, port)
