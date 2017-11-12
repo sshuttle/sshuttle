@@ -28,7 +28,9 @@ def parse_subnetport_file(s):
 # [1:2::3/64]:456, [1:2::3]:456, 1:2::3/64 or just 1:2::3
 # example.com:123 or just example.com
 def parse_subnetport(s):
+    ipv6 = False
     if s.count(':') > 1:
+        ipv6 = True
         rx = r'(?:\[?([\w\:]+)(?:/(\d+))?]?)(?::(\d+)(?:-(\d+))?)?$'
     else:
         rx = r'([\w\.]+)(?:/(\d+))?(?::(\d+)(?:-(\d+))?)?$'
@@ -38,6 +40,11 @@ def parse_subnetport(s):
         raise Fatal('%r is not a valid address/mask:port format' % s)
 
     addr, width, fport, lport = m.groups()
+    # Attempt to 0 pad partial IPv4 address.
+    # 10 -> 10.0.0.0
+    if not ipv6 and addr.count('.') > 0 or (addr.isdigit() and int(addr) < 256):
+        while addr.count('.') < 3:
+            addr += '.0'
     try:
         addrinfo = socket.getaddrinfo(addr, 0, 0, socket.SOCK_STREAM)
     except socket.gaierror:
