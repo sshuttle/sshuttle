@@ -38,6 +38,7 @@ Fixed
 * Fixes UDP and DNS proxies binding to the same socket address.
 * Mock socket bind to avoid depending on local IPs being available in test box.
 * Fix no value passed for argument auto_hosts in hw_main call.
+* Fixed incorrect license information in setup.py.
 
 
 0.78.3 - 2017-07-09
