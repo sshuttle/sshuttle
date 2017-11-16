@@ -9,6 +9,37 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+0.78.4 - UNRELEASED
+-------------------
+
+Added
+~~~~~
+* Add homebrew instructions.
+* Route traffic by linux user.
+
+Changed
+~~~~~~~
+* Talk to custom DNS server on pod, instead of the ones in /etc/resolv.conf.
+* Add new option for overriding destination DNS server.
+* Changed subnet parsing. Previously 10/8 become 10.0.0.0/8.  Now it gets
+  parsed as 0.0.0.10/8.
+* Make hostwatch find both fqdn and hostname.
+* Use versions of python3 greater than 3.5 when available (e.g. 3.6).
+
+Fixed
+~~~~~
+* Fix case where there is no --dns.
+* [pf] Avoid port forwarding from loopback address.
+* Use getaddrinfo to obtain a correct sockaddr.
+* Skip empty lines on incoming routes data.
+* Just skip empty lines of routes data instead of stopping processing.
+* [pf] Load pf kernel module when enabling pf.
+* [pf] Test double restore (ipv4, ipv6) disables only once; test kldload.
+* Fixes UDP and DNS proxies binding to the same socket address.
+* Mock socket bind to avoid depending on local IPs being available in test box.
+* Fix no value passed for argument auto_hosts in hw_main call.
+
+
 0.78.3 - 2017-07-09
 -------------------
 The "I should have done a git pull" first release.
