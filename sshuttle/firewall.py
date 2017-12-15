@@ -7,6 +7,7 @@ import sys
 import os
 import platform
 import traceback
+import sshuttle.sdnotify as sdnotify
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
@@ -219,6 +220,8 @@ def main(method_name, syslog):
                 user)
 
         stdout.write('STARTED\n')
+        sdnotify.send(sdnotify.ready(),
+                  sdnotify.status('Connected'))
 
         try:
             stdout.flush()
