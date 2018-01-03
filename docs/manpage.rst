@@ -94,7 +94,30 @@ Options
 .. option:: --dns
 
     Capture local DNS requests and forward to the remote DNS
-    server.
+    server. All queries to any of the local system's DNS
+    servers (/etc/resolv.conf) will be intercepted and
+    resolved on the remote side of the tunnel instead, there
+    using the DNS specified via the :option:`--to-ns=` option,
+    if specified.
+
+.. option:: --ns-hosts=server1[,server2[,server3[...]]]
+
+    Capture local DNS requests to the specified server(s)
+    and forward to the remote DNS server. Contrary to the
+    :option:`--dns` option, this flag allows to specify the
+    DNS server(s) the queries to which to intercept,
+    instead of intercepting all DNS traffic on the local
+    machine. This can be useful when only certain DNS
+    requests should be resolved on the remote side of the
+    tunnel, e.g. in combination with dnsmasq.
+
+.. option:: --to-ns=server
+
+    The DNS to forward requests to when remote DNS
+    resolution is enabled. If not given, sshuttle will
+    simply resolve using the system configured resolver on
+    the remote side (via /etc/resolv.conf on the remote
+    side).
 
 .. option:: --python
 
