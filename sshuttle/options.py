@@ -98,7 +98,8 @@ class Concat(Action):
 
 parser = ArgumentParser(
     prog="sshuttle",
-    usage="%(prog)s [-l [ip:]port] [-r [user@]sshserver[:port]] <subnets...>"
+    usage="%(prog)s [-l [ip:]port] [-r [user@]sshserver[:port]] <subnets...>",
+    fromfile_prefix_chars="@"
 )
 parser.add_argument(
     "subnets",
