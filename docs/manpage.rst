@@ -205,6 +205,29 @@ Options
     feature.
 
 
+Configuration File
+------------------
+All the options described above can optionally be specified in a configuration
+file.
+
+To run :program:`sshuttle` with options defined in, e.g., `/etc/ssshuttle.conf`
+just pass the path to the file preceded by the `@` character, e.g.
+:option:`@/etc/ssshuttle.conf`.
+
+When running :program:`sshuttle` with options defined in a configuratio file,
+options can still be passed via the command line in addition to what is
+defined in the file. If a given option is defined both in the file and in
+the command line, the value in the command line will take precedence.
+
+Arguments read from a file must be one per line, as shown below::
+
+    value
+    --option1
+    value1
+    --option2
+    value2
+
+
 Examples
 --------
 Test locally by proxying all local connections, without using ssh::
@@ -252,6 +275,24 @@ and subnet guessing::
     firewall manager: undoing changes.
     c : Keyboard interrupt: exiting.
     c : SW#6:192.168.42.121:60554: deleting
+
+Run :program:`sshuttle` with a `/etc/sshuttle.conf` configuration file::
+
+    $ sshuttle @/etc/sshuttle.conf
+
+Use the options defined in `/etc/sshuttle.conf` but be more verbose::
+
+    $ sshuttle @/etc/sshuttle.conf -vvv
+
+Override the remote server defined in `/etc/sshuttle.conf`::
+
+    $ sshuttle @/etc/sshuttle.conf -r otheruser@test.example.com
+
+Example configuration file::
+
+    192.168.0.0/16
+    --remote
+    user@example.com
 
 
 Discussion
