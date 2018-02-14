@@ -40,6 +40,7 @@ Obtaining sshuttle
 - Clone::
 
       git clone https://github.com/sshuttle/sshuttle.git
+      cd sshuttle
       sudo ./setup.py install
 
 It is also possible to install into a virtualenv as a non-root user.
@@ -55,6 +56,7 @@ It is also possible to install into a virtualenv as a non-root user.
       virtualenv -p python3 /tmp/sshuttle
       . /tmp/sshuttle/bin/activate
       git clone https://github.com/sshuttle/sshuttle.git
+      cd sshuttle
       ./setup.py install
 
 - Homebrew::
