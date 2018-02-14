@@ -2,9 +2,9 @@ import sys
 import zlib
 import imp
 
+verbosity = verbosity  # noqa: F821 must be a previously defined global
 z = zlib.decompressobj()
 while 1:
-    global verbosity
     name = sys.stdin.readline().strip()
     if name:
         name = name.decode("ASCII")
@@ -22,7 +22,7 @@ while 1:
             setattr(sys.modules[parent], parent_name, module)
 
         code = compile(content, name, "exec")
-        exec(code, module.__dict__) # nosec
+        exec(code, module.__dict__)  # nosec
         sys.modules[name] = module
     else:
         break
