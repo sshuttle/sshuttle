@@ -4,6 +4,7 @@ import imp
 
 z = zlib.decompressobj()
 while 1:
+    global verbosity
     name = sys.stdin.readline().strip()
     if name:
         name = name.decode("ASCII")
