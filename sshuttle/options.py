@@ -160,7 +160,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--method",
-    choices=["auto", "nat", "tproxy", "pf", "ipfw"],
+    choices=["auto", "nat", "nft", "tproxy", "pf", "ipfw"],
     metavar="TYPE",
     default="auto",
     help="""
@@ -230,7 +230,7 @@ parser.add_argument(
     metavar="HOSTNAME[,HOSTNAME]",
     default=[],
     help="""
-    comma-separated list of hostnames for initial scan (may be used with 
+    comma-separated list of hostnames for initial scan (may be used with
     or without --auto-hosts)
     """
 )
