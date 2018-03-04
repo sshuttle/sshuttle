@@ -102,12 +102,14 @@ def get_method(method_name):
 def get_auto_method():
     if _program_exists('iptables'):
         method_name = "nat"
+    elif _program_exists('nft'):
+        method_name = "nft"
     elif _program_exists('pfctl'):
         method_name = "pf"
     elif _program_exists('ipfw'):
         method_name = "ipfw"
     else:
         raise Fatal(
-            "can't find either iptables or pfctl; check your PATH")
+            "can't find either iptables, nft or pfctl; check your PATH")
 
     return get_method(method_name)
