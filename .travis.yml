@@ -1,6 +1,5 @@
 language: python
 python:
-- 2.6
 - 2.7
 - 3.4
 - 3.5
@@ -12,9 +11,9 @@ install:
 
 before_script:
     # stop the build if there are Python syntax errors or undefined names.
-    - if [[ $TRAVIS_PYTHON_VERSION != '2.6' ]]; then flake8 sshuttle --count --select=E901,E999,F821,F822,F823 --show-source --statistics; fi
+    - flake8 sshuttle --count --select=E901,E999,F821,F822,F823 --show-source --statistics
     # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide.
-    - if [[ $TRAVIS_PYTHON_VERSION != '2.6' ]]; then flake8 sshuttle --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics; fi
+    - flake8 sshuttle --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
 script:
   - PYTHONPATH=. py.test
