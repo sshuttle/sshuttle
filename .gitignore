@@ -13,3 +13,5 @@
 /.do_built
 /.do_built.dir
 /.redo
+/.pytest_cache/
+/.python-version
