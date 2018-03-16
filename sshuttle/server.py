@@ -192,6 +192,8 @@ class DnsProxy(Handler):
             port = 53
             family, sockaddr = self._addrinfo(peer, port)
         else:
+            _, peer = self.to_nameserver
+            port = 53
             family, sockaddr = self.to_nameserver
 
         sock = socket.socket(family, socket.SOCK_DGRAM)
