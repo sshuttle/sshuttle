@@ -67,9 +67,6 @@ def test_parse_subnetport_ip6():
     for ip_repr, ip in _ip6_reprs.items():
         assert sshuttle.options.parse_subnetport(ip_repr) \
                 == (socket.AF_INET6, ip, 128, 0, 0)
-    with pytest.raises(Fatal) as excinfo:
-        sshuttle.options.parse_subnetport('2001::1::3f')
-    assert str(excinfo.value) == 'Unable to resolve address: 2001::1::3f'
 
 
 def test_parse_subnetport_ip6_with_mask():
