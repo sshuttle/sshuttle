@@ -168,11 +168,13 @@ class DnsProxy(Handler):
         self.tries = 0
         self.request = request
         self.peers = {}
+        self.to_ns_peer = None
+        self.to_ns_port = None
         if to_nameserver is None:
             self.to_nameserver = None
         else:
-            peer, port = to_nameserver.split("@")
-            self.to_nameserver = self._addrinfo(peer, port)
+            self.to_ns_peer, self.to_ns_port = to_nameserver.split("@")
+            self.to_nameserver = self._addrinfo(self.to_ns_peer, self.to_ns_port)
         self.try_send()
 
     @staticmethod
@@ -190,12 +192,11 @@ class DnsProxy(Handler):
         if self.to_nameserver is None:
             _, peer = resolvconf_random_nameserver()
             port = 53
-            family, sockaddr = self._addrinfo(peer, port)
         else:
-            _, peer = self.to_nameserver
-            port = 53
-            family, sockaddr = self.to_nameserver
+            peer = self.to_ns_peer
+            port = int(self.to_ns_port)
 
+        family, sockaddr = self._addrinfo(peer, port)
         sock = socket.socket(family, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         sock.connect(sockaddr)
