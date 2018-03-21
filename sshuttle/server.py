@@ -174,7 +174,8 @@ class DnsProxy(Handler):
             self.to_nameserver = None
         else:
             self.to_ns_peer, self.to_ns_port = to_nameserver.split("@")
-            self.to_nameserver = self._addrinfo(self.to_ns_peer, self.to_ns_port)
+            self.to_nameserver = self._addrinfo(self.to_ns_peer,
+                                                self.to_ns_port)
         self.try_send()
 
     @staticmethod
