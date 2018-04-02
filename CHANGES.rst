@@ -9,13 +9,14 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
-0.78.4 - UNRELEASED
+0.78.4 - 2018-04-02
 -------------------
 
 Added
 ~~~~~
 * Add homebrew instructions.
 * Route traffic by linux user.
+* Add nat-like method using nftables instead of iptables.
 
 Changed
 ~~~~~~~
@@ -25,6 +26,10 @@ Changed
   parsed as 0.0.0.10/8.
 * Make hostwatch find both fqdn and hostname.
 * Use versions of python3 greater than 3.5 when available (e.g. 3.6).
+
+Removed
+~~~~~~~
+* Remove Python 2.6 from automatic tests.
 
 Fixed
 ~~~~~
@@ -39,6 +44,20 @@ Fixed
 * Mock socket bind to avoid depending on local IPs being available in test box.
 * Fix no value passed for argument auto_hosts in hw_main call.
 * Fixed incorrect license information in setup.py.
+* Preserve peer and port properly.
+* Make --to-dns and --ns-host work well together.
+* Remove test that fails under OSX.
+* Specify pip requirements for tests.
+* Use flake8 to find Python syntax errors or undefined names.
+* Fix compatibility with the sudoers file.
+* Stop using SO_REUSEADDR on sockets.
+* Declare 'verbosity' as global variable to placate linters.
+* Adds 'cd sshuttle' after 'git' to README and docs.
+* Documentation for loading options from configuration file.
+* Load options from a file.
+* Fix firewall.py.
+* Move sdnotify after setting up firewall rules.
+* Fix tests on Macos.
 
 
 0.78.3 - 2017-07-09
