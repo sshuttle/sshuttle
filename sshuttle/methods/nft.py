@@ -41,7 +41,9 @@ class Method(BaseMethod):
                 in sorted(subnets, key=subnet_weight, reverse=True):
             tcp_ports = ('ip', 'protocol', 'tcp')
             if fport and fport != lport:
-                tcp_ports = tcp_ports + ('tcp', 'dport', '{ %d-%d }' % (fport, lport))
+                tcp_ports = \
+                    tcp_ports + \
+                    ('tcp', 'dport', '{ %d-%d }' % (fport, lport))
             elif fport and fport == lport:
                 tcp_ports = tcp_ports + ('tcp', 'dport', '%d' % (fport))
 
