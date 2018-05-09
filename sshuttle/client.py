@@ -184,6 +184,12 @@ class MultiListener:
 class FirewallClient:
 
     def __init__(self, method_name):
+
+        # Default to sudo unless on OpenBSD in which case use built in `doas`
+        elevbin = 'sudo'
+        if platform.platform().startswith('OpenBSD'):
+            elevbin = 'doas'
+
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))
         argvbase = ([sys.executable, sys.argv[0]] +
@@ -193,10 +199,9 @@ class FirewallClient:
         if ssyslog._p:
             argvbase += ['--syslog']
         argv_tries = [
-            ['sudo', '-p', '[local sudo] Password: ', '/usr/bin/env',
-                ('PYTHONPATH=%s' % python_path)] + argvbase,
-            argvbase
-        ]
+            ['%(eb)s', '-p', '[local %(eb)s] Password: ', '/usr/bin/env',
+                ('PYTHONPATH=%(pp)s' % {'eb': elevbin, 'pp': python_path})] +
+             argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
         # because stupid Linux 'su' requires that stdin be attached to a tty.
