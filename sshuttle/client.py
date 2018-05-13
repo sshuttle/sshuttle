@@ -198,10 +198,11 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
-        argv_tries = [
-            ['%(eb)s', '-p', '[local %(eb)s] Password: ', '/usr/bin/env',
-                ('PYTHONPATH=%(pp)s' % {'eb': elevbin, 'pp': python_path})] +
-             argvbase, argvbase]
+        elev_prefix = [part % {'eb': elevbin, 'pp': python_path}
+                       for part in ['%(eb)s', '-p',
+                                    '[local %(eb)s] Password: ',
+                                    '/usr/bin/env', 'PYTHONPATH=%(pp)s']]
+        argv_tries = [elev_prefix + argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
         # because stupid Linux 'su' requires that stdin be attached to a tty.
