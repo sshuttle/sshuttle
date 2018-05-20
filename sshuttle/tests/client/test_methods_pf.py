@@ -186,6 +186,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
+        None,
         None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
@@ -225,6 +226,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
             [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
+            None,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
@@ -238,6 +240,7 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
             (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
+        None,
         None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
@@ -277,6 +280,61 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pfctl.reset_mock()
     mock_ioctl.reset_mock()
 
+@patch('sshuttle.helpers.verbose', new=3)
+@patch('sshuttle.methods.pf.pf', Darwin())
+@patch('sshuttle.methods.pf.pfctl')
+@patch('sshuttle.methods.pf.ioctl')
+@patch('sshuttle.methods.pf.pf_get_dev')
+def test_setup_firewall_darwin_table(mock_pf_get_dev, mock_ioctl, mock_pfctl, tmpdir):
+    mock_pfctl.side_effect = pfctl
+
+    method = get_method('pf')
+    assert method.name == 'pf'
+
+    table_file = tmpdir.join('table.txt')
+    table_file.write('1.2.3.99\nwww.example.com\n1.3.5.0/24')
+    method.setup_firewall(
+        1025, 1027,
+        [(AF_INET, u'1.2.3.33')],
+        AF_INET,
+        [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
+             (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
+        False,
+        None,
+        str(table_file))
+    assert mock_ioctl.mock_calls == [
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xC4704433, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        call(mock_pf_get_dev(), 0xCC20441A, ANY),
+        ]
+    assert mock_pfctl.mock_calls == [
+        call('-s Interfaces -i lo -v'),
+        call('-f /dev/stdin', b'pass on lo\n'),
+        call('-s all'),
+        call('-a sshuttle-1025 -f /dev/stdin',
+                 b'table <unblock> {}\n'
+                 b'table <dns_servers> {1.2.3.33}\n'
+                 b'rdr pass on lo0 inet proto tcp from ! 127.0.0.1 to 1.2.3.0/24 '
+                 b'-> 127.0.0.1 port 1025\n'
+                 b'rdr pass on lo0 inet proto tcp from ! 127.0.0.1 to <unblock> '
+                 b'-> 127.0.0.1 port 1025\n'
+                 b'rdr pass on lo0 inet proto udp to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
+                 b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
+                 b'pass out route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
+                 b'pass out route-to lo0 inet proto tcp to <unblock> keep state\n'
+                 b'pass out route-to lo0 inet proto udp to <dns_servers> port 53 keep state\n'),
+        call('-a sshuttle-1025 -t unblock -T replace -f /dev/stdin', '1.2.3.99\n1.3.5.0/24\n'),
+        call('-E'),
+        ]
+
+    mock_pfctl.reset_mock()
+    method.add_to_table(1025, AF_INET, ['1.2.3.100', '1.3.6.0/24'])
+    assert mock_pfctl.mock_calls == [
+        call('-a sshuttle-1025 -t unblock -T add 1.2.3.100 1.3.6.0/24'),
+    ]
 
 @patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.pf', FreeBsd())
@@ -298,6 +356,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
         [(AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
+        None,
         None)
 
     assert mock_pfctl.mock_calls == [
@@ -329,6 +388,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
             [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
+            None,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
@@ -342,6 +402,7 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
         [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
             (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
+        None,
         None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xC4704433, ANY),
@@ -400,6 +461,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(AF_INET6, 64, False, u'2404:6800:4004:80c::', 8000, 9000),
             (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 8080, 8080)],
         False,
+        None,
         None)
 
     assert mock_ioctl.mock_calls == [
@@ -436,6 +498,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
             [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
                 (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
             True,
+            None,
             None)
     assert str(excinfo.value) == 'UDP not supported by pf method_name'
     assert mock_pf_get_dev.mock_calls == []
@@ -449,6 +512,7 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         [(AF_INET, 24, False, u'1.2.3.0', 0, 0),
             (AF_INET, 32, True, u'1.2.3.66', 80, 80)],
         False,
+        None,
         None)
     assert mock_ioctl.mock_calls == [
         call(mock_pf_get_dev(), 0xcd48441a, ANY),
