@@ -247,7 +247,7 @@ def main(method_name, syslog):
                 debug2('firewall manager: setting up /etc/hosts.\n')
                 rewrite_etc_hosts(hostmap, port_v6 or port_v4)
             elif line.startswith('ADD_TO_TABLE '):
-                _, _, addrs = line.partition(' ')
+                _, _, addrs = line.strip().partition(' ')
                 method.add_to_table(port_v4, socket.AF_INET, addrs.split(' '))
             elif line:
                 if not method.firewall_command(line):
@@ -277,7 +277,7 @@ def main(method_name, syslog):
         try:
             if subnets_v4 or nslist_v4:
                 debug2('firewall manager: undoing IPv4 changes.\n')
-                method.restore_firewall(port_v4, socket.AF_INET, udp, user)
+                method.restore_firewall(port_v4, socket.AF_INET, udp, user, table_path)
         except:
             try:
                 debug1("firewall manager: "

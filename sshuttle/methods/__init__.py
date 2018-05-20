@@ -82,7 +82,7 @@ class BaseMethod(object):
         raise NotImplementedError()
 
     def add_to_table(self, port, family, addrs):
-        log('warning: add_to_table not implemented')
+        debug3('warning: add_to_table not implemented\n')
 
     @staticmethod
     def firewall_command(line):

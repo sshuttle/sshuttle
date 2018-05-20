@@ -151,11 +151,13 @@ class Method(BaseMethod):
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, subnet_table=False):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
                 % family_to_string(family))
+        if subnet_table:
+            raise Exception('subnet_table not supported by tproxy')
 
         table = "mangle"
 
@@ -252,7 +254,7 @@ class Method(BaseMethod):
                          '-m', 'udp',
                          *(udp_ports + ('--on-port', str(port))))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, use_table=False):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'

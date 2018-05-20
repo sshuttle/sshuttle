@@ -36,7 +36,6 @@ except AttributeError:
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
-
 def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
@@ -109,15 +108,41 @@ def daemon_cleanup():
         else:
             raise
 
-dns_table = set()
+_net_rx = re.compile(r"^(?:\d+\.){3}\d+(?:/\d+)?$")
 
-def load_dns_table(path):
+ip_table = set()
+dns_table = set()
+table_file = None
+
+def load_table(path):
+    global table_file
+    got_newline = True
     with open(path) as f:
         for line in f:
+            if not line.endswith('\n'):
+                got_newline = False
             line = line.strip()
             if not line:
                 continue
-            dns_table.add(tuple(line.split('.')))
+            # line = line.decode("ASCII")
+            if _net_rx.match(line):
+                ip_table.add(line)
+            else:
+                dns_table.add(tuple(line.split('.')))
+    # FIXME: make this optional
+    table_file = open(path, 'a')
+    if not got_newline:
+        table_file.write('\n')
+    # debug1("ip_table %r dns_table %r\n" % (ip_table, dns_table))
+
+def add_ip(ip):
+    if ip not in ip_table:
+        ip_table.add(ip)
+        if table_file is not None:
+            table_file.write(ip + '\n')
+            table_file.flush()
+        return True
+    return False
 
 def _dns_matches(label):
     if not label:
@@ -131,6 +156,7 @@ def _dns_matches(label):
     return dns_matches(("*",) + label[2:])
 
 def dns_matches(label):
+    label = tuple(p.decode("ASCII") if isinstance(p, bytes) else str(p) for p in label)
     r = _dns_matches(label)
     debug1("dns_matches %r: %s\n" % (label, r))
     return r
@@ -272,7 +298,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, table, dns_table):
+              user, table=None):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -283,7 +309,6 @@ class FirewallClient:
         self.udp = udp
         self.user = user
         self.table = table
-        self.dns_table = dns_table
 
     def check(self):
         rv = self.p.poll()
@@ -291,12 +316,11 @@ class FirewallClient:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
     def start(self):
-        if self.dns_table:
-            load_dns_table(self.dns_table)
+        if self.table:
+            load_table(self.table)
         self.pfile.write(b'ROUTES\n')
         #  in [(2, '0.0.0.0', 0, 0, 0)]:
         for (family, ip, width, fport, lport) in self.subnets_include + self.auto_nets:
-            # in self.subnets_include + self.auto_nets:
             self.pfile.write(b'%d,%d,0,%s,%d,%d\n'
                     % (family, width, ip.encode("ASCII"), fport, lport))
         for (family, ip, width, fport, lport) in self.subnets_exclude:
@@ -314,7 +338,7 @@ class FirewallClient:
                self.dnsport_v6, self.dnsport_v4))
 
         if self.table:
-            self.pfile.write(b'TABLE %s\n' % self.table)
+            self.pfile.write(b'TABLE %s\n' % self.table.encode("ASCII"))
 
         udp = 0
         if self.udp:
@@ -335,8 +359,10 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def add_to_table(self, addrs):
-        self.pfile.write(b'ADD_TO_TABLE %s\n' % " ".join(addrs))
-        self.pfile.flush()
+        addrs = [a.encode('ASCII') for a in addrs]
+        if addrs:
+            self.pfile.write(b'ADD_TO_TABLE %s\n' % b' '.join(addrs))
+            self.pfile.flush()
 
     def sethostip(self, hostname, ip):
         assert(not re.search(b'[^-\w\.]', hostname))
@@ -550,9 +576,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             for rr in parsed.rr:
                 if rr.rtype == dnslib.QTYPE.A and rr.rname is not None and rr.rdata is not None:
                     debug3("DNS RESP: %r is at %s\n" % (rr.rname.label, rr.rdata))
-                    if dns_matches(rr.rname.label):
+                    if dns_matches(rr.rname.label) and add_ip(str(rr.rdata)):
                         fw.add_to_table([str(rr.rdata)])
-        except dnslib.DNSError, e:
+        except dnslib.DNSError as e:
             debug1("error parsing dns response: %r: %s\n" % (data, e))
         debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
         del mux.channels[chan]
@@ -594,7 +620,7 @@ def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, table, dns_table):
+         user, table):
 
     if daemon:
         try:
@@ -819,7 +845,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, table, dns_table)
+             required.udp, user, table)
 
     # start the client process
     try:

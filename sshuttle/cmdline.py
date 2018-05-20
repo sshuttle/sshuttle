@@ -77,8 +77,7 @@ def main():
                                       opt.to_ns,
                                       opt.pidfile,
                                       opt.user,
-                                      opt.table,
-                                      opt.dns_table)
+                                      opt.table)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

@@ -1,9 +1,11 @@
+import re
 import socket
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
-from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
+from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, ipset, nonfatal
 from sshuttle.methods import BaseMethod
 
+_net_rx = re.compile(r"^(?:\d+\.){3}\d+(?:/\d+)?$")
 
 class Method(BaseMethod):
 
@@ -13,7 +15,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, subnet_table=None):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -36,7 +38,7 @@ class Method(BaseMethod):
         chain = 'sshuttle-%s' % port
 
         # basic cleanup/setup of chains
-        self.restore_firewall(port, family, udp, user)
+        self.restore_firewall(port, family, udp, user, subnet_table)
 
         _ipt('-N', chain)
         _ipt('-F', chain)
@@ -66,6 +68,11 @@ class Method(BaseMethod):
                          '--dest', '%s/%s' % (snet, swidth),
                          *(tcp_ports + ('--to-ports', str(port))))
 
+        if subnet_table:
+            self.load_table(port, subnet_table)
+            _ipt_ttl('-A', chain, '-j', 'REDIRECT',
+                         '-m', 'set', '--match-set', 'sshuttle-%s' % port, 'dst', '-p', 'tcp',
+                         '--to-ports', str(port))
         for _, ip in [i for i in nslist if i[0] == family]:
             _ipt_ttl('-A', chain, '-j', 'REDIRECT',
                      '--dest', '%s/32' % ip,
@@ -73,7 +80,7 @@ class Method(BaseMethod):
                      '--dport', '53',
                      '--to-ports', str(dnsport))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, use_table=False):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -107,8 +114,28 @@ class Method(BaseMethod):
             nonfatal(_ipt, '-D', 'PREROUTING', *args)
             nonfatal(_ipt, '-F', chain)
             _ipt('-X', chain)
+            if use_table:
+                nonfatal(ipset, ['destroy', 'sshuttle-%d' % port])
 
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.user = True
         return result
+
+    def add_to_table(self, port, family, addrs):
+        for addr in addrs:
+            ipset(['add', '-!', 'sshuttle-%d' % port, addr])
+
+    def load_table(self, port, subnet_table):
+        addr_list = []
+        with open(subnet_table) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if _net_rx.match(line):
+                    addr_list.append(line.encode('ASCII'))
+        header = b'create -! sshuttle-%d hash:net\n' % port
+        ipset(['restore'], header + b''.join(b'add sshuttle-%d %s\n' %
+                                                 (port, bytes(addr))
+                                                 for addr in addr_list))
