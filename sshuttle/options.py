@@ -317,3 +317,10 @@ parser.add_argument(
 use subnet table
 """
     )
+parser.add_argument(
+    "--dns-table",
+    metavar="PATH",
+    help="""
+use dns table
+"""
+    )

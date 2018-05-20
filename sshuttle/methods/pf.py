@@ -10,7 +10,7 @@ from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, family_to_string
 from sshuttle.methods import BaseMethod
 
 
@@ -150,7 +150,8 @@ class Generic(object):
     def has_skip_loopback():
         return b'skip' in pfctl('-s Interfaces -i lo -v')[0]
 
-
+    def add_to_table(self, anchor, addrs):
+        log('warning: add_to_table not implemented')
 
 class FreeBsd(Generic):
     RULE_ACTION_OFFSET = 2968
@@ -203,12 +204,11 @@ class FreeBsd(Generic):
         memmove(addressof(pr) + self.POOL_TICKET_OFFSET, ppa[4:8], 4)
         super(FreeBsd, self)._add_anchor_rule(kind, name, pr=pr)
 
-    def add_rules(self, anchor, includes, port, dnsport, nslist, family,
-                  use_table):
+    def add_rules(self, anchor, includes, port, dnsport, nslist, family):
         inet_version = self._inet_version(family)
         lo_addr = self._lo_addr(family)
 
-        tables = [b'table <unblock> {}'] if use_table else []
+        tables = [b'table <unblock> {}']
         translating_rules = [
             b'rdr pass on lo0 %s proto tcp from ! %s to %s '
             b'-> %s port %r' % (inet_version, lo_addr, subnet, lo_addr, port)
@@ -221,13 +221,12 @@ class FreeBsd(Generic):
             b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
             for exclude, subnet in includes
         ]
-        if use_table:
-            translating_rules.append(
-                b'rdr pass on lo0 %s proto tcp from ! %s to <unblock> '
-                b'-> %s port %r' % (inet_version, lo_addr, lo_addr, port))
-            filtering_rules.append(
-                b'pass out route-to lo0 %s proto tcp '
-                b'to <unblock> keep state' % (inet_version))
+        translating_rules.append(
+            b'rdr pass on lo0 %s proto tcp from ! %s to <unblock> '
+            b'-> %s port %r' % (inet_version, lo_addr, lo_addr, port))
+        filtering_rules.append(
+            b'pass out route-to lo0 %s proto tcp '
+            b'to <unblock> keep state' % (inet_version))
 
         if nslist:
             tables.append(
@@ -246,10 +245,13 @@ class FreeBsd(Generic):
         super(FreeBsd, self).add_rules(anchor, rules)
 
     def load_table(self, anchor, table_path):
-        debug3("table: %r" % table_path)
+        debug3("table: %r %r" % (anchor, table_path))
         # FIXME: path quoting !!!!
         pfctl('-a %s -t unblock -T replace -f %r' % (anchor, table_path))
 
+    def add_to_table(self, anchor, addrs):
+        debug3("add_to_table: %r %r" % (anchor, addrs))
+        pfctl('-a %s -t unblock -T add %s' % (anchor, " ".join(addrs)))
 
 class OpenBsd(Generic):
     POOL_TICKET_OFFSET = 4
@@ -286,8 +288,7 @@ class OpenBsd(Generic):
             pfctl('-f /dev/stdin', b'match on lo\n')
         super(OpenBsd, self).add_anchors(anchor)
 
-    def add_rules(self, anchor, includes, port, dnsport, nslist, family,
-                  use_table):
+    def add_rules(self, anchor, includes, port, dnsport, nslist, family):
         inet_version = self._inet_version(family)
         lo_addr = self._lo_addr(family)
 
@@ -474,8 +475,7 @@ class Method(BaseMethod):
 
         anchor = pf_get_anchor(family, port)
         pf.add_anchors(anchor)
-        pf.add_rules(anchor, includes, port, dnsport, nslist, family,
-                     table_path)
+        pf.add_rules(anchor, includes, port, dnsport, nslist, family)
         if table_path:
             pf.load_table(anchor, table_path)
         pf.enable()
@@ -489,6 +489,10 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pf.disable(pf_get_anchor(family, port))
+
+    def add_to_table(self, port, family, addrs):
+        anchor = pf_get_anchor(family, port)
+        pf.add_to_table(anchor, addrs)
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):

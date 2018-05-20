@@ -81,6 +81,9 @@ class BaseMethod(object):
     def restore_firewall(self, port, family, udp, user):
         raise NotImplementedError()
 
+    def add_to_table(self, port, family, addrs):
+        log('warning: add_to_table not implemented')
+
     @staticmethod
     def firewall_command(line):
         return False

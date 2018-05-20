@@ -246,6 +246,9 @@ def main(method_name, syslog):
                 hostmap[name] = ip
                 debug2('firewall manager: setting up /etc/hosts.\n')
                 rewrite_etc_hosts(hostmap, port_v6 or port_v4)
+            elif line.startswith('ADD_TO_TABLE '):
+                _, _, addrs = line.partition(' ')
+                method.add_to_table(port_v4, socket.AF_INET, addrs.split(' '))
             elif line:
                 if not method.firewall_command(line):
                     raise Fatal('firewall: expected command, got %r' % line)
