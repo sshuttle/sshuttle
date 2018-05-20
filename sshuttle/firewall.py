@@ -183,7 +183,14 @@ def main(method_name, syslog):
     debug2('firewall manager: Got ports: %d,%d,%d,%d\n'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
+    table_path = ''
     line = stdin.readline(128)
+    if line.startswith('TABLE '):
+        _, _, table_path = line.partition(" ")
+        table_path = table_path.strip()
+        if not table_path:
+            raise Fatal('firewall: TABLE path not specified')
+        line = stdin.readline(128)
     if not line:
         raise Fatal('firewall: expected GO but got %r' % line)
     elif not line.startswith("GO "):
@@ -209,14 +216,14 @@ def main(method_name, syslog):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user)
+                user, table_path)
 
         if subnets_v4 or nslist_v4:
             debug2('firewall manager: setting up IPv4.\n')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user)
+                user, table_path)
 
         stdout.write('STARTED\n')
         sdnotify.send(sdnotify.ready(),

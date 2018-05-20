@@ -246,7 +246,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user):
+              user, table):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -256,6 +256,7 @@ class FirewallClient:
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
         self.user = user
+        self.table = table
 
     def check(self):
         rv = self.p.poll()
@@ -281,6 +282,9 @@ class FirewallClient:
             b'PORTS %d,%d,%d,%d\n'
             % (self.redirectport_v6, self.redirectport_v4,
                self.dnsport_v6, self.dnsport_v4))
+
+        if self.table:
+            self.pfile.write(b'TABLE %s\n' % self.table)
 
         udp = 0
         if self.udp:
@@ -550,7 +554,7 @@ def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user):
+         user, table):
 
     if daemon:
         try:
@@ -775,7 +779,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user)
+             required.udp, user, table)
 
     # start the client process
     try:
