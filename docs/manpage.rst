@@ -210,9 +210,9 @@ Configuration File
 All the options described above can optionally be specified in a configuration
 file.
 
-To run :program:`sshuttle` with options defined in, e.g., `/etc/ssshuttle.conf`
+To run :program:`sshuttle` with options defined in, e.g., `/etc/sshuttle.conf`
 just pass the path to the file preceded by the `@` character, e.g.
-:option:`@/etc/ssshuttle.conf`.
+:option:`@/etc/sshuttle.conf`.
 
 When running :program:`sshuttle` with options defined in a configuratio file,
 options can still be passed via the command line in addition to what is
