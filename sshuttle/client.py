@@ -513,10 +513,17 @@ def connection_is_allowed(dstip, dstport, srcip):
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
         debug1("Connection from a source excluded from the ACL\n")
         return True
-    if not _allowed_sources or (srcip not in _allowed_sources) or (
-                    srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
-        debug3("Connection not allowed - allowed sources exception\n")
+    
+    if not _allowed_sources:
+        debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
         return False
+    if (srcip not in _allowed_sources):
+        debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
+        return False
+    if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+        debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
+        return False
+
     if matches_acl(dstip, dstport, _disallowed_targets):
         debug3("Connection not allowed - firewall ACL exception\n")
         return False
