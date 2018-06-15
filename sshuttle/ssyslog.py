@@ -9,7 +9,7 @@ _p = None
 def start_syslog():
     global _p
     _p = ssubprocess.Popen(['logger',
-                            '-p', 'daemon.notice',
+                            '-p', 'local2.notice',
                             '-t', 'sshuttle'], stdin=ssubprocess.PIPE)
 
 

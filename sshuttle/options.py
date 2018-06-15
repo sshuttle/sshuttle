@@ -291,6 +291,34 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "-a","--acl",
+    metavar="PATH",
+    help="""
+    file where the allowed ACL rules is stored
+    """
+)
+parser.add_argument(
+    "--aclsources",
+    metavar="PATH",
+    help="""
+    file where the ACL Sources rules are stored
+    """
+)
+parser.add_argument(
+    "--aclexcludedsources",
+    metavar="PATH",
+    help="""
+    file where the excluded hosts acl rules are stored
+    """
+)
+parser.add_argument(
+    "--disallowedacl",
+    metavar="PATH",
+    help="""
+    file where the disallowed acl rules are stored
+    """
+)
+parser.add_argument(
     "--user",
     help="""
     apply all the rules only to this linux user

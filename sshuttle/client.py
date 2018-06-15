@@ -1,7 +1,6 @@
 import errno
 import re
 import signal
-import time
 import subprocess as ssubprocess
 import sshuttle.helpers as helpers
 import os
@@ -10,10 +9,16 @@ import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
 import sys
 import platform
+import json
+from dnslib import *
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
+import ipaddress
+import threading
+import redis
+import time
 try:
     from pwd import getpwnam
 except ImportError:
@@ -42,7 +47,47 @@ def got_signal(signum, frame):
 
 
 _pidname = None
+_allowed_targets = {}
+_disallowed_targets = {}
+_allowed_sources = {}
+_excluded_sources = {}
 
+ALLOWED_ACL_TYPE = 1
+DISALLOWED_ACL_TYPE = 2
+ACL_SOURCES_TYPE = 3
+ACL_EXCLUDED_SOURCES_TYPE = 4
+
+sshuttleAcl = "sshuttleAcl"
+sshuttleAclSources = "sshuttleAclSources"
+sshuttleAclExcluded = "sshuttleAclExcluded"
+sshuttleAclEventsChannel = "aclEvents"
+
+preferreddns = ''
+notpreferreddns = ''
+
+try:
+    DNS_PROXY_SUFFIX1 = os.environ['DNS_PROXY_SUFFIX']
+    DNS_PROXY_SUFFIX2 = DNS_PROXY_SUFFIX1 + '.'
+    DNS_1 = os.environ['DNS_1']
+    DNS_2 = os.environ['DNS_2']
+
+    preferreddns = DNS_1
+    notpreferreddns = DNS_2
+
+except KeyError:
+    log('Error: Could not read environment variables for DNS_PROXY_SUFFIX or DNS_1 or DNS_2\n')
+    DNS_PROXY_SUFFIX1 = ''
+    DNS_PROXY_SUFFIX2 = ''
+    DNS_1 = ''
+    DNS_2 = ''
+
+REDIS_HOST = None
+REDIS_PORT = None
+try:
+    REDIS_HOST = os.environ['REDIS_HOST']
+    REDIS_PORT = os.environ['REDIS_PORT']
+except KeyError:
+    log('Error: Could not read environment variables for REDIS_HOST and/or REDIS_PORT\n')
 
 def check_daemon(pidfile):
     global _pidname
@@ -314,8 +359,10 @@ class FirewallClient:
 
 
 dnsreqs = {}
+dnsreqs2 = {}
 udp_by_src = {}
-
+tcp_conns = []
+active_tcp_conns = {}
 
 def expire_connections(now, mux):
     remove = []
@@ -339,6 +386,31 @@ def expire_connections(now, mux):
         del udp_by_src[peer]
     debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
 
+    # we also want to close all TCP connections from sources that have expired their lease
+    global tcp_conns
+    new_tcp_conns = []
+    for (srcip, dstip, s, sock) in tcp_conns:
+        if connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]) and s.ok:
+            new_tcp_conns.append((srcip, dstip, s, sock))
+        else:
+            try:
+                # remove from list of active tcp connections
+                del active_tcp_conns[sock]
+
+                # really make sure we kill everything while we can
+                s.ok = False
+                s.wrap1.noread()
+                s.wrap1.nowrite()
+                s.wrap2.noread()
+                s.wrap2.nowrite()
+                del mux.channels[s.wrap2.channel]
+                sock.close()
+                sock.shutdown(2)
+            except:
+                # we may hit an exception if the socket has already been closed...that is ok
+                pass
+
+    tcp_conns = new_tcp_conns
 
 def onaccept_tcp(listener, method, mux, handlers):
     global _extra_fd
@@ -359,6 +431,13 @@ def onaccept_tcp(listener, method, mux, handlers):
             raise
 
     dstip = method.get_tcp_dstip(sock)
+
+    if not connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
+        debug1('Deny TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
+                                                dstip[0], dstip[1]))
+        sock.close()
+        return
+
     debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
                                               dstip[0], dstip[1]))
     if dstip[1] == sock.getsockname()[1] and islocal(dstip[0], sock.family):
@@ -373,9 +452,79 @@ def onaccept_tcp(listener, method, mux, handlers):
     mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
              (sock.family, dstip[0].encode("ASCII"), dstip[1]))
     outwrap = MuxWrapper(mux, chan)
-    handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
+    s = Proxy(SockWrapper(sock, sock, None, None, lambda: connection_is_active(sock)), outwrap)
+    handlers.append(s)
+    active_tcp_conns[sock] = True
+    tcp_conns.append((srcip, dstip, s, sock))
     expire_connections(time.time(), mux)
 
+def port_in_range(port_range, port):
+
+    parsed_range = port_range.split("-")
+    port_start = int(parsed_range[0])
+    port_end = int(parsed_range[1])
+    dest_port = int(port)
+
+    if (dest_port >= port_start and dest_port <= port_end):
+        return True
+
+    return False
+
+def acl_entry_match(cidr, port, storeToCheck):
+    if (cidr in storeToCheck):
+        if (port in storeToCheck[cidr]):
+            return True
+        for port_entry in storeToCheck[cidr]:
+            if ("-" in port_entry):
+                if (port_in_range(port_entry, port)):
+                    return True
+
+    return False
+
+def matches_acl(dstip, dstport, store_to_check):
+    # check for IP address rule
+    cidr = dstip + "/32"
+
+    if (acl_entry_match(cidr, dstport, store_to_check)):
+        return True
+
+    # check for global rule
+    cidr = "0.0.0.0/0"
+    if (acl_entry_match(cidr, dstport, store_to_check)):
+        return True
+
+    # check for subnet rule
+    for cidr_entry in store_to_check:
+        if (cidr_entry != "0.0.0.0/0" and int(cidr_entry.split("/")[1]) != 32):
+            try:
+                network = ipaddress.ip_network(unicode(cidr_entry))
+                addr = ipaddress.ip_network(unicode(dstip + "/32"))
+                if (addr.subnet_of(network)):
+                    if (acl_entry_match(cidr_entry, dstport, store_to_check)):
+                        return True
+            except Exception as e:
+                log("Failed to parse CIDR block '%s': %s. Ignoring entry.\n" % (cidr_entry, e))
+
+    return False
+
+def connection_is_allowed(dstip, dstport, srcip):
+
+    ctime = time.time()
+    if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
+        debug1("Connection from a source excluded from the ACL\n")
+        return True
+    if not _allowed_sources or (srcip not in _allowed_sources) or (
+                    srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+        debug3("Connection not allowed - allowed sources exception\n")
+        return False
+    if matches_acl(dstip, dstport, _disallowed_targets):
+        debug3("Connection not allowed - firewall ACL exception\n")
+        return False
+    elif matches_acl(dstip, dstport, _allowed_targets):
+        return True
+
+def connection_is_active(sock):
+    return sock in active_tcp_conns
 
 def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
@@ -408,8 +557,11 @@ def onaccept_udp(listener, method, mux, handlers):
 
 def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
+    response = DNSRecord.parse(data)
+    debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
     del mux.channels[chan]
     del dnsreqs[chan]
+    del dnsreqs2[chan]
     method.send_udp(sock, srcip, dstip, data)
 
 
@@ -419,14 +571,194 @@ def ondns(listener, method, mux, handlers):
     if t is None:
         return
     srcip, dstip, data = t
-    debug1('DNS request from %r to %r: %d bytes\n' % (srcip, dstip, len(data)))
+    request = DNSRecord.parse(data)
+
+    qname = request.q.qname
+    qn = str(qname)
+    qtype = request.q.qtype
+    qt = QTYPE[qtype]
+
     chan = mux.next_channel()
+    dnsreqs2[chan] = request
     dnsreqs[chan] = now + 30
-    mux.send(chan, ssnet.CMD_DNS_REQ, data)
     mux.channels[chan] = lambda cmd, data: dns_done(
         chan, data, method, listener, srcip=dstip, dstip=srcip, mux=mux)
+
+    global preferreddns
+    global notpreferreddns
+
+    if preferreddns and notpreferreddns and DNS_PROXY_SUFFIX1 and \
+            (qn.endswith(DNS_PROXY_SUFFIX1) or qn.endswith(DNS_PROXY_SUFFIX2)):
+        try:
+            response = send_udp(data, preferreddns, 53)
+            dns_done(chan, response, method, listener, srcip=dstip, dstip=srcip, mux=mux)
+        except socket.error:
+            debug3('Error: Could not contact DNS server %r, now trying %r' % (preferreddns, notpreferreddns))
+
+            _notpreferreddns = notpreferreddns
+            notpreferreddns = preferreddns
+            preferreddns = _notpreferreddns
+
+            # try the other AD server if there was an error...
+            try:
+                response = send_udp(data, preferreddns, 53)
+                dns_done(chan, response, method, listener, srcip=dstip, dstip=srcip, mux=mux)
+            except socket.error:
+                # fallback to agent if both AD servers are down.
+                mux.send(chan, ssnet.CMD_DNS_REQ, data)
+    else:
+        mux.send(chan, ssnet.CMD_DNS_REQ, data)
+
     expire_connections(now, mux)
 
+def send_udp(data, host, port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(5)
+    sock.sendto(data, (host, port))
+    response, server = sock.recvfrom(8192)
+    sock.close()
+    return response
+
+
+class AclHandler:
+
+    def __init__(self, redisClient, acl_type):
+        self.redisClient = redisClient
+        self.acl_type = acl_type
+        self.acl = {}
+
+    def reload_acl_file(self):
+        self.pullAcl()
+        if (self.acl_type is ALLOWED_ACL_TYPE):
+            self.reload_acl_targets_file()
+        elif (self.acl_type is ACL_SOURCES_TYPE):
+            self.reload_acl_sources_file()
+        elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
+            self.reload_acl_excluded_sources_file()
+
+
+    def pullAcl(self):
+        if (self.acl_type is ALLOWED_ACL_TYPE):
+            self.acl = self.redisClient.get(sshuttleAcl).decode('utf-8')
+        elif (self.acl_type is ACL_SOURCES_TYPE):
+            self.acl = self.redisClient.get(sshuttleAclSources).decode('utf-8')
+        elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
+            self.acl = self.redisClient.get(sshuttleAclExcluded).decode('utf-8')
+        else:
+            debug1("pullAcl() -> Unsupported ACL type %d\n" % self.acl_type)
+            self.acl = None
+
+    def reload_acl_sources_file(self):
+        global _allowed_sources
+
+        if self.acl is not None:
+            try:
+                _new_allowed_sources = json.loads(self.acl, "utf-8")
+                _allowed_sources = _new_allowed_sources
+            except BaseException as e:
+                debug3("An exception has occurred while loading the sources data: {}\n\n".format(e))
+        else:
+            _allowed_sources = None
+
+        debug3("Network Connection Sources ACL \n\n%s" % _allowed_sources)
+
+    def reload_acl_excluded_sources_file(self):
+
+        global _excluded_sources
+
+        if self.acl is not None:
+            try:
+                _new_excluded_sources = json.loads(self.acl, "utf-8")
+                _excluded_sources = _new_excluded_sources
+            except BaseException as e:
+                debug3("An exception has occurred while loading the excluded sources data: {}\n\n".format(e))
+        else:
+            _excluded_sources = None
+
+        debug3("Network Connection Excluded Sources ACL \n\n%s" % _excluded_sources)
+
+    def reload_acl_targets_file(self):
+
+        global _allowed_targets
+
+        if self.acl is not None:
+            try:
+                _new_targets = json.loads(self.acl, "utf-8")
+                _allowed_targets = _new_targets
+            except BaseException as e:
+                debug3("An exception has occurred while loading the allowed targets (sshuttleAcl) data: {}\n\n".format(e))
+        else:
+            _allowed_targets = None
+
+        if (not _allowed_targets):
+            log("Allowed ACL list is empty. Restricting all access\n")
+        else:
+            log("Network Connection Allowed ACL \n\n%s" % _allowed_targets)
+
+class ChannelListener(threading.Thread):
+
+    def __init__(self, redisHost, redisPort, channels):
+        threading.Thread.__init__(self)
+        self.redisHost = redisHost
+        self.redisPort = redisPort
+        self.channels = channels
+        self.redisClient = None
+        self.redisPubSub = None
+
+    def connect(self):
+        try:
+            log("Connecting to redis server at %s:%s\n" % (self.redisHost, self.redisPort))
+            self.redisClient = redis.Redis(host=self.redisHost, port=self.redisPort)
+            self.redisClient.ping()
+            log("Connected! (%s:%s)\n" % (self.redisHost, self.redisPort))
+        except redis.ConnectionError as e:
+            log("Error establishing connection to redis server: %s -- retrying\n" % e)
+            time.sleep(2)
+            self.connect()
+
+    def initializePubSub(self):
+        self.redisPubSub = self.redisClient.pubsub()
+        self.redisPubSub.subscribe(self.channels)
+
+    def initialize(self):
+        self.connect()
+        self.initializePubSub()
+        self.reloadAllAcls()
+
+    def reconnect(self):
+        self.initialize()
+        self.initializeChannelHandlers()
+
+    def handlePubSubEvent(self, item):
+        acl_type = None
+        if (item['channel'] == sshuttleAclEventsChannel and item['type'] == "message"):
+            if (item['data'] == sshuttleAcl):
+                acl_type = ALLOWED_ACL_TYPE
+            elif (item['data'] == sshuttleAclSources):
+                acl_type = ACL_SOURCES_TYPE
+            elif (item['data'] == sshuttleAclExcluded):
+                acl_type = ACL_EXCLUDED_SOURCES_TYPE
+            else:
+                debug3("Unsupported ACL type. Channel: %s, Data: %s\n" % (item['channel'], item['data']))
+
+        if acl_type is not None:
+            AclHandler(self.redisClient, acl_type).reload_acl_file()
+
+    def reloadAllAcls(self):
+        AclHandler(self.redisClient, ALLOWED_ACL_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ACL_SOURCES_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ACL_EXCLUDED_SOURCES_TYPE).reload_acl_file()
+
+    def initializeChannelHandlers(self):
+        try:
+            for item in self.redisPubSub.listen():
+                self.handlePubSubEvent(item)
+        except redis.ConnectionError as e:
+            log("Something happened with the established redis connection: %s -- reconnecting\n" % e)
+            self.reconnect()
+
+    def run(self):
+        self.initializeChannelHandlers()
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control,
@@ -541,6 +873,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         if rv:
             raise Fatal('server died with error code %d' % rv)
 
+        expire_connections(time.time(), mux)
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
@@ -776,6 +1109,15 @@ def main(listenip_v6, listenip_v4,
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
              required.udp, user)
+
+    if (REDIS_HOST is None or REDIS_PORT is None):
+        raise Fatal("REDIS_HOST and REDIS_PORT environment variables must both be set!")
+
+    channelSubscriptions = [sshuttleAclEventsChannel]
+    channelListener = ChannelListener(REDIS_HOST, REDIS_PORT, channelSubscriptions)
+    channelListener.setDaemon(True)
+    channelListener.initialize()
+    channelListener.start()
 
     # start the client process
     try:

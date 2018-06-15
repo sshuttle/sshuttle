@@ -83,23 +83,7 @@ def nft_get_handle(expression, chain):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
-_no_ttl_module = False
 
 
 def ipt_ttl(family, *args):
-    global _no_ttl_module
-    if not _no_ttl_module:
-        # we avoid infinite loops by generating server-side connections
-        # with ttl 42.  This makes the client side not recapture those
-        # connections, in case client == server.
-        try:
-            argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '42']
-            ipt(family, *argsplus)
-        except Fatal:
-            ipt(family, *args)
-            # we only get here if the non-ttl attempt succeeds
-            log('sshuttle: warning: your iptables is missing '
-                'the ttl module.\n')
-            _no_ttl_module = True
-    else:
-        ipt(family, *args)
+    ipt(family, *args)

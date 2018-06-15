@@ -3,7 +3,7 @@ from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
-
+import netifaces as ni
 
 class Method(BaseMethod):
 
@@ -49,6 +49,20 @@ class Method(BaseMethod):
 
         _ipt('-I', 'OUTPUT', '1', *args)
         _ipt('-I', 'PREROUTING', '1', *args)
+
+        # get the address of eth0
+        ni.ifaddresses('eth0')
+        ip = ni.ifaddresses('eth0')[2][0]['addr']
+
+        # add a rule not route packets that are
+        # generated locally though sshuttle
+        _ipt('-A', chain, '-j', 'RETURN',
+             '--src', '%s/32' % ip)
+
+        # add a rule to not route packets that are
+        # destined to the local address though sshuttle
+        _ipt('-A', chain, '-j', 'RETURN',
+             '--dest', '%s/32' % ip)
 
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \

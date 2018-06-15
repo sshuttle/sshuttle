@@ -1,1 +1,7 @@
 setuptools-scm==1.15.6
+netifaces
+ipaddress
+watchdog
+filelock
+dnslib
+redis

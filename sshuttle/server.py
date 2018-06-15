@@ -199,7 +199,6 @@ class DnsProxy(Handler):
 
         family, sockaddr = self._addrinfo(peer, port)
         sock = socket.socket(family, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         sock.connect(sockaddr)
 
         self.peers[sock] = peer
@@ -255,8 +254,6 @@ class UdpProxy(Handler):
         self.mux = mux
         self.chan = chan
         self.sock = sock
-        if family == socket.AF_INET:
-            self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
 
     def send(self, dstip, data):
         debug2('UDP: sending to %r port %d\n' % dstip)
