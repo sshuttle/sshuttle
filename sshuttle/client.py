@@ -535,7 +535,15 @@ def connection_is_active(sock):
 
 def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
-    srcip = (src, int(srcport))
+    srcport_int = int(srcport)
+    srcip = (src, srcport_int)
+
+    # port 123 UDP is for the UTPD, and doing the following crashes sshuttle wiht
+    # OSError: [Errno 98] Address already in use, so we're skipping it 
+    if srcport_int == 123:
+       debug3('Not doing send from %r to %r\n' % (srcip, dstip,))
+       return 
+    
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
     method.send_udp(sock, srcip, dstip, data)
 
@@ -546,6 +554,13 @@ def onaccept_udp(listener, method, mux, handlers):
     if t is None:
         return
     srcip, dstip, data = t
+
+    if not connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
+        debug1('Deny UDP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
+                                                dstip[0], dstip[1]))
+        # sock.close()
+        return
+
     debug1('Accept UDP: %r -> %r.\n' % (srcip, dstip,))
     if srcip in udp_by_src:
         chan, _ = udp_by_src[srcip]
@@ -738,15 +753,17 @@ class ChannelListener(threading.Thread):
 
     def handlePubSubEvent(self, item):
         acl_type = None
-        if (item['channel'] == sshuttleAclEventsChannel and item['type'] == "message"):
-            if (item['data'] == sshuttleAcl):
+        channel = item['channel'].decode('utf-8')
+        if (channel == sshuttleAclEventsChannel and item['type'] == "message"):
+            data = item['data'].decode('utf-8')
+            if (data == sshuttleAcl):
                 acl_type = ALLOWED_ACL_TYPE
-            elif (item['data'] == sshuttleAclSources):
+            elif (data == sshuttleAclSources):
                 acl_type = ACL_SOURCES_TYPE
-            elif (item['data'] == sshuttleAclExcluded):
+            elif (data == sshuttleAclExcluded):
                 acl_type = ACL_EXCLUDED_SOURCES_TYPE
             else:
-                debug3("Unsupported ACL type. Channel: %s, Data: %s\n" % (item['channel'], item['data']))
+                debug3("Unsupported ACL type. Channel: %s, Data: %s\n" % (channel, data))
 
         if acl_type is not None:
             AclHandler(self.redisClient, acl_type).reload_acl_file()
