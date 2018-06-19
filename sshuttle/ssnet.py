@@ -253,7 +253,7 @@ class SockWrapper:
         if self.buf and self.buf[0]:
             wrote = outwrap.write(self.buf[0])
             if wrote is None:
-                log("ssnet.py copy_to 'wrote' is None\n")
+                # log("ssnet.py copy_to 'wrote' is None\n")
                 wrote = 0
             elif wrote > 0:
                 self.total_wrote += wrote
