@@ -6,7 +6,7 @@ import sshuttle.client as client
 import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
-from sshuttle.options import parser, parse_ipport
+from sshuttle.options import parser, parse_ipport, parse_subnetport
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 
 
@@ -53,7 +53,7 @@ def main():
 
             log('opt.exclude was %s' % opt.exclude)
             if os.environ.__contains__('SSHUTTLE_EXCLUDES') == True:
-                opt.exclude = re.split(r'[\s,]+', (os.environ['SSHUTTLE_EXCLUDES']).strip())
+                opt.exclude = parse_subnetport(os.environ['SSHUTTLE_EXCLUDES'])
                 log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s\n' % opt.exclude)
 
             includes = opt.subnets + opt.subnets_file
