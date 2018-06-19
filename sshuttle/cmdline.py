@@ -35,22 +35,22 @@ def main():
             # Environment Variables that overrides the command line arguments
             if os.environ.__contains__('SSHUTTLE_NS_HOSTS') == True:
                 opt.ns_hosts = re.split(r'[\s,]+', (os.environ['SSHUTTLE_NS_HOSTS']).strip())
-                log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts with %s' % opt.ns_hosts)
+                log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts with %s\n' % opt.ns_hosts)
 
             if os.environ.__contains__('SSHUTTLE_METHOD') == True:
                 opt.method = os.environ['SSHUTTLE_METHOD']
-                log('SSHUTTLE_METHOD env variable was set.  Setting --method to %s' % opt.method)
+                log('SSHUTTLE_METHOD env variable was set.  Setting --method to %s\n' % opt.method)
 
             if os.environ.__contains__('SSHUTTLE_DISABLE_IPV6') == True:
                 if os.environ['SSHUTTLE_DISABLE_IPV6'] == 'True':
                     opt.disable_ipv6 = True
                 else:
                     opt.disable_ipv6 = False
-                log('SSHUTTLE_DISABLE_IPV6 env variable was set.  Setting --disable-ipv6 to %s' % opt.disable_ipv6)
+                log('SSHUTTLE_DISABLE_IPV6 env variable was set.  Setting --disable-ipv6 to %s\n' % opt.disable_ipv6)
 
             if os.environ.__contains__('SSHUTTLE_EXCLUDES') == True:
                 opt.exclude = re.split(r'[\s,]+', (os.environ['SSHUTTLE_EXCLUDES']).strip())
-                log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s' % opt.exclude)
+                log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s\n' % opt.exclude)
 
             includes = opt.subnets + opt.subnets_file
             excludes = opt.exclude
