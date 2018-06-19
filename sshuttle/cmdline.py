@@ -53,7 +53,7 @@ def main():
 
             log('opt.exclude was %s' % opt.exclude)
             if os.environ.__contains__('SSHUTTLE_EXCLUDES') == True:
-                opt.exclude = parse_subnetport(os.environ['SSHUTTLE_EXCLUDES'])
+                opt.exclude = list(map(lambda x: parse_subnetport(x), re.split(r'[\s,]+', (os.environ['SSHUTTLE_EXCLUDES']).strip())))
                 log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s\n' % opt.exclude)
 
             includes = opt.subnets + opt.subnets_file
