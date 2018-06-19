@@ -661,14 +661,17 @@ class AclHandler:
 
     def pullAcl(self):
         if (self.acl_type is ALLOWED_ACL_TYPE):
-            self.acl = self.redisClient.get(sshuttleAcl).decode('utf-8')
+            self.acl = self.redisClient.get(sshuttleAcl)
         elif (self.acl_type is ACL_SOURCES_TYPE):
-            self.acl = self.redisClient.get(sshuttleAclSources).decode('utf-8')
+            self.acl = self.redisClient.get(sshuttleAclSources)
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
-            self.acl = self.redisClient.get(sshuttleAclExcluded).decode('utf-8')
+            self.acl = self.redisClient.get(sshuttleAclExcluded)
         else:
             debug1("pullAcl() -> Unsupported ACL type %d\n" % self.acl_type)
             self.acl = None
+
+        if self.acl is not None:
+            self.acl = self.acl.decode('utf-8')
 
     def reload_acl_sources_file(self):
         global _allowed_sources
