@@ -35,7 +35,7 @@ def main():
             # Environment Variables that overrides the command line arguments
             if os.environ.__contains__('SSHUTTLE_NS_HOSTS') == True:
                 opt.ns_hosts = re.split(r'[\s,]+', (os.environ['SSHUTTLE_NS_HOSTS']).strip())
-                log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts with %s\n' % opt.ns_hosts)
+                log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts to %s\n' % opt.ns_hosts)
 
             if os.environ.__contains__('SSHUTTLE_METHOD') == True:
                 opt.method = os.environ['SSHUTTLE_METHOD']
