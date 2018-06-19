@@ -13,26 +13,6 @@ from sshuttle.helpers import family_ip_tuple, log, Fatal
 def main():
     opt = parser.parse_args()
 
-    # Environment Variables that overrides the command line arguments
-    if os.environ.__contains__('SSHUTTLE_NS_HOSTS') == True:
-        opt.ns_hosts = re.split(r'[\s,]+', (os.environ['SSHUTTLE_NS_HOSTS']).strip())
-        log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts with %s' % opt.ns_hosts)
-
-    if os.environ.__contains__('SSHUTTLE_METHOD') == True:
-        opt.method = os.environ['SSHUTTLE_METHOD']
-        log('SSHUTTLE_METHOD env variable was set.  Setting --method to %s' % opt.method)
-
-    if os.environ.__contains__('SSHUTTLE_DISABLE_IPV6') == True:
-        if os.environ['SSHUTTLE_DISABLE_IPV6'] == 'True':
-            opt.disable_ipv6 = True
-        else:
-            opt.disable_ipv6 = False
-        log('SSHUTTLE_DISABLE_IPV6 env variable was set.  Setting --disable-ipv6 to %s' % opt.disable_ipv6)
-
-    if os.environ.__contains__('SSHUTTLE_EXCLUDES') == True:
-        opt.exclude = re.split(r'[\s,]+', (os.environ['SSHUTTLE_EXCLUDES']).strip())
-        log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s' % opt.exclude)
-
     if opt.daemon:
         opt.syslog = 1
     if opt.wrap:
@@ -48,6 +28,30 @@ def main():
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
         else:
+            if opt.syslog:
+                ssyslog.start_syslog()
+                ssyslog.stderr_to_syslog()
+
+            # Environment Variables that overrides the command line arguments
+            if os.environ.__contains__('SSHUTTLE_NS_HOSTS') == True:
+                opt.ns_hosts = re.split(r'[\s,]+', (os.environ['SSHUTTLE_NS_HOSTS']).strip())
+                log('SSHUTTLE_NS_HOSTS env variable was set.  Setting --ns-hosts with %s' % opt.ns_hosts)
+
+            if os.environ.__contains__('SSHUTTLE_METHOD') == True:
+                opt.method = os.environ['SSHUTTLE_METHOD']
+                log('SSHUTTLE_METHOD env variable was set.  Setting --method to %s' % opt.method)
+
+            if os.environ.__contains__('SSHUTTLE_DISABLE_IPV6') == True:
+                if os.environ['SSHUTTLE_DISABLE_IPV6'] == 'True':
+                    opt.disable_ipv6 = True
+                else:
+                    opt.disable_ipv6 = False
+                log('SSHUTTLE_DISABLE_IPV6 env variable was set.  Setting --disable-ipv6 to %s' % opt.disable_ipv6)
+
+            if os.environ.__contains__('SSHUTTLE_EXCLUDES') == True:
+                opt.exclude = re.split(r'[\s,]+', (os.environ['SSHUTTLE_EXCLUDES']).strip())
+                log('SSHUTTLE_EXCLUDES env variable was set.  Setting --exclude to %s' % opt.exclude)
+
             includes = opt.subnets + opt.subnets_file
             excludes = opt.exclude
             if not includes and not opt.auto_nets:
@@ -78,9 +82,6 @@ def main():
                 ipport_v4 = "auto"
                 # parse_ipport6('[::1]:0')
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
-            if opt.syslog:
-                ssyslog.start_syslog()
-                ssyslog.stderr_to_syslog()
             return_code = client.main(ipport_v6, ipport_v4,
                                       opt.ssh_cmd,
                                       remotename,
