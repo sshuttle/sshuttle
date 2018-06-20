@@ -4,6 +4,7 @@ from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
 from sshuttle.methods import BaseMethod
 from sshuttle.helpers import debug1, debug3, Fatal
+import netifaces as ni
 
 recvmsg = None
 try:
@@ -176,19 +177,35 @@ class Method(BaseMethod):
 
         # basic cleanup/setup of chains
         self.restore_firewall(port, family, udp, user)
-
         _ipt('-N', mark_chain)
         _ipt('-F', mark_chain)
         _ipt('-N', divert_chain)
         _ipt('-F', divert_chain)
         _ipt('-N', tproxy_chain)
         _ipt('-F', tproxy_chain)
+
         _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
         _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
         _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
         _ipt('-A', divert_chain, '-j', 'ACCEPT')
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
+
+
+        # get the address of eth0
+        ni.ifaddresses('eth0')
+        ip = ni.ifaddresses('eth0')[2][0]['addr']
+
+        # add a rule not route packets that are
+        # generated locally though sshuttle
+        _ipt('-A', mark_chain, '-j', 'RETURN', 
+            '--src', '%s/32' % ip)
+
+        # add a rule to not route packets that are
+        # destined to the local address though sshuttle
+        _ipt('-A', mark_chain, '-j', 'RETURN', 
+            '--dest', '%s/32' % ip)
+
 
         if udp:
             _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
