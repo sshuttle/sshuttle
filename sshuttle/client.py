@@ -537,13 +537,6 @@ def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
     srcport_int = int(srcport)
     srcip = (src, srcport_int)
-
-    # port 123 UDP is for the UTPD, and doing the following crashes sshuttle wiht
-    # OSError: [Errno 98] Address already in use, so we're skipping it 
-    if srcport_int == 123:
-       debug3('Not doing send from %r to %r\n' % (srcip, dstip,))
-       return 
-    
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
     method.send_udp(sock, srcip, dstip, data)
 

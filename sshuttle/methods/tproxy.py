@@ -3,7 +3,7 @@ from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import debug1, debug3, Fatal
+from sshuttle.helpers import log, debug1, debug3, Fatal
 import netifaces as ni
 
 recvmsg = None
@@ -133,12 +133,21 @@ class Method(BaseMethod):
                 "-- ignored UDP to %r: "
                 "couldn't determine source IP address\n" % (dstip,))
             return
-        sender = socket.socket(sock.family, socket.SOCK_DGRAM)
-        sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
-        sender.bind(srcip)
-        sender.sendto(data, dstip)
-        sender.close()
+        try:
+            sender = socket.socket(sock.family, socket.SOCK_DGRAM)
+            sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+            # The bind function may throw 'Address already in use' error
+            # if it happens, log the source ip.
+            # Background info: The ntpd service caused this in
+            # the past, so it is important to configure your ntpd server where the
+            # sshuttle client runs to not listen on all IPs.  (i.e. 
+            # add "interface ignore wildcard" to the /etc/ntp.conf and restart the ntpd service)
+            sender.bind(srcip)
+            sender.sendto(data, dstip)
+            sender.close()
+        except OSError as e:
+            log('WARNING: send_udp failed: %s -> %s.  Exception: %s\n' % (srcip, dstip, e.strerror))
 
     def setup_tcp_listener(self, tcp_listener):
         tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
