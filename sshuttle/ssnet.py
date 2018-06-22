@@ -515,7 +515,7 @@ class Mux(Handler):
         else:
             callback = self.channels.get(channel)
             if not callback:
-                debug1('warning: closed channel %d got cmd=%s len=%d\n'
+                log('warning: closed channel %d got cmd=%s len=%d\n'
                     % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
             else:
                 callback(cmd, data)
@@ -550,7 +550,7 @@ class Mux(Handler):
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1, s2, channel, cmd, datalen) = \
-                    struct.unpack('!ccHHH', self.inbuf[:HDR_LEN])
+                    struct.unpack_from('!ccHHH', self.inbuf, 0)
                 assert(s1 == b('S'))
                 assert(s2 == b('S'))
                 self.want = datalen + HDR_LEN
