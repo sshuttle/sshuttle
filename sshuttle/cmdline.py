@@ -33,6 +33,11 @@ def main():
                 ssyslog.stderr_to_syslog()
 
             # Environment Variables that overrides the command line arguments
+            log('opt.verbose was %s\n' % opt.verbose)
+            if os.environ.__contains__('SSHUTTLE_VERBOSE_LEVEL') == True:
+                helpers.verbose = int(os.environ['SSHUTTLE_VERBOSE_LEVEL'])
+                log('SSHUTTLE_VERBOSE_LEVEL env variable was set.  Setting helpers.verbose to %s\n' % helpers.verbose)
+
             log('opt.ns_hosts was %s\n' % opt.ns_hosts)
             if os.environ.__contains__('SSHUTTLE_NS_HOSTS') == True:
                 opt.ns_hosts = re.split(r'[\s,]+', (os.environ['SSHUTTLE_NS_HOSTS']).strip())
