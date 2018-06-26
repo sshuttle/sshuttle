@@ -619,7 +619,8 @@ class MuxWrapper(SockWrapper):
             debug2('%r: closing connection\n' % self)
             # remove the mux's reference to us.  The python garbage collector
             # will then be able to reap our object.
-            self.mux.channels[self.channel] = None
+            # self.mux.channels[self.channel] = None
+            del self.mux.channels[self.channel]
 
     def too_full(self):
         return self.mux.too_full
