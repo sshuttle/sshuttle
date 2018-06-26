@@ -474,7 +474,7 @@ def port_in_range(port_range, port):
     return False
 
 def acl_entry_match(cidr, port, storeToCheck):
-    if (storeToCheck is not None and cidr in storeToCheck):
+    if (cidr in storeToCheck):
         if (port in storeToCheck[cidr]):
             return True
         for port_entry in storeToCheck[cidr]:
@@ -485,6 +485,9 @@ def acl_entry_match(cidr, port, storeToCheck):
     return False
 
 def matches_acl(dstip, dstport, store_to_check):
+    if store_to_check is None:
+        return False
+
     # check for IP address rule
     cidr = dstip + "/32"
 
