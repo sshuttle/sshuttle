@@ -47,17 +47,20 @@ def got_signal(signum, frame):
 
 
 _pidname = None
-_allowed_targets = {}
+_allowed_tcp_targets = {}
+_allowed_udp_targets = {}
 _disallowed_targets = {}
 _allowed_sources = {}
 _excluded_sources = {}
 
-ALLOWED_ACL_TYPE = 1
+ALLOWED_TCP_ACL_TYPE = 1
 DISALLOWED_ACL_TYPE = 2
 ACL_SOURCES_TYPE = 3
 ACL_EXCLUDED_SOURCES_TYPE = 4
+ALLOWED_UDP_ACL_TYPE = 5
 
-sshuttleAcl = "sshuttleAcl"
+sshuttleAclTcp = "sshuttleAcl"
+sshuttleAclUdp = "sshuttleAclUdp"
 sshuttleAclSources = "sshuttleAclSources"
 sshuttleAclExcluded = "sshuttleAclExcluded"
 sshuttleAclEventsChannel = "aclEvents"
@@ -390,7 +393,7 @@ def expire_connections(now, mux):
     global tcp_conns
     new_tcp_conns = []
     for (srcip, dstip, s, sock) in tcp_conns:
-        if connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]) and s.ok:
+        if tcp_connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]) and s.ok:
             new_tcp_conns.append((srcip, dstip, s, sock))
         else:
             try:
@@ -432,7 +435,7 @@ def onaccept_tcp(listener, method, mux, handlers):
 
     dstip = method.get_tcp_dstip(sock)
 
-    if not connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
+    if not tcp_connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
         debug1('Deny TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
                                                 dstip[0], dstip[1]))
         sock.close()
@@ -507,7 +510,7 @@ def matches_acl(dstip, dstport, store_to_check):
 
     return False
 
-def connection_is_allowed(dstip, dstport, srcip):
+def tcp_connection_is_allowed(dstip, dstport, srcip):
 
     ctime = time.time()
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
@@ -527,7 +530,30 @@ def connection_is_allowed(dstip, dstport, srcip):
     if matches_acl(dstip, dstport, _disallowed_targets):
         debug3("Connection not allowed - firewall ACL exception\n")
         return False
-    elif matches_acl(dstip, dstport, _allowed_targets):
+    elif matches_acl(dstip, dstport, _allowed_tcp_targets):
+        return True
+
+def udp_connection_is_allowed(dstip, dstport, srcip):
+
+    ctime = time.time()
+    if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
+        debug1("Connection from a source excluded from the ACL\n")
+        return True
+    
+    if not _allowed_sources:
+        debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
+        return False
+    if (srcip not in _allowed_sources):
+        debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
+        return False
+    if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+        debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
+        return False
+
+    if matches_acl(dstip, dstport, _disallowed_targets):
+        debug3("Connection not allowed - firewall ACL exception\n")
+        return False
+    elif matches_acl(dstip, dstport, _allowed_udp_targets):
         return True
 
 def connection_is_active(sock):
@@ -548,13 +574,12 @@ def onaccept_udp(listener, method, mux, handlers):
         return
     srcip, dstip, data = t
 
-    if not connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
-        debug1('Deny UDP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
-                                                dstip[0], dstip[1]))
+    if not udp_connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]):
+        debug1('Deny UDP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1], dstip[0], dstip[1]))
         # sock.close()
         return
 
-    debug1('Accept UDP: %r -> %r.\n' % (srcip, dstip,))
+    debug1('Accept UDP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1], dstip[0], dstip[1]))
     if srcip in udp_by_src:
         chan, _ = udp_by_src[srcip]
     else:
@@ -644,17 +669,21 @@ class AclHandler:
 
     def reload_acl_file(self):
         self.pullAcl()
-        if (self.acl_type is ALLOWED_ACL_TYPE):
-            self.reload_acl_targets_file()
+        if (self.acl_type is ALLOWED_TCP_ACL_TYPE):
+            self.reload_tcp_acl_targets_file()
+        elif (self.acl_type is ALLOWED_UDP_ACL_TYPE):
+            self.reload_udp_acl_targets_file()
         elif (self.acl_type is ACL_SOURCES_TYPE):
             self.reload_acl_sources_file()
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
             self.reload_acl_excluded_sources_file()
-
+            
 
     def pullAcl(self):
-        if (self.acl_type is ALLOWED_ACL_TYPE):
-            self.acl = self.redisClient.get(sshuttleAcl)
+        if (self.acl_type is ALLOWED_TCP_ACL_TYPE):
+            self.acl = self.redisClient.get(sshuttleAclTcp)
+        elif (self.acl_type is ALLOWED_UDP_ACL_TYPE):
+            self.acl = self.redisClient.get(sshuttleAclUdp)
         elif (self.acl_type is ACL_SOURCES_TYPE):
             self.acl = self.redisClient.get(sshuttleAclSources)
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
@@ -695,23 +724,41 @@ class AclHandler:
 
         debug3("Network Connection Excluded Sources ACL \n\n%s" % _excluded_sources)
 
-    def reload_acl_targets_file(self):
+    def reload_tcp_acl_targets_file(self):
 
-        global _allowed_targets
+        global _allowed_tcp_targets
 
         if self.acl is not None:
             try:
                 _new_targets = json.loads(self.acl, "utf-8")
-                _allowed_targets = _new_targets
+                _allowed_tcp_targets = _new_targets
             except BaseException as e:
-                debug3("An exception has occurred while loading the allowed targets (sshuttleAcl) data: {}\n\n".format(e))
+                debug3("An exception has occurred while loading the TCP allowed targets (sshuttleAcl) data: {}\n\n".format(e))
         else:
-            _allowed_targets = None
+            _allowed_tcp_targets = None
 
-        if (not _allowed_targets):
-            log("Allowed ACL list is empty. Restricting all access\n")
+        if (not _allowed_tcp_targets):
+            log("Allowed TCP ACL list is empty. Restricting all access\n")
         else:
-            log("Network Connection Allowed ACL \n\n%s" % _allowed_targets)
+            log("Network Connection TCP Allowed ACL \n\n%s" % _allowed_tcp_targets)
+
+    def reload_udp_acl_targets_file(self):
+
+        global _allowed_udp_targets
+
+        if self.acl is not None:
+            try:
+                _new_targets = json.loads(self.acl, "utf-8")
+                _allowed_udp_targets = _new_targets
+            except BaseException as e:
+                debug3("An exception has occurred while loading the UDP allowed targets (sshuttleAclUdp) data: {}\n\n".format(e))
+        else:
+            _allowed_udp_targets = None
+
+        if (not _allowed_udp_targets):
+            log("Allowed UDP ACL list is empty. Restricting all UDP ports access\n")
+        else:
+            log("Network Connection UDP Allowed ACL \n\n%s" % _allowed_udp_targets)
 
 class ChannelListener(threading.Thread):
 
@@ -752,8 +799,10 @@ class ChannelListener(threading.Thread):
         channel = item['channel'].decode('utf-8')
         if (channel == sshuttleAclEventsChannel and item['type'] == "message"):
             data = item['data'].decode('utf-8')
-            if (data == sshuttleAcl):
-                acl_type = ALLOWED_ACL_TYPE
+            if (data == sshuttleAclTcp):
+                acl_type = ALLOWED_TCP_ACL_TYPE
+            elif (data == sshuttleAclUdp):
+                acl_type = ALLOWED_UDP_ACL_TYPE
             elif (data == sshuttleAclSources):
                 acl_type = ACL_SOURCES_TYPE
             elif (data == sshuttleAclExcluded):
@@ -765,7 +814,8 @@ class ChannelListener(threading.Thread):
             AclHandler(self.redisClient, acl_type).reload_acl_file()
 
     def reloadAllAcls(self):
-        AclHandler(self.redisClient, ALLOWED_ACL_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ALLOWED_TCP_ACL_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ALLOWED_UDP_ACL_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_SOURCES_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_EXCLUDED_SOURCES_TYPE).reload_acl_file()
 
