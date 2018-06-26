@@ -474,7 +474,7 @@ def port_in_range(port_range, port):
     return False
 
 def acl_entry_match(cidr, port, storeToCheck):
-    if (cidr in storeToCheck):
+    if (storeToCheck is not None and cidr in storeToCheck):
         if (port in storeToCheck[cidr]):
             return True
         for port_entry in storeToCheck[cidr]:
@@ -677,7 +677,7 @@ class AclHandler:
             self.reload_acl_sources_file()
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
             self.reload_acl_excluded_sources_file()
-            
+
 
     def pullAcl(self):
         if (self.acl_type is ALLOWED_TCP_ACL_TYPE):
