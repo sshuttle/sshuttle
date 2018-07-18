@@ -170,12 +170,12 @@ class Method(BaseMethod):
             debug1('SUCCESS: %s' % ' '.join(arglist))
 
     def remove_remote_forward_rules(self):
-        debug1('Removing remote forwarding rules ...')
+        log('Removing remote forwarding rules ...\n')
         self.cmd(['ip', 'route', 'del', 'local', 'default', 'dev', 'lo', 'table', '100'])
         self.cmd(['ip', 'rule', 'del', 'fwmark', '1', 'lookup', '100'])
 
     def add_remote_forward_rules(self):
-        debug1('Adding remote forwarding rules ...')
+        log('Adding remote forwarding rules ...\n')
         self.cmd(['ip', 'route', 'add', 'local', 'default', 'dev', 'lo', 'table', '100'])
         self.cmd(['ip', 'rule', 'add', 'fwmark', '1', 'lookup', '100'])
 
@@ -204,9 +204,8 @@ class Method(BaseMethod):
         divert_chain = 'sshuttle-d-%s' % port
 
         # basic cleanup/setup of chains
-        self.remove_remote_forward_rules()
-        self.add_remote_forward_rules()
         self.restore_firewall(port, family, udp, user)
+        self.add_remote_forward_rules()
         _ipt('-N', mark_chain)
         _ipt('-F', mark_chain)
         _ipt('-N', divert_chain)
