@@ -474,13 +474,24 @@ def port_in_range(port_range, port):
     return False
 
 def acl_entry_match(cidr, port, storeToCheck):
-    if (cidr in storeToCheck):
-        if (port in storeToCheck[cidr]):
+    debug3('Checking acl: %s for match with cidr: %s and port: %s' % (storeToCheck, cidr, port))
+
+    if cidr in storeToCheck:
+        return acl_port_match(port, storeToCheck[cidr])
+
+    return False
+
+def acl_port_match(port, acl_port_rule):
+    for port_entry in acl_port_rule:
+        if '-' in port_entry:
+            if (port_in_range(port_entry, port)):
+                debug3('port: %s is in acl port range: %s' % (port, port_entry))
+                return True
+
+            debug3('port: %s is NOT in acl port range: %s' % (port, port_entry))
+        elif int(port_entry) == port:
+            debug3('port: %s is in acl port rule: %s' % (port, acl_port_rule))
             return True
-        for port_entry in storeToCheck[cidr]:
-            if ("-" in port_entry):
-                if (port_in_range(port_entry, port)):
-                    return True
 
     return False
 
@@ -488,28 +499,44 @@ def matches_acl(dstip, dstport, store_to_check):
     if store_to_check is None:
         return False
 
-    # check for IP address rule
-    cidr = dstip + "/32"
+    debug3('Checking for global IP rule ...')
 
-    if (acl_entry_match(cidr, dstport, store_to_check)):
+    if (acl_entry_match('0.0.0.0/0', dstport, store_to_check)):
+        debug3('Matched global IP rule')
         return True
 
-    # check for global rule
-    cidr = "0.0.0.0/0"
-    if (acl_entry_match(cidr, dstport, store_to_check)):
+    debug3('No global IP rule')
+    debug3('Checking for single IP rule ...')
+
+    cidr_for_single_ip = dstip + '/32'
+
+    if (acl_entry_match(cidr_for_single_ip, dstport, store_to_check)):
+        debug3('Matched single IP rule')
         return True
 
-    # check for subnet rule
+    debug3('No single IP rule')
+    debug3('Checking for IP range rule (subnet/cidr block) ...')
+
     for cidr_entry in store_to_check:
-        if (cidr_entry != "0.0.0.0/0" and int(cidr_entry.split("/")[1]) != 32):
+        mask = int(cidr_entry.split('/')[1])
+        is_range_rule = (cidr_entry != '0.0.0.0/0') and (mask != 32)
+
+        if is_range_rule:
             try:
-                network = ipaddress.ip_network(unicode(cidr_entry))
-                addr = ipaddress.ip_network(unicode(dstip + "/32"))
-                if (addr.subnet_of(network)):
-                    if (acl_entry_match(cidr_entry, dstport, store_to_check)):
+                acl_subnet = ipaddress.ip_network(cidr_entry, False)
+
+                destination = ipaddress.ip_address(dstip)
+
+                if destination in acl_subnet:
+                    if (acl_port_match(dstport, store_to_check[cidr_entry])):
+                        debug3('Matched IP range rule')
                         return True
-            except Exception as e:
-                log("Failed to parse CIDR block '%s': %s. Ignoring entry.\n" % (cidr_entry, e))
+            except:
+                log('Failed to parse CIDR block %s' % cidr_entry)
+
+    debug3('No IP range rule')
+
+    debug3('Destination did not match the ACL')
 
     return False
 
