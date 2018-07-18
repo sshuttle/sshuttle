@@ -253,7 +253,6 @@ class SockWrapper:
         if self.buf and self.buf[0]:
             wrote = outwrap.write(self.buf[0])
             if wrote is None:
-                # log("ssnet.py copy_to 'wrote' is None\n")
                 wrote = 0
             elif wrote > 0:
                 self.total_wrote += wrote
@@ -617,9 +616,7 @@ class MuxWrapper(SockWrapper):
     def maybe_close(self):
         if self.shut_read and self.shut_write:
             debug2('%r: closing connection\n' % self)
-            # remove the mux's reference to us.  The python garbage collector
-            # will then be able to reap our object.
-            # self.mux.channels[self.channel] = None
+            # remove the mux's reference to us.
             del self.mux.channels[self.channel]
 
     def too_full(self):
