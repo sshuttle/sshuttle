@@ -1,4 +1,5 @@
 import struct
+import subprocess
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
@@ -160,6 +161,24 @@ class Method(BaseMethod):
         if udp_listener.v6 is not None:
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
+    def cmd(self, arglist):
+        returncode = subprocess.call(arglist)
+
+        if returncode:
+            debug1('FAILED: %s' % ' '.join(arglist))
+        else:
+            debug1('SUCCESS: %s' % ' '.join(arglist))
+
+    def remove_remote_forward_rules(self):
+        debug1('Removing remote forwarding rules ...')
+        self.cmd(['ip', 'route', 'del', 'local', 'default', 'dev', 'lo', 'table', '100'])
+        self.cmd(['ip', 'rule', 'del', 'fwmark', '1', 'lookup', '100'])
+
+    def add_remote_forward_rules(self):
+        debug1('Adding remote forwarding rules ...')
+        self.cmd(['ip', 'route', 'add', 'local', 'default', 'dev', 'lo', 'table', '100'])
+        self.cmd(['ip', 'rule', 'add', 'fwmark', '1', 'lookup', '100'])
+
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
         if family not in [socket.AF_INET, socket.AF_INET6]:
@@ -185,6 +204,8 @@ class Method(BaseMethod):
         divert_chain = 'sshuttle-d-%s' % port
 
         # basic cleanup/setup of chains
+        self.remove_remote_forward_rules()
+        self.add_remote_forward_rules()
         self.restore_firewall(port, family, udp, user)
         _ipt('-N', mark_chain)
         _ipt('-F', mark_chain)
@@ -310,3 +331,5 @@ class Method(BaseMethod):
         if ipt_chain_exists(family, table, divert_chain):
             _ipt('-F', divert_chain)
             _ipt('-X', divert_chain)
+
+        self.remove_remote_forward_rules()
