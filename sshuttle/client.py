@@ -489,7 +489,7 @@ def acl_port_match(port, acl_port_rule):
                 return True
 
             debug3('port: %s is NOT in acl port range: %s' % (port, port_entry))
-        elif int(port_entry) == port:
+        elif int(port_entry) == int(port):
             debug3('port: %s is in acl port rule: %s' % (port, acl_port_rule))
             return True
 
