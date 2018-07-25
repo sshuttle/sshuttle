@@ -514,7 +514,7 @@ class Mux(Handler):
         else:
             callback = self.channels.get(channel)
             if not callback:
-                log('warning: closed channel %d got cmd=%s len=%d\n'
+                debug1('warning: closed channel %d got cmd=%s len=%d\n'
                     % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
             else:
                 callback(cmd, data)
