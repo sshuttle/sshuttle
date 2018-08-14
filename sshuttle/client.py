@@ -49,9 +49,10 @@ def got_signal(signum, frame):
 _pidname = None
 _allowed_tcp_targets = {}
 _allowed_udp_targets = {}
-_disallowed_targets = {}
 _allowed_sources = {}
 _excluded_sources = {}
+_allowed_targets_modified = False
+_sources_modified = False
 
 ALLOWED_TCP_ACL_TYPE = 1
 DISALLOWED_ACL_TYPE = 2
@@ -389,11 +390,15 @@ def expire_connections(now, mux):
         del udp_by_src[peer]
     debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
 
+def check_connections_allowed(mux):
     # we also want to close all TCP connections from sources that have expired their lease
+    if not _allowed_targets_modified and not _sources_modified:
+       return
+
     global tcp_conns
     new_tcp_conns = []
     for (srcip, dstip, s, sock) in tcp_conns:
-        if tcp_connection_is_allowed(dstip[0], str(dstip[1]), srcip[0]) and s.ok:
+        if tcp_connection_is_allowed_conditional(dstip[0], str(dstip[1]), srcip[0], _allowed_targets_modified, _sources_modified) and s.ok:
             new_tcp_conns.append((srcip, dstip, s, sock))
         else:
             try:
@@ -414,6 +419,11 @@ def expire_connections(now, mux):
                 pass
 
     tcp_conns = new_tcp_conns
+    global _allowed_targets_modified
+    global _sources_modified
+    _allowed_targets_modified = False
+    _sources_modified = False
+
 
 def onaccept_tcp(listener, method, mux, handlers):
     global _extra_fd
@@ -540,28 +550,31 @@ def matches_acl(dstip, dstport, store_to_check):
 
     return False
 
-def tcp_connection_is_allowed(dstip, dstport, srcip):
-
-    ctime = time.time()
-    if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
-        debug1("Connection from a source excluded from the ACL\n")
-        return True
+def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, check_sources):
+    if check_sources:
+       ctime = time.time()
+       if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
+           debug1("Connection from a source excluded from the ACL\n")
+           return True
     
-    if not _allowed_sources:
-        debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
-        return False
-    if (srcip not in _allowed_sources):
-        debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
-        return False
-    if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
-        debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
-        return False
+       if not _allowed_sources:
+           debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
+           return False
+       if (srcip not in _allowed_sources):
+           debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
+           return False
+       if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+           debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
+           return False
 
-    if matches_acl(dstip, dstport, _disallowed_targets):
-        debug3("Connection not allowed - firewall ACL exception\n")
-        return False
-    elif matches_acl(dstip, dstport, _allowed_tcp_targets):
-        return True
+    if check_acl:
+       if matches_acl(dstip, dstport, _allowed_tcp_targets):
+           return True
+    else:
+       return True
+
+def tcp_connection_is_allowed(dstip, dstport, srcip):
+    return tcp_connection_is_allowed_conditional(dstip, dstport, srcip, True, True)
 
 def udp_connection_is_allowed(dstip, dstport, srcip):
 
@@ -580,10 +593,7 @@ def udp_connection_is_allowed(dstip, dstport, srcip):
         debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
         return False
 
-    if matches_acl(dstip, dstport, _disallowed_targets):
-        debug3("Connection not allowed - firewall ACL exception\n")
-        return False
-    elif matches_acl(dstip, dstport, _allowed_udp_targets):
+    if matches_acl(dstip, dstport, _allowed_udp_targets):
         return True
 
 def connection_is_active(sock):
@@ -698,15 +708,22 @@ class AclHandler:
         self.acl = {}
 
     def reload_acl_file(self):
+        global _allowed_targets_modified
+        global _sources_modified
+
         self.pullAcl()
         if (self.acl_type is ALLOWED_TCP_ACL_TYPE):
             self.reload_tcp_acl_targets_file()
+            _allowed_targets_modified = True
         elif (self.acl_type is ALLOWED_UDP_ACL_TYPE):
             self.reload_udp_acl_targets_file()
+            _allowed_targets_modified = True
         elif (self.acl_type is ACL_SOURCES_TYPE):
             self.reload_acl_sources_file()
+            _sources_modified = True
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
             self.reload_acl_excluded_sources_file()
+            _sources_modified = True
 
 
     def pullAcl(self):
@@ -973,7 +990,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         if rv:
             raise Fatal('server died with error code %d' % rv)
 
-        expire_connections(time.time(), mux)
+        check_connections_allowed(mux)
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
