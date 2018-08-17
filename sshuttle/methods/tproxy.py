@@ -1,10 +1,20 @@
 import struct
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
-from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
+from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, ipt_rule_exists, ipt_rule_count
 from sshuttle.methods import BaseMethod
 from sshuttle.helpers import log, debug1, debug3, Fatal
 import netifaces as ni
+import os
+from redlock import RedLockFactory
+
+REDIS_HOST = None
+REDIS_PORT = None
+try:
+    REDIS_HOST = os.environ['REDIS_HOST']
+    REDIS_PORT = os.environ['REDIS_PORT']
+except KeyError:
+    log('Error: Could not read environment variables for REDIS_HOST and/or REDIS_PORT\n')
 
 recvmsg = None
 try:
@@ -30,6 +40,8 @@ IP_RECVORIGDSTADDR = IP_ORIGDSTADDR
 SOL_IPV6 = 41
 IPV6_ORIGDSTADDR = 74
 IPV6_RECVORIGDSTADDR = IPV6_ORIGDSTADDR
+
+iptables_lb_every = None
 
 if recvmsg == "python":
     def recv_udp(listener, bufsize):
@@ -193,13 +205,30 @@ class Method(BaseMethod):
         _ipt('-N', tproxy_chain)
         _ipt('-F', tproxy_chain)
 
+        if (REDIS_HOST is None or REDIS_PORT is None):
+            raise Fatal("REDIS_HOST and REDIS_PORT environment variables must both be set!")
+
+        redlockFactory = RedLockFactory([{"host": REDIS_HOST, "port": REDIS_PORT}])
+        lock = redlockFactory.create_lock("SSHUTTLE_TPROXY_INSTANCE_CREATION_LOCK", ttl=500, retry_times=5, retry_delay=100)
+        locked = lock.acquire()
+        if locked == True:
+            rule_count = ipt_rule_count(family, 'mangle', 'PREROUTING')
+            if rule_count == 0:
+                _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
+            else:
+                global iptables_lb_every
+                iptables_lb_every = str(rule_count+1)
+                _ipt('-I', 'PREROUTING', '1', '-m', 'statistic', '--mode', 'nth', '--every', iptables_lb_every, '--packet', '0', '-j', tproxy_chain)
+            lock.release()
+        else:
+            lock.release()
+            raise Exception('Failed to acquire lock to edit iptable')
+
         _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
-        _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
         _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
         _ipt('-A', divert_chain, '-j', 'ACCEPT')
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
-
 
         # get the address of eth0
         ni.ifaddresses('eth0')
@@ -296,14 +325,20 @@ class Method(BaseMethod):
         tproxy_chain = 'sshuttle-t-%s' % port
         divert_chain = 'sshuttle-d-%s' % port
 
+        if ipt_rule_exists(family, 'mangle', 'OUTPUT', mark_chain):
+            _ipt('-D', 'OUTPUT', '-j', mark_chain)
+
+        if ipt_rule_exists(family, 'mangle', 'PREROUTING', tproxy_chain):
+            if iptables_lb_every is None:
+                _ipt('-D', 'PREROUTING', '-j', tproxy_chain)
+            else:
+                _ipt('-D', 'PREROUTING', '-m', 'statistic', '--mode', 'nth', '--every', iptables_lb_every, '--packet', '0', '-j', tproxy_chain)
         # basic cleanup/setup of chains
         if ipt_chain_exists(family, table, mark_chain):
-            _ipt('-D', 'OUTPUT', '-j', mark_chain)
             _ipt('-F', mark_chain)
             _ipt('-X', mark_chain)
 
         if ipt_chain_exists(family, table, tproxy_chain):
-            _ipt('-D', 'PREROUTING', '-j', tproxy_chain)
             _ipt('-F', tproxy_chain)
             _ipt('-X', tproxy_chain)
 
