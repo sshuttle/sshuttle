@@ -10,7 +10,7 @@ def start_syslog():
     global _p
     _p = ssubprocess.Popen(['logger',
                             '-p', 'local2.notice',
-                            '-t', 'sshuttle'], stdin=ssubprocess.PIPE)
+                            '-t', 'sshuttle', '-i'], stdin=ssubprocess.PIPE)
 
 
 def stderr_to_syslog():

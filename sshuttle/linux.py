@@ -32,6 +32,47 @@ def ipt_chain_exists(family, table, name):
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
 
+def ipt_rule_exists(family, table, chain, name):
+    if family == socket.AF_INET6:
+        cmd = 'ip6tables'
+    elif family == socket.AF_INET:
+        cmd = 'iptables'
+    else:
+        raise Exception('Unsupported family "%s"' % family_to_string(family))
+    argv = [cmd, '-t', table, '-nL', chain]
+    debug1('>> %s\n' % ' '.join(argv))
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
+    for line in p.stdout:
+        if line.startswith(name.encode("ASCII")):
+            return True
+    rv = p.wait()
+    if rv:
+        raise Fatal('%r returned %d' % (argv, rv))
+
+
+def ipt_rule_count(family, table, chain):
+    if family == socket.AF_INET6:
+        cmd = 'ip6tables'
+    elif family == socket.AF_INET:
+        cmd = 'iptables'
+    else:
+        raise Exception('Unsupported family "%s"' % family_to_string(family))
+    argv = [cmd, '-t', table, '-L', chain]
+    argv1 = ['grep',  '-Ecv', "^$|^Chain |^target"]
+    debug1('>> %s\n' % ' '.join(argv))
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    iptables_process = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, shell=False, env=env)
+    grep_process = ssubprocess.Popen(argv1, stdin=iptables_process.stdout, stdout=ssubprocess.PIPE, shell=False, env=env)
+    iptables_process.stdout.close()
+    return int(grep_process.communicate()[0])
+
 
 def ipt(family, table, *args):
     if family == socket.AF_INET6:
