@@ -95,6 +95,8 @@ def _try_peername(sock):
         _, e = sys.exc_info()[:2]
         if e.args[0] not in (errno.ENOTCONN, errno.ENOTSOCK):
             raise
+    except AttributeError:
+        pass
     return 'unknown'
 
 
