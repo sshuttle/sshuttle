@@ -160,3 +160,85 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
+
+@patch('sshuttle.methods.nat.ipset')
+@patch('sshuttle.methods.nat.ipt')
+@patch('sshuttle.methods.nat.ipt_ttl')
+@patch('sshuttle.methods.nat.ipt_chain_exists')
+def test_setup_firewall_table(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt, mock_ipset, tmpdir):
+    mock_ipt_chain_exists.return_value = True
+    method = get_method('nat')
+    assert method.name == 'nat'
+
+    table_file = tmpdir.join('table.txt')
+    table_file.write('1.2.3.99\nwww.example.com\n1.3.5.0/24')
+    method.setup_firewall(
+        1025, 1027,
+        [(AF_INET, u'1.2.3.33')],
+        AF_INET,
+        [(AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
+         (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
+        False,
+        None,
+        str(table_file))
+    assert mock_ipt_chain_exists.mock_calls == [
+        call(AF_INET, 'nat', 'sshuttle-1025')
+    ]
+    assert mock_ipt_ttl.mock_calls == [
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
+             '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
+             '--to-ports', '1025'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
+             '-m', 'set', '--match-set', 'sshuttle-1025', 'dst', '-p', 'tcp',
+             '--to-ports', '1025'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
+             '--dest', u'1.2.3.33/32', '-p', 'udp',
+             '--dport', '53', '--to-ports', '1027')
+    ]
+    assert mock_ipt.mock_calls == [
+        call(AF_INET, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-X', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-N', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
+            '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
+    ]
+
+    assert mock_ipset.mock_calls == [
+        call(['destroy', 'sshuttle-1025']),
+        call(['restore'],
+                 b'create -! sshuttle-1025 hash:net\n'
+                 b'add sshuttle-1025 1.2.3.99\n'
+                 b'add sshuttle-1025 1.3.5.0/24\n')
+    ]
+
+    mock_ipset.reset_mock()
+    method.add_to_table(1025, AF_INET, ['1.2.3.100', '1.3.6.0/24'])
+    assert mock_ipset.mock_calls == [
+        call(['add', '-!', 'sshuttle-1025', '1.2.3.100']),
+        call(['add', '-!', 'sshuttle-1025', '1.3.6.0/24'])
+    ]
+
+    mock_ipt_chain_exists.reset_mock()
+    mock_ipt_ttl.reset_mock()
+    mock_ipt.reset_mock()
+    mock_ipset.reset_mock()
+    method.restore_firewall(1025, AF_INET, False, None, True)
+    assert mock_ipt_ttl.mock_calls == []
+    assert mock_ipt.mock_calls == [
+        call(AF_INET, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-D', 'PREROUTING', '-j', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-F', 'sshuttle-1025'),
+        call(AF_INET, 'nat', '-X', 'sshuttle-1025')
+    ]
+    assert mock_ipset.mock_calls == [
+        call(['destroy', 'sshuttle-1025'])
+    ]
+    mock_ipt_chain_exists.reset_mock()
+    mock_ipt_ttl.reset_mock()
+    mock_ipt.reset_mock()
+    mock_ipset.reset_mock()

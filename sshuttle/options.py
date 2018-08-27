@@ -310,3 +310,10 @@ parser.add_argument(
     (internal use only)
     """
 )
+parser.add_argument(
+    "--table",
+    metavar="PATH",
+    help="""
+use subnet table
+"""
+    )

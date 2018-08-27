@@ -12,9 +12,11 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, subnet_table=None):
         if udp:
             raise Exception("UDP not supported by nft")
+        if subnet_table:
+            raise Exception('subnet_table not supported by nft')
 
         table = "nat"
 
@@ -65,7 +67,7 @@ class Method(BaseMethod):
                      'udp dport { 53 }', 'ip ttl != 42',
                      ('redirect to :' + str(dnsport)))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, use_table=False):
         if udp:
             raise Exception("UDP not supported by nft method_name")
 

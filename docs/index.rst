@@ -19,6 +19,7 @@ Contents:
    support
    trivia
    changes
+   table
 
 
 Indices and tables

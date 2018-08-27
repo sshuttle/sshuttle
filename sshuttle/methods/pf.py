@@ -10,7 +10,7 @@ from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, family_to_string
 from sshuttle.methods import BaseMethod
 
 
@@ -150,7 +150,10 @@ class Generic(object):
     def has_skip_loopback():
         return b'skip' in pfctl('-s Interfaces -i lo -v')[0]
 
+    def add_to_table(self, anchor, addrs):
+        log('warning: add_to_table not implemented')
 
+_net_rx = re.compile(r"^(?:\d+\.){3}\d+(?:/\d+)?$")
 
 class FreeBsd(Generic):
     RULE_ACTION_OFFSET = 2968
@@ -203,11 +206,12 @@ class FreeBsd(Generic):
         memmove(addressof(pr) + self.POOL_TICKET_OFFSET, ppa[4:8], 4)
         super(FreeBsd, self)._add_anchor_rule(kind, name, pr=pr)
 
-    def add_rules(self, anchor, includes, port, dnsport, nslist, family):
+    def add_rules(self, anchor, includes, port, dnsport, nslist, family,
+                  use_table):
         inet_version = self._inet_version(family)
         lo_addr = self._lo_addr(family)
 
-        tables = []
+        tables = [b'table <unblock> {}'] if use_table else []
         translating_rules = [
             b'rdr pass on lo0 %s proto tcp from ! %s to %s '
             b'-> %s port %r' % (inet_version, lo_addr, subnet, lo_addr, port)
@@ -220,6 +224,13 @@ class FreeBsd(Generic):
             b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
             for exclude, subnet in includes
         ]
+        if use_table:
+            translating_rules.append(
+                b'rdr pass on lo0 %s proto tcp from ! %s to <unblock> '
+                b'-> %s port %r' % (inet_version, lo_addr, lo_addr, port))
+            filtering_rules.append(
+                b'pass out route-to lo0 %s proto tcp '
+                b'to <unblock> keep state' % (inet_version))
 
         if nslist:
             tables.append(
@@ -237,6 +248,23 @@ class FreeBsd(Generic):
 
         super(FreeBsd, self).add_rules(anchor, rules)
 
+    def load_table(self, anchor, subnet_table):
+        addr_list = []
+        with open(subnet_table) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if _net_rx.match(line):
+                    addr_list.append(line)
+        # debug3("table: %r %r\n" % (anchor, addr_list))
+        # FIXME: path quoting !!!!
+        pfctl('-a %s -t unblock -T replace -f /dev/stdin' % anchor,
+                  "\n".join(addr_list) + "\n")
+
+    def add_to_table(self, anchor, addrs):
+        debug3("add_to_table: %r %r\n" % (anchor, addrs))
+        pfctl('-a %s -t unblock -T add %s' % (anchor, " ".join(addrs)))
 
 class OpenBsd(Generic):
     POOL_TICKET_OFFSET = 4
@@ -273,7 +301,8 @@ class OpenBsd(Generic):
             pfctl('-f /dev/stdin', b'match on lo\n')
         super(OpenBsd, self).add_anchors(anchor)
 
-    def add_rules(self, anchor, includes, port, dnsport, nslist, family):
+    def add_rules(self, anchor, includes, port, dnsport, nslist, family,
+                  use_table):
         inet_version = self._inet_version(family)
         lo_addr = self._lo_addr(family)
 
@@ -438,7 +467,7 @@ class Method(BaseMethod):
         return sock.getsockname()
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, subnet_table=None):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'
@@ -460,10 +489,13 @@ class Method(BaseMethod):
 
         anchor = pf_get_anchor(family, port)
         pf.add_anchors(anchor)
-        pf.add_rules(anchor, includes, port, dnsport, nslist, family)
+        pf.add_rules(anchor, includes, port, dnsport, nslist, family,
+                     subnet_table)
+        if subnet_table:
+            pf.load_table(anchor, subnet_table)
         pf.enable()
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, use_table=False):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'
@@ -472,6 +504,10 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pf.disable(pf_get_anchor(family, port))
+
+    def add_to_table(self, port, family, addrs):
+        anchor = pf_get_anchor(family, port)
+        pf.add_to_table(anchor, addrs)
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):

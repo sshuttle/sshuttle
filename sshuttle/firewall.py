@@ -183,7 +183,14 @@ def main(method_name, syslog):
     debug2('firewall manager: Got ports: %d,%d,%d,%d\n'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
+    table_path = ''
     line = stdin.readline(128)
+    if line.startswith('TABLE '):
+        _, _, table_path = line.partition(" ")
+        table_path = table_path.strip()
+        if not table_path:
+            raise Fatal('firewall: TABLE path not specified')
+        line = stdin.readline(128)
     if not line:
         raise Fatal('firewall: expected GO but got %r' % line)
     elif not line.startswith("GO "):
@@ -209,14 +216,14 @@ def main(method_name, syslog):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user)
+                user, table_path)
 
         if subnets_v4 or nslist_v4:
             debug2('firewall manager: setting up IPv4.\n')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user)
+                user, table_path)
 
         stdout.write('STARTED\n')
         sdnotify.send(sdnotify.ready(),
@@ -239,6 +246,9 @@ def main(method_name, syslog):
                 hostmap[name] = ip
                 debug2('firewall manager: setting up /etc/hosts.\n')
                 rewrite_etc_hosts(hostmap, port_v6 or port_v4)
+            elif line.startswith('ADD_TO_TABLE '):
+                _, _, addrs = line.strip().partition(' ')
+                method.add_to_table(port_v4, socket.AF_INET, addrs.split(' '))
             elif line:
                 if not method.firewall_command(line):
                     raise Fatal('firewall: expected command, got %r' % line)
@@ -267,7 +277,7 @@ def main(method_name, syslog):
         try:
             if subnets_v4 or nslist_v4:
                 debug2('firewall manager: undoing IPv4 changes.\n')
-                method.restore_firewall(port_v4, socket.AF_INET, udp, user)
+                method.restore_firewall(port_v4, socket.AF_INET, udp, user, table_path)
         except:
             try:
                 debug1("firewall manager: "

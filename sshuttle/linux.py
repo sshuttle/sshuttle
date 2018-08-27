@@ -103,3 +103,18 @@ def ipt_ttl(family, *args):
             _no_ttl_module = True
     else:
         ipt(family, *args)
+
+def ipset(args, stdin=None):
+    argv = ['ipset'] + list(args)
+    debug1('>> %s\n' % ' '.join(argv))
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    p = ssubprocess.Popen(argv, stdin=ssubprocess.PIPE,
+                          stdout=ssubprocess.PIPE,
+                          # stderr=ssubprocess.PIPE,
+                          env=env)
+    p.communicate(stdin)
+    if p.returncode:
+        raise Fatal('%r returned %d' % (argv, p.returncode))
