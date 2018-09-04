@@ -7,10 +7,14 @@ import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
 from sshuttle.options import parser, parse_ipport
 from sshuttle.helpers import family_ip_tuple, log, Fatal
-
+from sshuttle.sudoers import sudoers_file
 
 def main():
     opt = parser.parse_args()
+
+    if opt.sudoers:
+      print(sudoers_file(opt.sudoersuser))
+      exit()
 
     if opt.daemon:
         opt.syslog = 1
