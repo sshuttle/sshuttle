@@ -310,3 +310,17 @@ parser.add_argument(
     (internal use only)
     """
 )
+parser.add_argument(
+    "--sudoers",
+    action="store_true",
+    help="""
+    Add sshuttle to the sudoers for this user
+    """
+)
+parser.add_argument(
+    "--sudoersuser",
+    default="",
+    help="""
+    Only works with --sudoers option. Set user name for passwordless operation. Default is current user. set ALL for all users.
+    """
+)
