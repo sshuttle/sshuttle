@@ -25,15 +25,9 @@ def sudoers_file(user_name):
         'user_name': user_name,
         'command_alias': command_alias,
     }
-    
-    # User GUI sudo askpass app if available
-    askpass = ''
-    if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
-        askpass = '-A'
 
     process = subprocess.Popen([
         'sudo',
-        # askpass,
         'bash',
         os.path.dirname(os.path.abspath(__file__))+'/lib/sudoers.sh',
         base64ify(content),
@@ -45,7 +39,7 @@ def sudoers_file(user_name):
 
     if returncode:
         log('Failed updating sudoers file.\n');
-        # debug1(streamdata)
+        debug1(streamdata)
         exit(returncode)
     else:
         log('Success, sudoers file update.\n')

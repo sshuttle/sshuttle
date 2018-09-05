@@ -190,7 +190,7 @@ class FirewallClient:
         askpass = ''
         if platform.platform().startswith('OpenBSD'):
             elevbin = 'doas'
-        
+
         # User GUI sudo askpass app if available
         if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
             askpass = '-A'

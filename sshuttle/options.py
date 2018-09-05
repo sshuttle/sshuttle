@@ -321,6 +321,7 @@ parser.add_argument(
     "--sudoersuser",
     default="",
     help="""
-    Only works with --sudoers option. Set the user name for passwordless operation. Default is the current user. set ALL for all users.
+    Only works with --sudoers option. Set the user name for passwordless
+    operation. Default is the current user. set ALL for all users.
     """
 )
