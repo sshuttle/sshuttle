@@ -33,6 +33,7 @@ setup(
         'version_scheme': version_scheme,
     },
     setup_requires=['setuptools_scm'],
+    include_package_data=True,
     # version=version,
     url='https://github.com/sshuttle/sshuttle',
     author='Brian May',

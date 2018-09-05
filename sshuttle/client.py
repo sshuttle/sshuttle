@@ -190,10 +190,10 @@ class FirewallClient:
         askpass = ''
         if platform.platform().startswith('OpenBSD'):
             elevbin = 'doas'
-
-        else:
-            if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
-                askpass = '-A'
+        
+        # User GUI sudo askpass app if available
+        if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
+            askpass = '-A'
 
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))

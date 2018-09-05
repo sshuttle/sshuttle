@@ -3,6 +3,7 @@ import sys
 import subprocess
 import getpass
 import random
+from sshuttle.lib.base64ify import base64ify
 from sshuttle.helpers import log, debug1
 
 path_to_sshuttle = sys.argv[0]
@@ -24,8 +25,7 @@ def sudoers_file(user_name):
         'user_name': user_name,
         'command_alias': command_alias,
     }
-            
-    print(content)
+    
     # User GUI sudo askpass app if available
     askpass = ''
     if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
@@ -33,14 +33,11 @@ def sudoers_file(user_name):
 
     process = subprocess.Popen([
         'sudo',
-        askpass,
+        # askpass,
         'bash',
-        '-c',
-        '''
-            'touch %(sudoers_path)s;
-            echo "%(content)s"> %(sudoers_path)s &&
-            chmod 0400 %(sudoers_path)s'
-        ''' % {'content': content, 'sudoers_path': sudoers_path}
+        os.path.dirname(os.path.abspath(__file__))+'/lib/sudoers.sh',
+        base64ify(content),
+
     ], stdout=subprocess.PIPE)
 
     streamdata = process.communicate()[0]
@@ -48,7 +45,7 @@ def sudoers_file(user_name):
 
     if returncode:
         log('Failed updating sudoers file.\n');
-        debug1(streamdata)
+        # debug1(streamdata)
         exit(returncode)
     else:
         log('Success, sudoers file update.\n')
