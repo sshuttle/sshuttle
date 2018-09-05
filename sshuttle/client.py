@@ -187,13 +187,8 @@ class FirewallClient:
 
         # Default to sudo unless on OpenBSD in which case use built in `doas`
         elevbin = 'sudo'
-        askpass = ''
         if platform.platform().startswith('OpenBSD'):
             elevbin = 'doas'
-
-        # User GUI sudo askpass app if available
-        if os.environ.get('SUDO_ASKPASS') and os.environ.get('DISPLAY'):
-            askpass = '-A'
 
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))
@@ -204,7 +199,7 @@ class FirewallClient:
         if ssyslog._p:
             argvbase += ['--syslog']
         elev_prefix = [part % {'eb': elevbin, 'pp': python_path}
-                       for part in ['%(eb)s', askpass, '-p',
+                       for part in ['%(eb)s', '-p',
                                     '[local %(eb)s] Password: ',
                                     '/usr/bin/env', 'PYTHONPATH=%(pp)s']]
         argv_tries = [elev_prefix + argvbase, argvbase]
