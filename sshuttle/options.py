@@ -318,10 +318,17 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "--sudoersuser",
+    "--sudoers-user",
     default="",
     help="""
-    Only works with --sudoers option. Set the user name for passwordless
-    operation. Default is the current user. set ALL for all users.
+    Set the user name or group with %%group_name for passwordless operation. Default is the current user.
+    set ALL for all users. Only works with --sudoers or --sudoers-no-modify option.
+    """
+)
+parser.add_argument(
+    "--sudoers-no-modify",
+    action="store_true",
+    help="""
+    Prints the sudoers config to STDOUT and DOES NOT modify anything.
     """
 )
