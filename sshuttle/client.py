@@ -220,7 +220,6 @@ class FirewallClient:
             try:
                 if argv[0] == 'su':
                     sys.stderr.write('[local su] ')
-                print(argv)
                 self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 e = None
                 break
