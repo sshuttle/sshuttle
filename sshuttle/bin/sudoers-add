@@ -48,7 +48,7 @@ fi
 
 touch /tmp/$FILE_NAME
 
-echo $CONTENT >> /tmp/$FILE_NAME
+echo $CONTENT > /tmp/$FILE_NAME
 
 visudo_out= visudo -c -f /tmp/$FILE_NAME
 
