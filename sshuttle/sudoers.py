@@ -1,14 +1,14 @@
 import os
 import sys
-import subprocess
 import getpass
 import random
 from sshuttle.lib.base64ify import base64ify
+from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
+
 
 path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
-sudoers_path = '/etc/sudoers.d/sshuttle_auto'
 command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1,1000)}
 
 template = '''
@@ -17,8 +17,7 @@ Cmnd_Alias %(command_alias)s = /usr/bin/env PYTHONPATH=%(path_to_dist_packages)s
 %(user_name)s ALL=NOPASSWD: %(command_alias)s
 '''
 
-def sudoers_file(user_name):
-    user_name = user_name or getpass.getuser()
+def sudoers_build_file(user_name):
     content = template % {
         'path_to_dist_packages': path_to_dist_packages,
         'path_to_sshuttle': path_to_sshuttle,
@@ -26,16 +25,23 @@ def sudoers_file(user_name):
         'command_alias': command_alias,
     }
 
-    process = subprocess.Popen([
-        'sudo',
-        'bash',
-        os.path.dirname(os.path.abspath(__file__))+'/lib/sudoers.sh',
-        base64ify(content),
+    return content
 
-    ], stdout=subprocess.PIPE)
+def sudoers_save(content):
+
+    process = Popen([
+        'echo',
+        '"%(c)s"' % {'c': base64ify(content)},
+        'base64 --decode',
+        '|',
+        'sudo',
+        'sudoers-add',
+        'sshuttle_auto'
+    ], stdout=PIPE)
 
     streamdata = process.communicate()[0]
     returncode = process.returncode
+
 
     if returncode:
         log('Failed updating sudoers file.\n');
@@ -44,3 +50,13 @@ def sudoers_file(user_name):
     else:
         log('Success, sudoers file update.\n')
         exit(0)
+
+def sudoers(user_name=None, no_modify=None):
+    user_name = user_name or getpass.getuser()
+    content = sudoers_build_file(user_name)
+
+    if no_modify:
+        sys.stdout.write(content)
+        exit(0)
+    else:
+        sudoers_save(content)
