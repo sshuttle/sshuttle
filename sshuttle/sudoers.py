@@ -17,7 +17,7 @@ Cmnd_Alias %(command_alias)s = /usr/bin/env PYTHONPATH=%(path_to_dist_packages)s
 %(user_name)s ALL=NOPASSWD: %(command_alias)s
 '''
 
-def sudoers_build_file(user_name):
+def build_config(user_name):
     content = template % {
         'path_to_dist_packages': path_to_dist_packages,
         'path_to_sshuttle': path_to_sshuttle,
@@ -27,21 +27,15 @@ def sudoers_build_file(user_name):
 
     return content
 
-def sudoers_save(content):
-
+def save_config(content):
     process = Popen([
-        'echo',
-        '"%(c)s"' % {'c': base64ify(content)},
-        'base64 --decode',
-        '|',
-        'sudo',
-        'sudoers-add',
-        'sshuttle_auto'
-    ], stdout=PIPE)
+        'sudo env "PATH=$PATH" sudoers-add sshuttle_auto',
+    ], stdout=PIPE, stdin=PIPE, shell=True)
+
+    process.stdin.write(content.encode())
 
     streamdata = process.communicate()[0]
     returncode = process.returncode
-
 
     if returncode:
         log('Failed updating sudoers file.\n');
@@ -53,10 +47,10 @@ def sudoers_save(content):
 
 def sudoers(user_name=None, no_modify=None):
     user_name = user_name or getpass.getuser()
-    content = sudoers_build_file(user_name)
+    content = build_config(user_name)
 
     if no_modify:
         sys.stdout.write(content)
         exit(0)
     else:
-        sudoers_save(content)
+        save_config(content)
