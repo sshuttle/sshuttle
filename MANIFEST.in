@@ -5,7 +5,6 @@ include MANIFEST.in
 include LICENSE
 include run
 include tox.ini
-include sshuttle/lib/sudoers.sh
 exclude sshuttle/version.py
 recursive-include docs *.bat
 recursive-include docs *.py

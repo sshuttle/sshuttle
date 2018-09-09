@@ -2,7 +2,6 @@ import os
 import sys
 import getpass
 import random
-from sshuttle.lib.base64ify import base64ify
 from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
 

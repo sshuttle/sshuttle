@@ -328,14 +328,16 @@ parser.add_argument(
     "--sudoers-user",
     default="",
     help="""
-    Set the user name or group with %%group_name for passwordless operation. Default is the current user.
-    set ALL for all users. Only works with --sudoers or --sudoers-no-modify option.
+    Set the user name or group with %%group_name for passwordless operation.
+    Default is the current user.set ALL for all users. Only works with
+    --sudoers or --sudoers-no-modify option.
     """
 )
 parser.add_argument(
     "--sudoers-filename",
     default="sshuttle_auto",
     help="""
-    Set the file name for the sudoers.d file to be added. Default is "sshuttle_auto". Only works with --sudoers or --sudoers-no-modify option.
+    Set the file name for the sudoers.d file to be added. Default is
+    "sshuttle_auto". Only works with --sudoers or --sudoers-no-modify option.
     """
 )
