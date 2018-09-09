@@ -5,22 +5,18 @@
 
 NEWLINE=$'\n'
 CONTENT=""
+ME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
 
 if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
-	echo "Usage: $0 [file_path] [sudoers-file-name]"
-	echo "Usage: [content] | $0 sudoers-file-name"
+	echo "Usage: $ME [file_path] [sudoers-file-name]"
+	echo "Usage: [content] | $ME sudoers-file-name"
 	echo "This will take a sudoers config validate it and add it to /etc/sudoers.d/{sudoers-file-name}"
 	echo "The config can come from a file, first usage example or piped in second example."
 	exit 0
 fi
 
-if [[ $EUID -ne 0 ]]; then
-	echo "This script must be run as root" 
-	exit 1
-fi
-
 if [ "$1" == "" ]; then
-	(>&2 echo "This command take at lest one argument. See $0 --help")
+	(>&2 echo "This command take at lest one argument. See $ME --help")
 	exit 1	
 fi
 
@@ -31,31 +27,38 @@ else
 	FILE_NAME=$2
 fi
 
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root" 
+	exit 1
+fi
+
 while read -r line
 do
 	CONTENT+="${line}${NEWLINE}"
 done < "${1:-/dev/stdin}"
 
 if [ "$CONTENT" == "" ]; then
-	(>&2 echo "No config content specified. See $0 --help")
+	(>&2 echo "No config content specified. See $ME --help")
 	exit 1
 fi
 
-if [ "$CONTENT" == "" ]; then
-	(>&2 echo "No sudoers file name specified. See $0 --help")
+if [ "$FILE_NAME" == "" ]; then
+	(>&2 echo "No sudoers file name specified. See $ME --help")
 	exit 1
 fi
 
-touch /tmp/$FILE_NAME
+touch "/tmp/$FILE_NAME"
 
-echo $CONTENT > /tmp/$FILE_NAME
+echo "$CONTENT" > "/tmp/$FILE_NAME"
 
-visudo_out= visudo -c -f /tmp/$FILE_NAME
+visudo_out= visudo -c -f "/tmp/$FILE_NAME"
 
 if [ $? -eq 0 ]; then
-	rm /etc/sudoers.d/$FILE_NAME
-	mv /tmp/$FILE_NAME /etc/sudoers.d/$FILE_NAME
-	chmod 0440 /etc/sudoers.d/$FILE_NAME
+	if [ -e "/etc/sudoers.d/$FILE_NAME" ]; then
+		rm "/etc/sudoers.d/$FILE_NAME"
+	fi
+	mv "/tmp/$FILE_NAME" "/etc/sudoers.d/$FILE_NAME"
+	chmod 0440 "/etc/sudoers.d/$FILE_NAME"
 	exit 0
 else
 	echo $visudo_out
