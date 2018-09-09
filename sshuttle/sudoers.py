@@ -12,17 +12,18 @@ path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
 command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1,1000)}
 
 template = '''
-Cmnd_Alias %(command_alias)s = /usr/bin/env PYTHONPATH=%(path_to_dist_packages)s /usr/bin/python3 %(path_to_sshuttle)s --method auto --firewall
+Cmnd_Alias %(command_alias)s = /usr/bin/env PYTHONPATH=%(path_to_dist_packages)s %(python_path)s %(path_to_sshuttle)s --method auto --firewall
 
 %(user_name)s ALL=NOPASSWD: %(command_alias)s
 '''
 
 def build_config(user_name):
     content = template % {
+        'command_alias': command_alias,
         'path_to_dist_packages': path_to_dist_packages,
+        'python_path': sys.executable,
         'path_to_sshuttle': path_to_sshuttle,
         'user_name': user_name,
-        'command_alias': command_alias,
     }
 
     return content
