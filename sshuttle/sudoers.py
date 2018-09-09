@@ -9,6 +9,8 @@ from sshuttle.helpers import log, debug1
 
 path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
+
+# randomize command alias to avoid collisions
 command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1,1000)}
 
 template = '''
@@ -28,9 +30,9 @@ def build_config(user_name):
 
     return content
 
-def save_config(content):
+def save_config(content, file_name):
     process = Popen([
-        'sudo env "PATH=$PATH" sudoers-add sshuttle_auto',
+        'sudo env "PATH=$PATH" sudoers-add "%(fn)s"' % {"fn": file_name},
     ], stdout=PIPE, stdin=PIPE, shell=True)
 
     process.stdin.write(content.encode())
@@ -46,7 +48,7 @@ def save_config(content):
         log('Success, sudoers file update.\n')
         exit(0)
 
-def sudoers(user_name=None, no_modify=None):
+def sudoers(user_name=None, no_modify=None, file_name=None):
     user_name = user_name or getpass.getuser()
     content = build_config(user_name)
 
@@ -54,4 +56,4 @@ def sudoers(user_name=None, no_modify=None):
         sys.stdout.write(content)
         exit(0)
     else:
-        save_config(content)
+        save_config(content, file_name)

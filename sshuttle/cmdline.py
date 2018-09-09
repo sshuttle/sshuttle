@@ -18,7 +18,15 @@ def main():
         log('Automatic sudoers does not work on BSD')
         exit(1)
 
-      sudoers(opt.sudoers_user, opt.sudoers_no_modify)
+    if not opt.sudoers_filename:
+        log('--sudoers-file must be set or omited.')
+        exit(1)
+
+    sudoers(
+      user_name=opt.sudoers_user,
+      no_modify=opt.sudoers_no_modify,
+      file_name=opt.sudoers_filename
+    )
 
     if opt.daemon:
         opt.syslog = 1

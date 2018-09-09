@@ -318,6 +318,13 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--sudoers-no-modify",
+    action="store_true",
+    help="""
+    Prints the sudoers config to STDOUT and DOES NOT modify anything.
+    """
+)
+parser.add_argument(
     "--sudoers-user",
     default="",
     help="""
@@ -326,9 +333,9 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "--sudoers-no-modify",
-    action="store_true",
+    "--sudoers-filename",
+    default="sshuttle_auto",
     help="""
-    Prints the sudoers config to STDOUT and DOES NOT modify anything.
+    Set the file name for the sudoers.d file to be added. Default is "sshuttle_auto". Only works with --sudoers or --sudoers-no-modify option.
     """
 )
