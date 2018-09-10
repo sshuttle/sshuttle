@@ -60,3 +60,46 @@ the data back and forth through ssh.
 Fun, right?  A poor man's instant VPN, and you don't even have to have
 admin access on the server.
 
+Sudoers File
+------------
+sshuttle can auto generate the proper sudoers.d file using the current user 
+for Linux and OSX. Doing this will allow sshuttle to run with out asking for
+the local sudo password and to give users who do not not have sudo access
+ability to run sshuttle.
+
+  sshuttle --sudoers
+
+DO NOT run this command with sudo, it will ask for your sudo password when
+its needed.
+
+A costume user or group can be set with the :
+option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
+values for this vary based on how your system is configured. Values such as user
+names, groups pre-pended with `%` and sudoers user aliases will work. See the
+sudoers manual for more information on valid user specif actions. The options 
+must be used with `--sudoers`
+
+  sshuttle --sudoers --sudoers-user mike
+  sshuttle --sudoers --sudoers-user %sudo
+
+The name of the file to be added to sudoers.d can be configure too. This is
+mostly not necessary, but can be usefile for giving more then one user access to
+sshuttle. The defualt is `sshuttle_auto`
+
+  sshuttle --sudoer --sudoers-filename sshuttle_auto_mike
+  sshuttle --sudoer --sudoers-filename sshuttle_auto_tommy
+
+You can also see what configuration will be added to your system with out
+modifying anything. This can be help full is the auto feature does not work, or
+you want more control. This option also works with `--sudoers-username`.
+`--sudoers-filename` has no effect with this option.
+
+  sshuttle --sudoers-no-modify
+
+This will simply sprint the generated configuration to STDOUT. Example
+
+  08:40 PM william$ sshuttle --sudoers-no-modify
+
+  Cmnd_Alias SSHUTTLE304 = /usr/bin/env PYTHONPATH=/usr/local/lib/python2.7/dist-packages/sshuttle-0.78.5.dev30+gba5e6b5.d20180909-py2.7.egg /usr/bin/python /usr/local/bin/sshuttle --method auto --firewall
+
+  william ALL=NOPASSWD: SSHUTTLE304
