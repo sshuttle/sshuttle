@@ -272,7 +272,7 @@ class Handler:
         for i in self.socks:
             _add(r, i)
 
-    def callback(self, sock):
+    def callback(self, sock, r, w):
         log('--no callback defined-- %r\n' % self)
         (r, _, _) = select.select(self.socks, [], [], 0)
         for s in r:
@@ -313,11 +313,13 @@ class Proxy(Handler):
         elif not self.wrap2.shut_read:
             _add(r, self.wrap2.rsock)
 
-    def callback(self, sock):
+    def callback(self, sock, r, w):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
-        self.wrap1.fill()
-        self.wrap2.fill()
+        if self.wrap1.rsock in r:
+            self.wrap1.fill()
+        if self.wrap2.rsock in r:
+            self.wrap2.fill()
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
         if self.wrap1.buf and self.wrap2.shut_write:
@@ -492,8 +494,7 @@ class Mux(Handler):
         if self.outbuf:
             _add(w, self.wsock)
 
-    def callback(self, sock):
-        (r, w, _) = select.select([self.rsock], [self.wsock], [], 0)
+    def callback(self, sock, r, w):
         if self.rsock in r:
             self.handle()
         if self.outbuf and self.wsock in w:
@@ -594,18 +595,18 @@ def runonce(handlers, mux):
 
     for s in handlers:
         s.pre_select(r, w, x)
-    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
-           % (len(handlers), _fds(r), _fds(w), _fds(x),
-               mux.fullness, mux.too_full))
+    #debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
+    #       % (len(handlers), _fds(r), _fds(w), _fds(x),
+    #           mux.fullness, mux.too_full))
     (r, w, x) = select.select(r, w, x)
-    debug2('  Ready: %d r=%r w=%r x=%r\n'
-           % (len(handlers), _fds(r), _fds(w), _fds(x)))
+    #debug2('  Ready: %d r=%r w=%r x=%r\n'
+    #       % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r + w + x
     did = {}
     for h in handlers:
         for s in h.socks:
             if s in ready:
-                h.callback(s)
+                h.callback(s, r, w)
                 did[s] = 1
     for s in ready:
         if s not in did:

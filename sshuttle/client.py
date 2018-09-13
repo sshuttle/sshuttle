@@ -185,7 +185,7 @@ class MultiListener:
         handlers.append(
             Handler(
                 socks,
-                lambda sock: callback(sock, method, mux, handlers)
+                lambda sock, r, w: callback(sock, method, mux, handlers)
             )
         )
 

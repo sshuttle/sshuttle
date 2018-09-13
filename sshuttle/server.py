@@ -220,7 +220,7 @@ class DnsProxy(Handler):
                 log('DNS send to %r: %s\n' % (peer, e))
                 return
 
-    def callback(self, sock):
+    def callback(self, sock, r, w):
         peer = self.peers[sock]
 
         try:
@@ -264,7 +264,7 @@ class UdpProxy(Handler):
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
-    def callback(self, sock):
+    def callback(self, sock, r, w):
         try:
             data, peer = sock.recvfrom(4096)
         except socket.error:
