@@ -45,6 +45,8 @@ def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
 
+ALWAYS_CONNECTED_ON = "ON"
+ALWAYS_CONNECTED_OFF = "OFF"
 
 _pidname = None
 _allowed_tcp_targets = {}
@@ -53,17 +55,20 @@ _allowed_sources = {}
 _excluded_sources = {}
 _allowed_targets_modified = False
 _sources_modified = False
+_always_connected = ALWAYS_CONNECTED_OFF
 
 ALLOWED_TCP_ACL_TYPE = 1
 DISALLOWED_ACL_TYPE = 2
 ACL_SOURCES_TYPE = 3
 ACL_EXCLUDED_SOURCES_TYPE = 4
 ALLOWED_UDP_ACL_TYPE = 5
+ALWAYS_CONNECTED_TYPE = 6
 
 sshuttleAclTcp = "sshuttleAcl"
 sshuttleAclUdp = "sshuttleAclUdp"
 sshuttleAclSources = "sshuttleAclSources"
 sshuttleAclExcluded = "sshuttleAclExcluded"
+alwaysConnected = "alwaysConnected"
 sshuttleAclEventsChannel = "aclEvents"
 
 preferreddns = ''
@@ -391,6 +396,10 @@ def expire_connections(now, mux):
     debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
 
 def check_connections_allowed(mux):
+    # if alwaysConnected mode is on, all connections are allowed. we don't need to check them
+    if _always_connected == ALWAYS_CONNECTED_ON:
+        return
+
     # we also want to close all TCP connections from sources that have expired their lease
     if not _allowed_targets_modified and not _sources_modified:
        return
@@ -574,9 +583,16 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
        return True
 
 def tcp_connection_is_allowed(dstip, dstport, srcip):
+    if _always_connected == ALWAYS_CONNECTED_ON:
+        debug1("TCP connection is allowed because alwaysConnected mode is ON\n")
+        return True
+
     return tcp_connection_is_allowed_conditional(dstip, dstport, srcip, True, True)
 
 def udp_connection_is_allowed(dstip, dstport, srcip):
+    if _always_connected == ALWAYS_CONNECTED_ON:
+        debug1("UDP connection is allowed because alwaysConnected mode is ON\n")
+        return True
 
     ctime = time.time()
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
@@ -724,6 +740,9 @@ class AclHandler:
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
             self.reload_acl_excluded_sources_file()
             _sources_modified = True
+        elif (self.acl_type is ALWAYS_CONNECTED_TYPE):
+            self.reload_always_connected()
+            _sources_modified = True
 
 
     def pullAcl(self):
@@ -735,6 +754,8 @@ class AclHandler:
             self.acl = self.redisClient.get(sshuttleAclSources)
         elif (self.acl_type is ACL_EXCLUDED_SOURCES_TYPE):
             self.acl = self.redisClient.get(sshuttleAclExcluded)
+        elif (self.acl_type is ALWAYS_CONNECTED_TYPE):
+            self.acl = self.redisClient.get(alwaysConnected)
         else:
             debug1("pullAcl() -> Unsupported ACL type %d\n" % self.acl_type)
             self.acl = None
@@ -807,6 +828,19 @@ class AclHandler:
         else:
             log("Network Connection UDP Allowed ACL \n\n%s" % _allowed_udp_targets)
 
+    def reload_always_connected(self):
+        global _always_connected
+
+        if self.acl is not None:
+            _always_connected = self.acl
+        else:
+            _always_connected = ALWAYS_CONNECTED_OFF
+
+        if (_always_connected == ALWAYS_CONNECTED_OFF):
+            log("alwaysConnected mode is OFF")
+        else:
+            log("alwaysConnected mode is ON")
+
 class ChannelListener(threading.Thread):
 
     def __init__(self, redisHost, redisPort, channels):
@@ -854,6 +888,8 @@ class ChannelListener(threading.Thread):
                 acl_type = ACL_SOURCES_TYPE
             elif (data == sshuttleAclExcluded):
                 acl_type = ACL_EXCLUDED_SOURCES_TYPE
+            elif (data == alwaysConnected):
+                acl_type = ALWAYS_CONNECTED_TYPE
             else:
                 debug3("Unsupported ACL type. Channel: %s, Data: %s\n" % (channel, data))
 
@@ -865,6 +901,7 @@ class ChannelListener(threading.Thread):
         AclHandler(self.redisClient, ALLOWED_UDP_ACL_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_SOURCES_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_EXCLUDED_SOURCES_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ALWAYS_CONNECTED_TYPE).reload_acl_file()
 
     def initializeChannelHandlers(self):
         try:
