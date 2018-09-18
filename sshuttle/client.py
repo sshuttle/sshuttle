@@ -396,10 +396,6 @@ def expire_connections(now, mux):
     debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
 
 def check_connections_allowed(mux):
-    # if alwaysConnected mode is on, all connections are allowed. we don't need to check them
-    if _always_connected == ALWAYS_CONNECTED_ON:
-        return
-
     # we also want to close all TCP connections from sources that have expired their lease
     if not _allowed_targets_modified and not _sources_modified:
        return
