@@ -564,11 +564,11 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
     if check_sources:
         ctime = time.time()
         if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
-            debug1("Connection from a source excluded from the ACL\n")
+            debug3("Connection from a source excluded from the ACL\n")
             return True
 
+        # TODO: eventually this will check aclAlwaysConnected to verify workspace IPs
         check_allowed_sources = True
-
         if _always_connected == ALWAYS_CONNECTED_ON:
             debug1("TCP connection source is allowed because alwaysConnected mode is ON\n")
             check_allowed_sources = False
@@ -601,10 +601,10 @@ def udp_connection_is_allowed(dstip, dstport, srcip):
         debug1("Connection from a source excluded from the ACL\n")
         return True
 
+    # TODO: eventually this will check aclAlwaysConnected to verify workspace IPs
     check_allowed_sources = True
-
     if _always_connected == ALWAYS_CONNECTED_ON:
-        debug1("UDP connection source is allowed because alwaysConnected mode is ON\n")
+        debug3("UDP connection source is allowed because alwaysConnected mode is ON\n")
         check_allowed_sources = False
 
     if check_allowed_sources:
