@@ -560,21 +560,29 @@ def matches_acl(dstip, dstport, store_to_check):
     return False
 
 def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, check_sources):
+
     if check_sources:
-       ctime = time.time()
-       if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
-           debug1("Connection from a source excluded from the ACL\n")
-           return True
-    
-       if not _allowed_sources:
-           debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
-           return False
-       if (srcip not in _allowed_sources):
-           debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
-           return False
-       if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
-           debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
-           return False
+        ctime = time.time()
+        if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
+            debug1("Connection from a source excluded from the ACL\n")
+            return True
+
+        check_allowed_sources = True
+
+        if _always_connected == ALWAYS_CONNECTED_ON:
+            debug1("TCP connection source is allowed because alwaysConnected mode is ON\n")
+            check_allowed_sources = False
+
+        if check_allowed_sources:
+            if not _allowed_sources:
+                debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
+                return False
+            if (srcip not in _allowed_sources):
+                debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
+                return False
+            if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+                debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
+                return False
 
     if check_acl:
        if matches_acl(dstip, dstport, _allowed_tcp_targets):
@@ -583,31 +591,32 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
        return True
 
 def tcp_connection_is_allowed(dstip, dstport, srcip):
-    if _always_connected == ALWAYS_CONNECTED_ON:
-        debug1("TCP connection is allowed because alwaysConnected mode is ON\n")
-        return True
 
     return tcp_connection_is_allowed_conditional(dstip, dstport, srcip, True, True)
 
 def udp_connection_is_allowed(dstip, dstport, srcip):
-    if _always_connected == ALWAYS_CONNECTED_ON:
-        debug1("UDP connection is allowed because alwaysConnected mode is ON\n")
-        return True
 
     ctime = time.time()
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
         debug1("Connection from a source excluded from the ACL\n")
         return True
-    
-    if not _allowed_sources:
-        debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
-        return False
-    if (srcip not in _allowed_sources):
-        debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
-        return False
-    if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
-        debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
-        return False
+
+    check_allowed_sources = True
+
+    if _always_connected == ALWAYS_CONNECTED_ON:
+        debug1("UDP connection source is allowed because alwaysConnected mode is ON\n")
+        check_allowed_sources = False
+
+    if check_allowed_sources:
+        if not _allowed_sources:
+            debug3("Connection not allowed - allowed sources exception - not _allowed_sources\n")
+            return False
+        if (srcip not in _allowed_sources):
+            debug3("Connection not allowed - allowed sources exception - (srcip not in _allowed_sources)\n")
+            return False
+        if (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime):
+            debug3("Connection not allowed - allowed sources exception - (srcip in _allowed_sources and (_allowed_sources[srcip] / 1000.0) < ctime)\n")
+            return False
 
     if matches_acl(dstip, dstport, _allowed_udp_targets):
         return True
