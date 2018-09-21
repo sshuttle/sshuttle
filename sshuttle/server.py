@@ -220,7 +220,7 @@ class DnsProxy(Handler):
                 log('DNS send to %r: %s\n' % (peer, e))
                 return
 
-    def callback(self, sock, r, w):
+    def callback(self, sock):
         peer = self.peers[sock]
 
         try:
@@ -264,7 +264,7 @@ class UdpProxy(Handler):
             log('UDP send to %r port %d: %s\n' % (dstip[0], dstip[1], e))
             return
 
-    def callback(self, sock, r, w):
+    def callback(self, sock):
         try:
             data, peer = sock.recvfrom(4096)
         except socket.error:
@@ -300,7 +300,6 @@ def main(latency_control, auto_hosts, to_nameserver):
                             socket.AF_INET, socket.SOCK_STREAM),
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
-    handlers.append(mux)
     routepkt = ''
     for r in routes:
         routepkt += '%d,%s,%d\n' % r

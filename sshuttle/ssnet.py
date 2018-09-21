@@ -64,6 +64,8 @@ def _add(l, elem):
     if elem not in l:
         l.append(elem)
 
+def _add_map(m, key, value):
+    m[key] = value
 
 def _fds(l):
     out = []
@@ -118,6 +120,7 @@ class SockWrapper:
         self.peername = peername or _try_peername(self.rsock)
         self.connection_is_allowed_callback = connection_is_allowed_callback
         self.try_connect()
+        self.isWrite = False
 
     def __del__(self):
         global _swcount
@@ -132,6 +135,9 @@ class SockWrapper:
         else:
             fds = '#%d,%d' % (self.rsock.fileno(), self.wsock.fileno())
         return 'SW%s:%s' % (fds, self.peername)
+
+    def isMux(self):
+        return False
 
     def seterr(self, e):
         if not self.exc:
@@ -268,11 +274,15 @@ class Handler:
         if callback:
             self.callback = callback
 
-    def pre_select(self, r, w, x):
+    def is_ready(self):
+        return False
+
+    def pre_select(self, r, w, x, rh, wh):
         for i in self.socks:
             _add(r, i)
+            _add_map(rh, i.fileno(), self)
 
-    def callback(self, sock, r, w):
+    def callback(self, sock):
         log('--no callback defined-- %r\n' % self)
         (r, _, _) = select.select(self.socks, [], [], 0)
         for s in r:
@@ -291,37 +301,67 @@ class Proxy(Handler):
         self.wrap1 = wrap1
         self.wrap2 = wrap2
 
-    def pre_select(self, r, w, x):
+    def is_ready(self):
+        if self.wrap1.isWrite or self.wrap2.isWrite:
+            return True
+
+        return False
+
+    def isToFull(self, wh):
+        if self.wrap2.too_full() or self.wrap1.too_full():
+            self.maybe_add_to_wh(wh)
+            return True
+        return False
+
+    def maybe_noread(self):
         if self.wrap1.shut_write:
             self.wrap2.noread()
         if self.wrap2.shut_write:
             self.wrap1.noread()
 
-        if self.wrap1.connect_to:
-            _add(w, self.wrap1.rsock)
-        elif self.wrap1.buf:
-            if not self.wrap2.too_full():
-                _add(w, self.wrap2.wsock)
-        elif not self.wrap1.shut_read:
-            _add(r, self.wrap1.rsock)
+    def process_wrap(self, wrap1, wrap2, r, w, rh, wh):
+        if wrap1.connect_to:
+            wrap1.isWrite = True
+            _add(w, wrap1.rsock)
+        elif wrap1.buf:
+            if not wrap2.too_full():
+                wrap2.isWrite = True
+                _add(w, wrap2.wsock)
+        elif not wrap1.shut_read:
+            _add(r, wrap1.rsock)
+            _add_map(rh, wrap1.rsock.fileno(), self)
+    
+    def maybe_add_to_wh(self,wh):
+        if self.wrap2.isWrite or self.wrap1.isWrite:
+            _add(wh, self)
+    
+    def pre_select(self, r, w, x, rh, wh):
 
-        if self.wrap2.connect_to:
-            _add(w, self.wrap2.rsock)
-        elif self.wrap2.buf:
-            if not self.wrap1.too_full():
-                _add(w, self.wrap1.wsock)
-        elif not self.wrap2.shut_read:
-            _add(r, self.wrap2.rsock)
+        if self.isToFull(wh):
+            return
 
-    def callback(self, sock, r, w):
+        self.maybe_noread()
+        self.process_wrap(self.wrap1,self.wrap2,r,w,rh,wh)
+        self.process_wrap(self.wrap2,self.wrap1,r,w,rh,wh)
+        self.maybe_add_to_wh(wh)
+
+    def callback(self, sock):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
-        if self.wrap1.rsock in r:
+        if self.wrap1.rsock is sock:
             self.wrap1.fill()
-        if self.wrap2.rsock in r:
+        if self.wrap2.rsock is sock:
             self.wrap2.fill()
+
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
+
+        if self.wrap1.isMux() and not self.wrap1.buf and self.wrap1.shut_read and self.wrap2.shut_write:
+            self.wrap1.nowrite()
+
+        if self.wrap2.isMux() and not self.wrap2.buf and self.wrap2.shut_read and self.wrap1.shut_write:
+            self.wrap2.nowrite()
+
         if self.wrap1.buf and self.wrap2.shut_write:
             self.wrap1.buf = []
             self.wrap1.noread()
@@ -333,6 +373,13 @@ class Proxy(Handler):
             self.ok = False
             self.wrap1.nowrite()
             self.wrap2.nowrite()
+
+        if self.wrap1.shut_read or self.wrap1.shut_write or self.wrap2.shut_read or self.wrap2.shut_write:
+            self.wrap1.isWrite = True
+            self.wrap2.isWrite = True
+        else:
+            self.wrap1.isWrite = False
+            self.wrap2.isWrite = False
 
 class Mux(Handler):
 
@@ -494,12 +541,12 @@ class Mux(Handler):
         if self.outbuf:
             _add(w, self.wsock)
 
-    def callback(self, sock, r, w):
+    def callback(self, r, w):
         if self.rsock in r:
+            r.remove(self.rsock)
             self.handle()
         if self.outbuf and self.wsock in w:
             self.flush()
-
 
 class MuxWrapper(SockWrapper):
 
@@ -517,6 +564,9 @@ class MuxWrapper(SockWrapper):
 
     def __repr__(self):
         return 'SW%r:Mux#%d' % (self.peername, self.channel)
+
+    def isMux(self):
+        return True
 
     def noread(self):
         if not self.shut_read:
@@ -567,11 +617,13 @@ class MuxWrapper(SockWrapper):
     def got_packet(self, cmd, data):
         if cmd == CMD_TCP_EOF:
             # Remote side already knows the status - set flag but don't notify
+            self.isWrite = True
             self.setnoread()
         elif cmd == CMD_TCP_STOP_SENDING:
             # Remote side already knows the status - set flag but don't notify
             self.setnowrite()
         elif cmd == CMD_TCP_DATA:
+            self.isWrite = True
             self.buf.append(data)
         else:
             raise Exception('unknown command %d (%d bytes)'
@@ -589,26 +641,38 @@ def runonce(handlers, mux):
     r = []
     w = []
     x = []
+    
+    wh = []
+    rh = {}
     to_remove = [s for s in handlers if not s.ok]
     for h in to_remove:
         handlers.remove(h)
 
+    mux.pre_select(r, w, x)
+
     for s in handlers:
-        s.pre_select(r, w, x)
-    #debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
-    #       % (len(handlers), _fds(r), _fds(w), _fds(x),
-    #           mux.fullness, mux.too_full))
+        s.pre_select(r, w, x, rh, wh)
+    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
+           % (len(handlers), _fds(r), _fds(w), _fds(x),
+               mux.fullness, mux.too_full))
+    #waitingr = len(r)
+    #waitingw = len(w)
     (r, w, x) = select.select(r, w, x)
-    #debug2('  Ready: %d r=%r w=%r x=%r\n'
-    #       % (len(handlers), _fds(r), _fds(w), _fds(x)))
-    ready = r + w + x
-    did = {}
-    for h in handlers:
-        for s in h.socks:
-            if s in ready:
-                h.callback(s, r, w)
-                did[s] = 1
-    for s in ready:
-        if s not in did:
-            raise Fatal('socket %r was not used by any handler' % s)
+    debug2('  Ready: %d r=%r w=%r x=%r\n'
+           % (len(handlers), _fds(r), _fds(w), _fds(x)))
+    mux.callback(r, w)
+
+    #handler_count = 0 
+    for sock in r:
+         h = rh.get(sock.fileno()) 
+         h.callback(sock)
+    #     handler_count += 1
+    #log('handler_count %d\n' % handler_count)
+    
+    for handler in wh:
+        if handler.is_ready():
+            handler.callback(None)
+    #        handler_count += 1 
+
+    #log('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' % (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
 

@@ -185,7 +185,7 @@ class MultiListener:
         handlers.append(
             Handler(
                 socks,
-                lambda sock, r, w: callback(sock, method, mux, handlers)
+                lambda sock: callback(sock, method, mux, handlers)
             )
         )
 
@@ -907,7 +907,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         else:
             raise
     mux = Mux(serversock, serversock)
-    handlers.append(mux)
 
     expected = b'SSHUTTLE0001'
 
