@@ -76,7 +76,8 @@ def main():
                                       opt.daemon,
                                       opt.to_ns,
                                       opt.pidfile,
-                                      opt.user)
+                                      opt.user,
+                                      opt.sudo_pythonpath)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

@@ -310,3 +310,11 @@ parser.add_argument(
     (internal use only)
     """
 )
+parser.add_argument(
+    "--no-sudo-pythonpath",
+    action="store_false",
+    dest="sudo_pythonpath",
+    help="""
+    do not set PYTHONPATH when invoking sudo
+    """
+)

@@ -183,7 +183,7 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name):
+    def __init__(self, method_name, sudo_pythonpath):
 
         # Default to sudo unless on OpenBSD in which case use built in `doas`
         elevbin = 'sudo'
@@ -198,10 +198,12 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
-        elev_prefix = [part % {'eb': elevbin, 'pp': python_path}
+        elev_prefix = [part % {'eb': elevbin}
                        for part in ['%(eb)s', '-p',
-                                    '[local %(eb)s] Password: ',
-                                    '/usr/bin/env', 'PYTHONPATH=%(pp)s']]
+                                    '[local %(eb)s] Password: ']]
+        if sudo_pythonpath:
+            elev_prefix += ['/usr/bin/env',
+                            'PYTHONPATH=%s' % python_path]
         argv_tries = [elev_prefix + argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
@@ -550,7 +552,7 @@ def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user):
+         user, sudo_pythonpath):
 
     if daemon:
         try:
@@ -560,7 +562,7 @@ def main(listenip_v6, listenip_v4,
             return 5
     debug1('Starting sshuttle proxy.\n')
 
-    fw = FirewallClient(method_name)
+    fw = FirewallClient(method_name, sudo_pythonpath)
 
     # Get family specific subnet lists
     if dns:
