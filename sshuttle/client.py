@@ -53,6 +53,7 @@ _allowed_tcp_targets = {}
 _allowed_udp_targets = {}
 _allowed_sources = {}
 _excluded_sources = {}
+_acl_always_connected = {}
 _allowed_targets_modified = False
 _sources_modified = False
 _always_connected = ALWAYS_CONNECTED_OFF
@@ -63,12 +64,14 @@ ACL_SOURCES_TYPE = 3
 ACL_EXCLUDED_SOURCES_TYPE = 4
 ALLOWED_UDP_ACL_TYPE = 5
 ALWAYS_CONNECTED_TYPE = 6
+ACL_ALWAYS_CONNECTED_TYPE = 7
 
 sshuttleAclTcp = "sshuttleAcl"
 sshuttleAclUdp = "sshuttleAclUdp"
 sshuttleAclSources = "sshuttleAclSources"
 sshuttleAclExcluded = "sshuttleAclExcluded"
 alwaysConnected = "alwaysConnected"
+aclAlwaysConnected = "aclAlwaysConnected"
 sshuttleAclEventsChannel = "aclEvents"
 
 preferreddns = ''
@@ -563,10 +566,9 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
             debug3("Connection from a source excluded from the ACL\n")
             return True
 
-        # TODO: eventually this will check aclAlwaysConnected to verify workspace IPs
         check_allowed_sources = True
-        if _always_connected == ALWAYS_CONNECTED_ON:
-            debug1("TCP connection source is allowed because alwaysConnected mode is ON\n")
+        if (_always_connected == ALWAYS_CONNECTED_ON) and (srcip in _acl_always_connected):
+            debug3("TCP source allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n")
             check_allowed_sources = False
 
         if check_allowed_sources:
@@ -597,10 +599,9 @@ def udp_connection_is_allowed(dstip, dstport, srcip):
         debug1("Connection from a source excluded from the ACL\n")
         return True
 
-    # TODO: eventually this will check aclAlwaysConnected to verify workspace IPs
     check_allowed_sources = True
-    if _always_connected == ALWAYS_CONNECTED_ON:
-        debug3("UDP connection source is allowed because alwaysConnected mode is ON\n")
+    if (_always_connected == ALWAYS_CONNECTED_ON) and (srcip in _acl_always_connected):
+        debug3("UDP source allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n")
         check_allowed_sources = False
 
     if check_allowed_sources:
@@ -748,6 +749,9 @@ class AclHandler:
         elif (self.acl_type is ALWAYS_CONNECTED_TYPE):
             self.reload_always_connected()
             _sources_modified = True
+        elif (self.acl_type is ACL_ALWAYS_CONNECTED_TYPE):
+            self.reload_acl_always_connected()
+            _sources_modified = True
 
 
     def pullAcl(self):
@@ -761,6 +765,8 @@ class AclHandler:
             self.acl = self.redisClient.get(sshuttleAclExcluded)
         elif (self.acl_type is ALWAYS_CONNECTED_TYPE):
             self.acl = self.redisClient.get(alwaysConnected)
+        elif (self.acl_type is ACL_ALWAYS_CONNECTED_TYPE):
+            self.acl = self.redisClient.get(aclAlwaysConnected)
         else:
             debug1("pullAcl() -> Unsupported ACL type %d\n" % self.acl_type)
             self.acl = None
@@ -846,6 +852,20 @@ class AclHandler:
         else:
             log("alwaysConnected mode is ON")
 
+    def reload_acl_always_connected(self):
+        global _acl_always_connected
+
+        if self.acl is not None:
+            try:
+                _new_acl_always_connected = json.loads(self.acl, "utf-8")
+                _acl_always_connected = _new_acl_always_connected
+            except BaseException as e:
+                debug3("An exception occurred while loading the aclAlwaysConnected data: {}\n\n".format(e))
+        else:
+            _acl_always_connected = None
+
+        debug3("Always Connected ACL: \n\n%s" % _acl_always_connected)
+
 class ChannelListener(threading.Thread):
 
     def __init__(self, redisHost, redisPort, channels):
@@ -895,6 +915,8 @@ class ChannelListener(threading.Thread):
                 acl_type = ACL_EXCLUDED_SOURCES_TYPE
             elif (data == alwaysConnected):
                 acl_type = ALWAYS_CONNECTED_TYPE
+            elif (data == aclAlwaysConnected):
+                acl_type = ACL_ALWAYS_CONNECTED_TYPE
             else:
                 debug3("Unsupported ACL type. Channel: %s, Data: %s\n" % (channel, data))
 
@@ -907,6 +929,7 @@ class ChannelListener(threading.Thread):
         AclHandler(self.redisClient, ACL_SOURCES_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_EXCLUDED_SOURCES_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ALWAYS_CONNECTED_TYPE).reload_acl_file()
+        AclHandler(self.redisClient, ACL_ALWAYS_CONNECTED_TYPE).reload_acl_file()
 
     def initializeChannelHandlers(self):
         try:
