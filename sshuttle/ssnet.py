@@ -307,12 +307,6 @@ class Proxy(Handler):
 
         return False
 
-    def isToFull(self, wh):
-        if self.wrap2.too_full() or self.wrap1.too_full():
-            self.maybe_add_to_wh(wh)
-            return True
-        return False
-
     def maybe_noread(self):
         if self.wrap1.shut_write:
             self.wrap2.noread()
@@ -337,7 +331,8 @@ class Proxy(Handler):
     
     def pre_select(self, r, w, x, rh, wh):
 
-        if self.isToFull(wh):
+        if self.wrap2.too_full() or self.wrap1.too_full():
+            self.maybe_add_to_wh(wh)
             return
 
         self.maybe_noread()
@@ -350,7 +345,7 @@ class Proxy(Handler):
         self.wrap2.try_connect()
         if self.wrap1.rsock is sock:
             self.wrap1.fill()
-        if self.wrap2.rsock is sock:
+        elif self.wrap2.rsock is sock:
             self.wrap2.fill()
 
         self.wrap1.copy_to(self.wrap2)
@@ -655,24 +650,23 @@ def runonce(handlers, mux):
     debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
            % (len(handlers), _fds(r), _fds(w), _fds(x),
                mux.fullness, mux.too_full))
-    #waitingr = len(r)
-    #waitingw = len(w)
+    waitingr = len(r)
+    waitingw = len(w)
     (r, w, x) = select.select(r, w, x)
     debug2('  Ready: %d r=%r w=%r x=%r\n'
            % (len(handlers), _fds(r), _fds(w), _fds(x)))
     mux.callback(r, w)
 
-    #handler_count = 0 
+    handler_count = 0
     for sock in r:
          h = rh.get(sock.fileno()) 
          h.callback(sock)
-    #     handler_count += 1
-    #log('handler_count %d\n' % handler_count)
-    
+         handler_count += 1
+
     for handler in wh:
         if handler.is_ready():
             handler.callback(None)
-    #        handler_count += 1 
+            handler_count += 1
 
-    #log('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' % (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
+    debug1('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' % (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
 
