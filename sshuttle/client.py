@@ -63,7 +63,9 @@ DISALLOWED_ACL_TYPE = 2
 ACL_SOURCES_TYPE = 3
 ACL_EXCLUDED_SOURCES_TYPE = 4
 ALLOWED_UDP_ACL_TYPE = 5
+# the global roomFeature flag that allows Always Connected desktops in the room
 ALWAYS_CONNECTED_TYPE = 6
+# the list of desktops that currently have Always Connected enabled
 ACL_ALWAYS_CONNECTED_TYPE = 7
 
 sshuttleAclTcp = "sshuttleAcl"
@@ -567,8 +569,9 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
             return True
 
         check_allowed_sources = True
+        # the global roomFeature must be turned ON and the srcip must match a desktop that has Always Connected enabled
         if (_always_connected == ALWAYS_CONNECTED_ON) and (srcip in _acl_always_connected):
-            debug3("TCP source allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n")
+            debug3("TCP source %r allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n" % srcip)
             check_allowed_sources = False
 
         if check_allowed_sources:
@@ -600,8 +603,9 @@ def udp_connection_is_allowed(dstip, dstport, srcip):
         return True
 
     check_allowed_sources = True
+    # the global roomFeature must be turned ON and the srcip must match a desktop that has Always Connected enabled
     if (_always_connected == ALWAYS_CONNECTED_ON) and (srcip in _acl_always_connected):
-        debug3("UDP source allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n")
+        debug3("UDP source %r allowed because alwaysConnected mode is ON and srcip is in aclAlwaysConnected\n" % srcip)
         check_allowed_sources = False
 
     if check_allowed_sources:
