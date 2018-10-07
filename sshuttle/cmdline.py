@@ -82,7 +82,7 @@ def main():
             if return_code == 0:
                 log('Normal exit code, exiting...')
             else:
-                log('Abnormal exit code detected, failing...' % return_code)
+                log('Abnormal exit code %d detected, failing...' % return_code)
             return return_code
 
     except Fatal as e:
