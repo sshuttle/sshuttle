@@ -976,7 +976,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         else:
             raise
     mux = Mux(serversock, serversock)
-    handlers.append(mux)
 
     expected = b'SSHUTTLE0001'
 

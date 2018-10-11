@@ -300,7 +300,6 @@ def main(latency_control, auto_hosts, to_nameserver):
                             socket.AF_INET, socket.SOCK_STREAM),
               socket.fromfd(sys.stdout.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM))
-    handlers.append(mux)
     routepkt = ''
     for r in routes:
         routepkt += '%d,%s,%d\n' % r
