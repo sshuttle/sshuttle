@@ -85,8 +85,9 @@ def test_subnet_weight():
         (AF_INET, 0, 1, '0.0.0.0', 0, 0)
     ]
 
-    assert subnets_sorted == \
-            sorted(subnets, key=sshuttle.firewall.subnet_weight, reverse=True)
+    assert subnets_sorted == sorted(subnets,
+                                    key=sshuttle.firewall.subnet_weight,
+                                    reverse=True)
 
 
 @patch('sshuttle.firewall.rewrite_etc_hosts')

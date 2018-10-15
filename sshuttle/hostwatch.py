@@ -44,7 +44,7 @@ def write_host_cache():
     finally:
         try:
             os.unlink(tmpname)
-        except:
+        except BaseException:
             pass
 
 

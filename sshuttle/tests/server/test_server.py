@@ -5,6 +5,7 @@ from mock import patch, Mock
 
 import sshuttle.server
 
+
 def test__ipmatch():
     assert sshuttle.server._ipmatch("1.2.3.4") is not None
     assert sshuttle.server._ipmatch("::1") is None   # ipv6 not supported

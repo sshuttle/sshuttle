@@ -77,10 +77,10 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         else:
             rhost = rhostport
     else:  # IPv4
-        l = (rhostport or '').rsplit(':', 1)
-        rhost = l[0]
-        if len(l) > 1:
-            portl = ['-p', str(int(l[1]))]
+        host_port = (rhostport or '').rsplit(':', 1)
+        rhost = host_port[0]
+        if len(host_port) > 1:
+            portl = ['-p', str(int(host_port[1]))]
 
     if rhost == '-':
         rhost = None

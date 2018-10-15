@@ -56,22 +56,22 @@ class Fatal(Exception):
 
 
 def resolvconf_nameservers():
-    l = []
+    lines = []
     for line in open('/etc/resolv.conf'):
         words = line.lower().split()
         if len(words) >= 2 and words[0] == 'nameserver':
-            l.append(family_ip_tuple(words[1]))
-    return l
+            lines.append(family_ip_tuple(words[1]))
+    return lines
 
 
 def resolvconf_random_nameserver():
-    l = resolvconf_nameservers()
-    if l:
-        if len(l) > 1:
+    lines = resolvconf_nameservers()
+    if lines:
+        if len(lines) > 1:
             # don't import this unless we really need it
             import random
-            random.shuffle(l)
-        return l[0]
+            random.shuffle(lines)
+        return lines[0]
     else:
         return (socket.AF_INET, '127.0.0.1')
 

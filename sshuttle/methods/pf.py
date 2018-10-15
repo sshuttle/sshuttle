@@ -35,11 +35,11 @@ class Generic(object):
 
     class pf_addr(Structure):
         class _pfa(Union):
-            _fields_ = [("v4", c_uint32),     # struct in_addr
-                       ("v6", c_uint32 * 4),  # struct in6_addr
-                       ("addr8", c_uint8 * 16),
-                       ("addr16", c_uint16 * 8),
-                       ("addr32", c_uint32 * 4)]
+            _fields_ = [("v4", c_uint32),      # struct in_addr
+                        ("v6", c_uint32 * 4),  # struct in6_addr
+                        ("addr8", c_uint8 * 16),
+                        ("addr16", c_uint16 * 8),
+                        ("addr32", c_uint32 * 4)]
 
         _fields_ = [("pfa", _pfa)]
         _anonymous_ = ("pfa",)
@@ -120,16 +120,18 @@ class Generic(object):
             pr = self.pfioc_rule()
 
         memmove(addressof(pr) + self.ANCHOR_CALL_OFFSET, name,
-                min(self.MAXPATHLEN, len(name))) # anchor_call = name
+                min(self.MAXPATHLEN, len(name)))  # anchor_call = name
         memmove(addressof(pr) + self.RULE_ACTION_OFFSET,
-                struct.pack('I', kind), 4) # rule.action = kind
+                struct.pack('I', kind), 4)  # rule.action = kind
 
-        memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
-            'I', self.PF_CHANGE_GET_TICKET), 4) # action = PF_CHANGE_GET_TICKET
+        memmove(addressof(pr) + self.ACTION_OFFSET,
+                struct.pack('I', self.PF_CHANGE_GET_TICKET),
+                4)  # action = PF_CHANGE_GET_TICKET
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
-        memmove(addressof(pr) + self.ACTION_OFFSET, struct.pack(
-            'I', self.PF_CHANGE_ADD_TAIL), 4) # action = PF_CHANGE_ADD_TAIL
+        memmove(addressof(pr) + self.ACTION_OFFSET,
+                struct.pack('I', self.PF_CHANGE_ADD_TAIL),
+                4)  # action = PF_CHANGE_ADD_TAIL
         ioctl(pf_get_dev(), pf.DIOCCHANGERULE, pr)
 
     @staticmethod
@@ -149,7 +151,6 @@ class Generic(object):
     @staticmethod
     def has_skip_loopback():
         return b'skip' in pfctl('-s Interfaces -i lo -v')[0]
-
 
 
 class FreeBsd(Generic):

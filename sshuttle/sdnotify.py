@@ -29,14 +29,18 @@ def _notify(message):
         debug1("Error notifying systemd: %s\n" % e)
         return False
 
+
 def send(*messages):
     return _notify(b'\n'.join(messages))
+
 
 def ready():
     return b"READY=1"
 
+
 def stop():
     return b"STOPPING=1"
+
 
 def status(message):
     return b"STATUS=%s" % message.encode('utf8')

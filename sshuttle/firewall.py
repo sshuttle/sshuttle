@@ -133,7 +133,7 @@ def main(method_name, syslog):
         try:
             (family, width, exclude, ip, fport, lport) = \
                     line.strip().split(',', 5)
-        except:
+        except Exception:
             raise Fatal('firewall: expected route or NSLIST but got %r' % line)
         subnets.append((
             int(family),
@@ -155,7 +155,7 @@ def main(method_name, syslog):
             break
         try:
             (family, ip) = line.strip().split(',', 1)
-        except:
+        except Exception:
             raise Fatal('firewall: expected nslist or PORTS but got %r' % line)
         nslist.append((int(family), ip))
         debug2('firewall manager: Got partial nslist: %r\n' % nslist)
@@ -221,7 +221,7 @@ def main(method_name, syslog):
 
         stdout.write('STARTED\n')
         sdnotify.send(sdnotify.ready(),
-                  sdnotify.status('Connected'))
+                      sdnotify.status('Connected'))
 
         try:
             stdout.flush()
@@ -249,43 +249,43 @@ def main(method_name, syslog):
         try:
             sdnotify.send(sdnotify.stop())
             debug1('firewall manager: undoing changes.\n')
-        except:
+        except Exception:
             pass
 
         try:
             if subnets_v6 or nslist_v6:
                 debug2('firewall manager: undoing IPv6 changes.\n')
                 method.restore_firewall(port_v6, socket.AF_INET6, udp, user)
-        except:
+        except Exception:
             try:
                 debug1("firewall manager: "
                        "Error trying to undo IPv6 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("---> %s\n" % line)
-            except:
+            except Exception:
                 pass
 
         try:
             if subnets_v4 or nslist_v4:
                 debug2('firewall manager: undoing IPv4 changes.\n')
                 method.restore_firewall(port_v4, socket.AF_INET, udp, user)
-        except:
+        except Exception:
             try:
                 debug1("firewall manager: "
                        "Error trying to undo IPv4 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except:
+            except Exception:
                 pass
 
         try:
             debug2('firewall manager: undoing /etc/hosts changes.\n')
             restore_etc_hosts(port_v6 or port_v4)
-        except:
+        except Exception:
             try:
                 debug1("firewall manager: "
                        "Error trying to undo /etc/hosts changes.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except:
+            except Exception:
                 pass
