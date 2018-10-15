@@ -1,12 +1,13 @@
 import errno
 import socket
 import signal
-import sshuttle.ssyslog as ssyslog
-import sshuttle.sdnotify as sdnotify
 import sys
 import os
 import platform
 import traceback
+
+import sshuttle.ssyslog as ssyslog
+import sshuttle.sdnotify as sdnotify
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 

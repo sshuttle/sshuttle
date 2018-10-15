@@ -1,9 +1,9 @@
-import pytest
-from mock import Mock, patch, call
 import socket
 from socket import AF_INET, AF_INET6
 import struct
 
+import pytest
+from mock import Mock, patch, call
 from sshuttle.helpers import Fatal
 from sshuttle.methods import get_method
 

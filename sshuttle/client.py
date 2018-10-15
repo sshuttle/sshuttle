@@ -3,13 +3,14 @@ import re
 import signal
 import time
 import subprocess as ssubprocess
-import sshuttle.helpers as helpers
 import os
+import sys
+import platform
+
+import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
-import sys
-import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers

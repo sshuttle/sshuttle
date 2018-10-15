@@ -1,7 +1,9 @@
 import socket
-import pytest
-import sshuttle.options
 from argparse import ArgumentTypeError as Fatal
+
+import pytest
+
+import sshuttle.options
 
 _ip4_reprs = {
         '0.0.0.0': '0.0.0.0',

@@ -1,6 +1,8 @@
 import socket
 import os
+
 from sshuttle.helpers import debug1
+
 
 def _notify(message):
     addr = os.environ.get("NOTIFY_SOCKET", None)

@@ -1,6 +1,7 @@
 import re
 import socket
 from argparse import ArgumentParser, Action, ArgumentTypeError as Fatal
+
 from sshuttle import __version__
 
 
