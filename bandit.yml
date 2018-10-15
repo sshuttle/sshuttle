@@ -1,5 +1,5 @@
 exclude_dirs:
-  - sshuttle/tests
+  - tests
 skips:
   - B101
   - B104
