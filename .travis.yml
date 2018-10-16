@@ -10,10 +10,10 @@ install:
     - travis_retry pip install -q -r requirements-tests.txt
 
 before_script:
-    # stop the build if there are Python syntax errors or undefined names.
-    - flake8 sshuttle --count --select=E901,E999,F821,F822,F823 --show-source --statistics
-    # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide.
-    - flake8 sshuttle --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    # stop the build if there are any pep8 violations
+    - flake8 sshuttle sshuttle tests
+    # exit-zero treats all errors as warnings
+    - flake8 sshuttle --exit-zero --max-complexity=10
 
 script:
   - PYTHONPATH=. py.test
