@@ -1,19 +1,18 @@
 language: python
 python:
 - 2.7
+  env: TOXENV=py27
 - 3.4
+  env: TOXENV=py34
 - 3.5
+  env: TOXENV=py35
 - 3.6
+  env: TOXENV=py36
 - pypy
+  env: TOXENV=pypy
 
 install:
-    - travis_retry pip install -q -r requirements-tests.txt
-
-before_script:
-    # stop the build if there are any pep8 violations
-    - flake8 sshuttle sshuttle tests
-    # exit-zero treats all errors as warnings
-    - flake8 sshuttle --exit-zero --max-complexity=10
+  - pip install tox
 
 script:
-  - PYTHONPATH=. py.test
+  - tox
