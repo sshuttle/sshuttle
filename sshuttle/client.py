@@ -33,7 +33,7 @@ except AttributeError:
     except ImportError:
         import socket
 
-_extra_fd = os.open('/dev/null', os.O_RDONLY)
+_extra_fd = os.open(os.devnull, os.O_RDONLY)
 
 
 def got_signal(signum, frame):
@@ -93,7 +93,7 @@ def daemonize():
     # be deleted.
     signal.signal(signal.SIGTERM, got_signal)
 
-    si = open('/dev/null', 'r+')
+    si = open(os.devnull, 'r+')
     os.dup2(si.fileno(), 0)
     os.dup2(si.fileno(), 1)
     si.close()
@@ -355,7 +355,7 @@ def onaccept_tcp(listener, method, mux, handlers):
                 sock, srcip = listener.accept()
                 sock.close()
             finally:
-                _extra_fd = os.open('/dev/null', os.O_RDONLY)
+                _extra_fd = os.open(os.devnull, os.O_RDONLY)
             return
         else:
             raise
