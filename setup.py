@@ -57,6 +57,12 @@ setup(
             'sshuttle = sshuttle.cmdline:main',
         ],
     },
-    tests_require=['pytest', 'pytest-runner', 'mock'],
+    tests_require=[
+        'pytest',
+        'pytest-cov',
+        'pytest-runner',
+        'mock',
+        'flake8',
+    ],
     keywords="ssh vpn",
 )

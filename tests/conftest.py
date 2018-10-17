@@ -7,4 +7,4 @@ else:
 
 collect_ignore = []
 if not good_python:
-    collect_ignore.append("sshuttle/tests/client")
+    collect_ignore.append("client")

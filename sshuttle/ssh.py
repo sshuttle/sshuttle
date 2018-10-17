@@ -117,8 +117,8 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         if python:
             pycmd = "'%s' -c '%s'" % (python, pyscript)
         else:
-            pycmd = ("P=python3; $P -V 2>/dev/null || P=python; "
-                     "exec \"$P\" -c %s") % quote(pyscript)
+            pycmd = ("P=python3; $P -V 2>%s || P=python; "
+                     "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
             pycmd = ("exec /bin/sh -c %s" % quote(pycmd))
         argv = (sshl +
                 portl +
