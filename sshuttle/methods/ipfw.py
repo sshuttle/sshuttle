@@ -105,7 +105,7 @@ def _fill_oldctls(prefix):
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
-    return ssubprocess.call(argv, stdout=open('/dev/null', 'w'))
+    return ssubprocess.call(argv, stdout=open(os.devnull, 'w'))
 
 
 _changedctls = []
