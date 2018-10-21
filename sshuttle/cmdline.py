@@ -59,6 +59,8 @@ def main():
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
             if opt.syslog:
                 ssyslog.start_syslog()
+                ssyslog.close_stdin()
+                ssyslog.stdout_to_syslog()
                 ssyslog.stderr_to_syslog()
             return_code = client.main(ipport_v6, ipport_v4,
                                       opt.ssh_cmd,
