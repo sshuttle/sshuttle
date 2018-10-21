@@ -261,7 +261,7 @@ class OpenBsd(Generic):
                         ("proto_variant", c_uint8),
                         ("direction", c_uint8)]
 
-        self.pfioc_rule = c_char * 3400
+        self.pfioc_rule = c_char * 3416
         self.pfioc_natlook = pfioc_natlook
         super(OpenBsd, self).__init__()
 
