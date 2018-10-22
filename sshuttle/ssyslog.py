@@ -8,13 +8,13 @@ _p = None
 
 def start_syslog():
     global _p
-    devnull = open(os.devnull, 'w')
-    _p = ssubprocess.Popen(
-        ['logger', '-p', 'daemon.notice', '-t', 'sshuttle'],
-        stdin=ssubprocess.PIPE,
-        stdout=devnull,
-        stderr=devnull
-    )
+    with open(os.devnull, 'w') as devnull:
+        _p = ssubprocess.Popen(
+            ['logger', '-p', 'daemon.notice', '-t', 'sshuttle'],
+            stdin=ssubprocess.PIPE,
+            stdout=devnull,
+            stderr=devnull
+        )
 
 
 def close_stdin():
