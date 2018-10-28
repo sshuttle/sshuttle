@@ -205,10 +205,10 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
-             b'pass out quick inet6 proto tcp to '
-             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out route-to lo0 inet6 proto tcp to '
              b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
+             b'pass out inet6 proto tcp to '
+             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out route-to lo0 inet6 proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
@@ -257,8 +257,8 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'-> 127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
-             b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
+             b'pass out inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out route-to lo0 inet proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
@@ -308,10 +308,10 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
-             b'pass out quick inet6 proto tcp to '
-             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out route-to lo0 inet6 proto tcp to '
              b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
+             b'pass out inet6 proto tcp to '
+             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out route-to lo0 inet6 proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
@@ -359,8 +359,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'to 1.2.3.0/24 -> 127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
-             b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
+             b'pass out inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out route-to lo0 inet proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
@@ -416,10 +416,10 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'port 8000:9000 divert-to ::1 port 1024\n'
              b'pass in on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 rdr-to ::1 port 1026\n'
-             b'pass out quick inet6 proto tcp to '
-             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out inet6 proto tcp to 2404:6800:4004:80c::/64 '
              b'port 8000:9000 route-to lo0 keep state\n'
+             b'pass out inet6 proto tcp to '
+             b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
              b'pass out inet6 proto udp to '
              b'<dns_servers> port 53 route-to lo0 keep state\n'),
         call('-e'),
@@ -464,8 +464,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'127.0.0.1 port 1025\n'
              b'pass in on lo0 inet proto udp to '
              b'<dns_servers> port 53 rdr-to 127.0.0.1 port 1027\n'
-             b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out inet proto tcp to 1.2.3.0/24 route-to lo0 keep state\n'
+             b'pass out inet proto tcp to 1.2.3.66/32 port 80:80\n'
              b'pass out inet proto udp to '
              b'<dns_servers> port 53 route-to lo0 keep state\n'),
         call('-e'),
