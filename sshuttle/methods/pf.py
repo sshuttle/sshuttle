@@ -217,7 +217,7 @@ class FreeBsd(Generic):
             b'pass out route-to lo0 %s proto tcp '
             b'to %s keep state' % (inet_version, subnet)
             if not exclude else
-            b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
+            b'pass out %s proto tcp to %s' % (inet_version, subnet)
             for exclude, subnet in includes
         ]
 
@@ -287,7 +287,7 @@ class OpenBsd(Generic):
             b'pass out %s proto tcp to %s '
             b'route-to lo0 keep state' % (inet_version, subnet)
             if not exclude else
-            b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
+            b'pass out %s proto tcp to %s' % (inet_version, subnet)
             for exclude, subnet in includes
         ]
 
@@ -452,7 +452,7 @@ class Method(BaseMethod):
             # exclusion first; the table will ignore the second, opposite
             # definition
             for _, swidth, sexclude, snet, fport, lport \
-                    in sorted(subnets, key=subnet_weight, reverse=True):
+                    in sorted(subnets, key=subnet_weight):
                 includes.append((sexclude, b"%s/%d%s" % (
                     snet.encode("ASCII"),
                     swidth,
