@@ -76,6 +76,8 @@ def main():
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
             if opt.syslog:
                 ssyslog.start_syslog()
+                ssyslog.close_stdin()
+                ssyslog.stdout_to_syslog()
                 ssyslog.stderr_to_syslog()
             return_code = client.main(ipport_v6, ipport_v4,
                                       opt.ssh_cmd,
@@ -93,12 +95,13 @@ def main():
                                       opt.daemon,
                                       opt.to_ns,
                                       opt.pidfile,
-                                      opt.user)
+                                      opt.user,
+                                      opt.sudo_pythonpath)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')
             else:
-                log('Abnormal exit code detected, failing...' % return_code)
+                log('Abnormal exit code %d detected, failing...' % return_code)
             return return_code
 
     except Fatal as e:
