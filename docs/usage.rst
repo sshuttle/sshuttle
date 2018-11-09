@@ -62,35 +62,35 @@ admin access on the server.
 
 Sudoers File
 ------------
-sshuttle can auto generate the proper sudoers.d file using the current user 
-for Linux and OSX. Doing this will allow sshuttle to run with out asking for
-the local sudo password and to give users who do not not have sudo access
+sshuttle can auto-generate the proper sudoers.d file using the current user 
+for Linux and OSX. Doing this will allow sshuttle to run without asking for
+the local sudo password and to give users who do not have sudo access
 ability to run sshuttle.
 
   sshuttle --sudoers
 
 DO NOT run this command with sudo, it will ask for your sudo password when
-its needed.
+it is needed.
 
 A costume user or group can be set with the :
 option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
-values for this vary based on how your system is configured. Values such as user
-names, groups pre-pended with `%` and sudoers user aliases will work. See the
-sudoers manual for more information on valid user specif actions. The options 
-must be used with `--sudoers`
+values for this vary based on how your system is configured. Values such as 
+usernames, groups pre-pended with `%` and sudoers user aliases will work. See
+the sudoers manual for more information on valid user specif actions.
+The options must be used with `--sudoers`
 
   sshuttle --sudoers --sudoers-user mike
   sshuttle --sudoers --sudoers-user %sudo
 
-The name of the file to be added to sudoers.d can be configure too. This is
-mostly not necessary, but can be usefile for giving more then one user access to
-sshuttle. The defualt is `sshuttle_auto`
+The name of the file to be added to sudoers.d can be configured as well. This
+is mostly not necessary but can be useful for giving more than one user
+access to sshuttle. The default is `sshuttle_auto`
 
   sshuttle --sudoer --sudoers-filename sshuttle_auto_mike
   sshuttle --sudoer --sudoers-filename sshuttle_auto_tommy
 
-You can also see what configuration will be added to your system with out
-modifying anything. This can be help full is the auto feature does not work, or
+You can also see what configuration will be added to your system without
+modifying anything. This can be helpfull is the auto feature does not work, or
 you want more control. This option also works with `--sudoers-username`.
 `--sudoers-filename` has no effect with this option.
 
