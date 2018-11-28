@@ -204,6 +204,10 @@ Options
     makes it a lot easier to debug and test the :option:`--auto-hosts`
     feature.
 
+.. option:: --version
+
+    Print program version.
+
 
 Configuration File
 ------------------
