@@ -23,8 +23,9 @@ common case:
 
 - You can't use openssh's PermitTunnel feature because
   it's disabled by default on openssh servers; plus it does
-  TCP-over-TCP, which has terrible performance (see below).
-
+  TCP-over-TCP, which has `terrible performance`_.
+  
+.. _terrible performance: https://sshuttle.readthedocs.io/en/stable/how-it-works.html
 
 Obtaining sshuttle
 ------------------
