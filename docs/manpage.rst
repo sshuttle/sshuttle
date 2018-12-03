@@ -218,7 +218,7 @@ To run :program:`sshuttle` with options defined in, e.g., `/etc/sshuttle.conf`
 just pass the path to the file preceded by the `@` character, e.g.
 :option:`@/etc/sshuttle.conf`.
 
-When running :program:`sshuttle` with options defined in a configuratio file,
+When running :program:`sshuttle` with options defined in a configuration file,
 options can still be passed via the command line in addition to what is
 defined in the file. If a given option is defined both in the file and in
 the command line, the value in the command line will take precedence.
