@@ -24,13 +24,12 @@ def ipt_chain_exists(family, table, name):
         'PATH': os.environ['PATH'],
         'LC_ALL': "C",
     }
-    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
-    for line in p.stdout:
-        if line.startswith(b'Chain %s ' % name.encode("ASCII")):
+    completed = ssubprocess.run(argv, stdout=ssubprocess.PIPE, env=env, encoding='ASCII')
+    if completed.returncode:
+        raise Fatal('%r returned %d' % (argv, completed.returncode))
+    for line in completed.stdout.split('\n'):
+        if line.startswith('Chain %s ' % name):
             return True
-    rv = p.wait()
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
 
 
 def ipt(family, table, *args):
