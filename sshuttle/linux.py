@@ -74,13 +74,13 @@ def nft_get_handle(expression, chain):
         'PATH': os.environ['PATH'],
         'LC_ALL': "C",
     }
-    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
-    for line in p.stdout:
-        if (b'jump %s' % chain.encode('utf-8')) in line:
-            return re.sub('.*# ', '', line.decode('utf-8'))
-    rv = p.wait()
-    if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+    try:
+        output = ssubprocess.check_output(argv, env=env)
+        for line in output.decode('utf-8').split('\n'):
+            if ('jump %s' % chain) in line:
+                return re.sub('.*# ', '', line)
+    except ssubprocess.CalledProcessError as e:
+        raise Fatal('%r returned %d' % (argv, e.returncode))
 
 
 _no_ttl_module = False
