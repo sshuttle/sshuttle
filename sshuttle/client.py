@@ -453,7 +453,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             stderr=ssyslog._p and ssyslog._p.stdin,
             options=dict(latency_control=latency_control,
                          auto_hosts=auto_hosts,
-                         to_nameserver=to_nameserver))
+                         to_nameserver=to_nameserver,
+                         auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
