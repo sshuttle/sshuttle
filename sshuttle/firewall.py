@@ -249,8 +249,8 @@ def main(method_name, syslog):
         try:
             sdnotify.send(sdnotify.stop())
             debug1('firewall manager: undoing changes.\n')
-        except:  # noqa
-            pass
+        except Exception:
+            debug2('An error occurred, ignoring it.')
 
         try:
             if subnets_v6 or nslist_v6:
@@ -262,8 +262,8 @@ def main(method_name, syslog):
                        "Error trying to undo IPv6 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("---> %s\n" % line)
-            except:  # noqa
-                pass
+            except Exception:
+                debug2('An error occurred, ignoring it.')
 
         try:
             if subnets_v4 or nslist_v4:
@@ -275,8 +275,8 @@ def main(method_name, syslog):
                        "Error trying to undo IPv4 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except:  # noqa
-                pass
+            except Exception:
+                debug2('An error occurred, ignoring it.')
 
         try:
             debug2('firewall manager: undoing /etc/hosts changes.\n')
@@ -287,5 +287,5 @@ def main(method_name, syslog):
                        "Error trying to undo /etc/hosts changes.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except:  # noqa
-                pass
+            except Exception:
+                debug2('An error occurred, ignoring it.')
