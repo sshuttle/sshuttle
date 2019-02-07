@@ -289,7 +289,6 @@ def main(latency_control, auto_hosts, to_nameserver, auto_nets):
         helpers.logprefix = 'server: '
     debug1('latency control setting = %r\n' % latency_control)
 
-
     # synchronization header
     sys.stdout.write('\0\0SSHUTTLE0001')
     sys.stdout.flush()

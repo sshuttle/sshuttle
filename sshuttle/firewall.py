@@ -249,7 +249,7 @@ def main(method_name, syslog):
         try:
             sdnotify.send(sdnotify.stop())
             debug1('firewall manager: undoing changes.\n')
-        except Exception:
+        except:  # noqa
             pass
 
         try:
@@ -262,7 +262,7 @@ def main(method_name, syslog):
                        "Error trying to undo IPv6 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("---> %s\n" % line)
-            except Exception:
+            except:  # noqa
                 pass
 
         try:
@@ -275,7 +275,7 @@ def main(method_name, syslog):
                        "Error trying to undo IPv4 firewall.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except Exception:
+            except:  # noqa
                 pass
 
         try:
@@ -287,5 +287,5 @@ def main(method_name, syslog):
                        "Error trying to undo /etc/hosts changes.\n")
                 for line in traceback.format_exc().splitlines():
                     debug1("firewall manager: ---> %s\n" % line)
-            except Exception:
+            except:  # noqa
                 pass
