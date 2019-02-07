@@ -35,4 +35,6 @@ sys.stderr.flush()
 sys.stdout.flush()
 
 sshuttle.helpers.verbose = verbosity
-main(options.latency_control, options.auto_hosts, options.to_nameserver)
+
+main(options.latency_control, options.auto_hosts, options.to_nameserver,
+     options.auto_nets)
