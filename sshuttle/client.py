@@ -3,13 +3,14 @@ import re
 import signal
 import time
 import subprocess as ssubprocess
-import sshuttle.helpers as helpers
 import os
+import sys
+import platform
+
+import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
-import sys
-import platform
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
@@ -268,11 +269,13 @@ class FirewallClient:
         self.pfile.write(b'ROUTES\n')
         for (family, ip, width, fport, lport) \
                 in self.subnets_include + self.auto_nets:
-            self.pfile.write(b'%d,%d,0,%s,%d,%d\n'
-                    % (family, width, ip.encode("ASCII"), fport, lport))
+            self.pfile.write(b'%d,%d,0,%s,%d,%d\n' % (family, width,
+                                                      ip.encode("ASCII"),
+                                                      fport, lport))
         for (family, ip, width, fport, lport) in self.subnets_exclude:
-            self.pfile.write(b'%d,%d,1,%s,%d,%d\n'
-                    % (family, width, ip.encode("ASCII"), fport, lport))
+            self.pfile.write(b'%d,%d,1,%s,%d,%d\n' % (family, width,
+                                                      ip.encode("ASCII"),
+                                                      fport, lport))
 
         self.pfile.write(b'NSLIST\n')
         for (family, ip) in self.nslist:
@@ -495,7 +498,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     def onroutes(routestr):
         if auto_nets:
             for line in routestr.strip().split(b'\n'):
-                if not line: continue
+                if not line:
+                    continue
                 (family, ip, width) = line.split(b',', 2)
                 family = int(family)
                 width = int(width)
@@ -707,7 +711,8 @@ def main(listenip_v6, listenip_v4,
         ports = range(12300, 9000, -1)
         for port in ports:
             debug2(' %d' % port)
-            if port in used_ports: continue
+            if port in used_ports:
+                continue
 
             dns_listener = MultiListener(socket.SOCK_DGRAM)
 

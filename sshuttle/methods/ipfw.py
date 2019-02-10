@@ -29,8 +29,8 @@ IPV6_RECVDSTADDR = 74
 if recvmsg == "python":
     def recv_udp(listener, bufsize):
         debug3('Accept UDP python using recvmsg.\n')
-        data, ancdata, _, srcip = \
-                listener.recvmsg(4096, socket.CMSG_SPACE(4))
+        data, ancdata, _, srcip = listener.recvmsg(4096,
+                                                   socket.CMSG_SPACE(4))
         dstip = None
         for cmsg_level, cmsg_type, cmsg_data in ancdata:
             if cmsg_level == socket.SOL_IP and cmsg_type == IP_RECVDSTADDR:
@@ -42,8 +42,8 @@ if recvmsg == "python":
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
         debug3('Accept UDP using socket_ext recvmsg.\n')
-        srcip, data, adata, _ = \
-                listener.recvmsg((bufsize,), socket.CMSG_SPACE(4))
+        srcip, data, adata, _ = listener.recvmsg((bufsize,),
+                                                 socket.CMSG_SPACE(4))
         dstip = None
         for a in adata:
             if a.cmsg_level == socket.SOL_IP and a.cmsg_type == IP_RECVDSTADDR:
@@ -134,6 +134,7 @@ def sysctl_set(name, val, permanent=False):
             _changedctls.append(name)
         return True
 
+
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
     debug1('>> %s\n' % ' '.join(argv))
@@ -147,12 +148,13 @@ def ipfw_noexit(*args):
     debug1('>> %s\n' % ' '.join(argv))
     ssubprocess.call(argv)
 
+
 class Method(BaseMethod):
 
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.ipv6 = False
-        result.udp = False #NOTE: Almost there, kernel patch needed
+        result.udp = False  # NOTE: Almost there, kernel patch needed
         result.dns = True
         return result
 
@@ -175,21 +177,21 @@ class Method(BaseMethod):
                "couldn't determine source IP address\n" % (dstip,))
             return
 
-        #debug3('Sending SRC: %r DST: %r\n' % (srcip, dstip))
+        # debug3('Sending SRC: %r DST: %r\n' % (srcip, dstip))
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_IP, IP_BINDANY, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         sender.setsockopt(socket.SOL_IP, socket.IP_TTL, 42)
         sender.bind(srcip)
-        sender.sendto(data,dstip)
+        sender.sendto(data, dstip)
         sender.close()
 
     def setup_udp_listener(self, udp_listener):
         if udp_listener.v4 is not None:
             udp_listener.v4.setsockopt(socket.SOL_IP, IP_RECVDSTADDR, 1)
-        #if udp_listener.v6 is not None:
-        #    udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
+        # if udp_listener.v6 is not None:
+        #     udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
@@ -199,7 +201,7 @@ class Method(BaseMethod):
                 'Address family "%s" unsupported by ipfw method_name'
                 % family_to_string(family))
 
-        #XXX: Any risk from this?
+        # XXX: Any risk from this?
         ipfw_noexit('delete', '1')
 
         while _changedctls:
@@ -238,8 +240,9 @@ class Method(BaseMethod):
 
         if subnets:
             # create new subnet entries
-            for _, swidth, sexclude, snet \
-                in sorted(subnets, key=lambda s: s[1], reverse=True):
+            for _, swidth, sexclude, snet in sorted(subnets,
+                                                    key=lambda s: s[1],
+                                                    reverse=True):
                 if sexclude:
                     ipfw('table', '125', 'add', '%s/%s' % (snet, swidth))
             else:

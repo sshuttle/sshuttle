@@ -169,7 +169,6 @@ class Method(BaseMethod):
             return proto + ('--dport', '%d:%d' % (fport, lport)) \
                     if fport else proto
 
-
         mark_chain = 'sshuttle-m-%s' % port
         tproxy_chain = 'sshuttle-t-%s' % port
         divert_chain = 'sshuttle-d-%s' % port

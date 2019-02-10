@@ -1,9 +1,9 @@
-import pytest
-from mock import Mock, patch, call
 import socket
 from socket import AF_INET, AF_INET6
 import struct
 
+import pytest
+from mock import Mock, patch, call
 from sshuttle.helpers import Fatal
 from sshuttle.methods import get_method
 
@@ -124,7 +124,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
     ]
     assert mock_ipt_ttl.mock_calls == [
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
-            '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
+             '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
              '--to-ports', '1025'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
              '--dest', u'1.2.3.33/32', '-p', 'udp',
@@ -140,7 +140,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         call(AF_INET, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
         call(AF_INET, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
-            '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
+             '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt_ttl.reset_mock()
