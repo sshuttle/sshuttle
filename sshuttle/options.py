@@ -63,7 +63,7 @@ def parse_ipport(s):
     elif ']' in s:
         rx = r'(?:\[([^]]+)])(?::(\d+))?$'
     else:
-        rx = r'([\w\.]+)(?::(\d+))?$'
+        rx = r'([\w\.\-]+)(?::(\d+))?$'
 
     m = re.match(rx, s)
     if not m:
