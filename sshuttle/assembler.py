@@ -30,7 +30,7 @@ while 1:
 sys.stderr.flush()
 sys.stdout.flush()
 
-# import can only happen once the code has been transferred to 
+# import can only happen once the code has been transferred to
 # the server. 'noqa: E402' excludes these lines from QA checks.
 import sshuttle.helpers  # noqa: E402
 sshuttle.helpers.verbose = verbosity
