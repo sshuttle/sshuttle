@@ -30,10 +30,12 @@ while 1:
 sys.stderr.flush()
 sys.stdout.flush()
 
-import sshuttle.helpers
+# import can only happen once the code has been transferred to 
+# the server. 'noqa: E402' excludes these lines from QA checks.
+import sshuttle.helpers  # noqa: E402
 sshuttle.helpers.verbose = verbosity
 
-import sshuttle.cmdline_options as options
-from sshuttle.server import main
+import sshuttle.cmdline_options as options  # noqa: E402
+from sshuttle.server import main  # noqa: E402
 main(options.latency_control, options.auto_hosts, options.to_nameserver,
      options.auto_nets)
