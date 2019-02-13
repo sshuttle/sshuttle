@@ -32,7 +32,7 @@ def parse_subnetport(s):
     if s.count(':') > 1:
         rx = r'(?:\[?([\w\:]+)(?:/(\d+))?]?)(?::(\d+)(?:-(\d+))?)?$'
     else:
-        rx = r'([\w\.]+)(?:/(\d+))?(?::(\d+)(?:-(\d+))?)?$'
+        rx = r'([\w\.\-]+)(?:/(\d+))?(?::(\d+)(?:-(\d+))?)?$'
 
     m = re.match(rx, s)
     if not m:
@@ -63,7 +63,7 @@ def parse_ipport(s):
     elif ']' in s:
         rx = r'(?:\[([^]]+)])(?::(\d+))?$'
     else:
-        rx = r'([\w\.]+)(?::(\d+))?$'
+        rx = r'([\w\.\-]+)(?::(\d+))?$'
 
     m = re.match(rx, s)
     if not m:
