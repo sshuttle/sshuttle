@@ -4,7 +4,7 @@ import getpass
 import random
 from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
-
+from distutils import spawn
 
 path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
@@ -31,7 +31,9 @@ def build_config(user_name):
 
 def save_config(content, file_name):
     process = Popen([
-        'sudo env "PATH=$PATH" sudoers-add "%(fn)s"' % {"fn": file_name},
+        '/usr/bin/sudo', 
+        spawn.find_executable('sudoers-add'),
+        file_name,
     ], stdout=PIPE, stdin=PIPE)
 
     process.stdin.write(content.encode())
