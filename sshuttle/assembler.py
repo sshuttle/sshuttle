@@ -2,10 +2,6 @@ import sys
 import zlib
 import imp
 
-import sshuttle.helpers
-import sshuttle.cmdline_options as options
-from sshuttle.server import main
-
 verbosity = verbosity  # noqa: F821 must be a previously defined global
 z = zlib.decompressobj()
 while 1:
@@ -34,7 +30,10 @@ while 1:
 sys.stderr.flush()
 sys.stdout.flush()
 
+import sshuttle.helpers
 sshuttle.helpers.verbose = verbosity
 
+import sshuttle.cmdline_options as options
+from sshuttle.server import main
 main(options.latency_control, options.auto_hosts, options.to_nameserver,
      options.auto_nets)
