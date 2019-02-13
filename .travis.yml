@@ -1,19 +1,20 @@
 language: python
-python:
-- 2.7
-- 3.4
-- 3.5
-- 3.6
-- pypy
+
+matrix:
+  include:
+    - python: 2.7
+      env: TOXENV=py27
+    - python: 3.4
+      env: TOXENV=py34
+    - python: 3.5
+      env: TOXENV=py35
+    - python: 3.6
+      env: TOXENV=py36
+    - python: pypy
+      env: TOXENV=pypy
 
 install:
-    - travis_retry pip install -q -r requirements-tests.txt
-
-before_script:
-    # stop the build if there are Python syntax errors or undefined names.
-    - flake8 sshuttle --count --select=E901,E999,F821,F822,F823 --show-source --statistics
-    # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide.
-    - flake8 sshuttle --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+  - pip install tox
 
 script:
-  - PYTHONPATH=. py.test
+  - tox

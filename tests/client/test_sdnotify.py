@@ -1,5 +1,6 @@
-from mock import Mock, patch, call
 import socket
+
+from mock import Mock, patch, call
 
 import sshuttle.sdnotify
 

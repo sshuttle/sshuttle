@@ -32,7 +32,7 @@ def build_config(user_name):
 def save_config(content, file_name):
     process = Popen([
         'sudo env "PATH=$PATH" sudoers-add "%(fn)s"' % {"fn": file_name},
-    ], stdout=PIPE, stdin=PIPE, shell=True)
+    ], stdout=PIPE, stdin=PIPE)
 
     process.stdin.write(content.encode())
 

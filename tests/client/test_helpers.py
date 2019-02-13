@@ -1,10 +1,10 @@
-from mock import patch, call
 import sys
 import io
 import socket
 from socket import AF_INET, AF_INET6
 import errno
 
+from mock import patch, call
 import sshuttle.helpers
 
 

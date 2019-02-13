@@ -1,7 +1,9 @@
 import io
 import socket
-import sshuttle.server
+
 from mock import patch, Mock
+
+import sshuttle.server
 
 
 def test__ipmatch():
@@ -45,7 +47,7 @@ Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
 def test_listroutes_iproute(mock_popen, mock_which):
     mock_pobj = Mock()
     mock_pobj.stdout = io.BytesIO(b"""
-default via 192.168.1.1 dev wlan0  proto static 
+default via 192.168.1.1 dev wlan0  proto static
 192.168.1.0/24 dev wlan0  proto kernel  scope link  src 192.168.1.1
 """)
     mock_pobj.wait.return_value = 0

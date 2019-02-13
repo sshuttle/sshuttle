@@ -9,6 +9,35 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+0.78.5 - 2019-01-28
+-------------------
+
+Added
+-----
+* doas support as replacmeent for sudo on OpenBSD.
+* Added ChromeOS section to documentation (#262)
+* Add --no-sudo-pythonpath option
+
+Fixed
+~~~~~
+* Fix forwarding to a single port.
+* Various updates to documentation.
+* Don't crash if we can't look up peername
+* Fix missing string formatting argument
+* Moved sshuttle/tests into tests.
+* Updated bandit config.
+* Replace path /dev/null by os.devnull.
+* Added coverage report to tests.
+* Fixes support for OpenBSD (6.1+) (#282).
+* Close stdin, stdout, and stderr when using syslog or forking to daemon (#283).
+* Changes pf exclusion rules precedence.
+* Fix deadlock with iptables with large ruleset.
+* docs: document --ns-hosts --to-ns and update --dns.
+* Use subprocess.check_output instead of run.
+* Fix potential deadlock condition in nft_get_handle.
+* auto-nets: retrieve routes only if using auto-nets.
+
+
 0.78.4 - 2018-04-02
 -------------------
 
