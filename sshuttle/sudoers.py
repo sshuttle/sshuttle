@@ -10,28 +10,29 @@ path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
 
 # randomize command alias to avoid collisions
-command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1,1000)}
+command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1, 1000)}
 
 template = '''
-Cmnd_Alias %(command_alias)s = /usr/bin/env PYTHONPATH=%(path_to_dist_packages)s %(python_path)s %(path_to_sshuttle)s *
+Cmnd_Alias %(ca)s = /usr/bin/env PYTHONPATH=%(dist_packages)s %(py)s %(path)s *
 
-%(user_name)s ALL=NOPASSWD: %(command_alias)s
+%(user_name)s ALL=NOPASSWD: %(ca)s
 '''
 
 def build_config(user_name):
     content = template % {
-        'command_alias': command_alias,
-        'path_to_dist_packages': path_to_dist_packages,
-        'python_path': sys.executable,
-        'path_to_sshuttle': path_to_sshuttle,
+        'ca': command_alias,
+        'dist_packages': path_to_dist_packages,
+        'py': sys.executable,
+        'path': path_to_sshuttle,
         'user_name': user_name,
     }
 
     return content
 
+
 def save_config(content, file_name):
     process = Popen([
-        '/usr/bin/sudo', 
+        '/usr/bin/sudo',
         spawn.find_executable('sudoers-add'),
         file_name,
     ], stdout=PIPE, stdin=PIPE)
@@ -48,6 +49,7 @@ def save_config(content, file_name):
     else:
         log('Success, sudoers file update.\n')
         exit(0)
+
 
 def sudoers(user_name=None, no_modify=None, file_name=None):
     user_name = user_name or getpass.getuser()
