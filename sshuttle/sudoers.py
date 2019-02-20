@@ -1,7 +1,7 @@
 import os
 import sys
 import getpass
-import random
+from uuid import uuid4
 from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
 from distutils import spawn
@@ -10,7 +10,7 @@ path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
 
 # randomize command alias to avoid collisions
-command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1, 1000)}
+command_alias = 'SSHUTTLE0%(num)s' % {'num': uuid4().hex[-3:]}
 
 template = '''
 Cmnd_Alias %(ca)s = /usr/bin/env PYTHONPATH=%(dist_packages)s %(py)s %(path)s *
