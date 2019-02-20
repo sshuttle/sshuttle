@@ -1,7 +1,7 @@
 import os
 import sys
 import getpass
-from uuid import uuid4
+from uuid import uuid
 from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
 from distutils import spawn
@@ -10,13 +10,15 @@ path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
 
 # randomize command alias to avoid collisions
-command_alias = 'SSHUTTLE0%(num)s' % {'num': uuid4().hex[-3:]}
+command_alias = 'SSHUTTLE%(num)d' % {'num': random.randrange(1, 1000)}
 
+# Template for the sudoers file
 template = '''
 Cmnd_Alias %(ca)s = /usr/bin/env PYTHONPATH=%(dist_packages)s %(py)s %(path)s *
 
 %(user_name)s ALL=NOPASSWD: %(ca)s
 '''
+
 
 def build_config(user_name):
     content = template % {
