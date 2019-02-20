@@ -1,7 +1,7 @@
 import os
 import sys
 import getpass
-from uuid import uuid
+from uuid import uuid4
 from subprocess import Popen, PIPE
 from sshuttle.helpers import log, debug1
 from distutils import spawn
