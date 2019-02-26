@@ -78,6 +78,7 @@ sshuttleAclEventsChannel = "aclEvents"
 
 preferreddns = ''
 notpreferreddns = ''
+domain_dns_requests_to_ignore = []
 
 try:
     DNS_PROXY_SUFFIX1 = os.environ['DNS_PROXY_SUFFIX']
@@ -87,6 +88,9 @@ try:
 
     preferreddns = DNS_1
     notpreferreddns = DNS_2
+
+    local_domain_to_ignore = '.'.join(DNS_PROXY_SUFFIX1.split('.')[-2:])
+    domain_dns_requests_to_ignore = ['arpa.', local_domain_to_ignore + '.', local_domain_to_ignore]
 
 except KeyError:
     log('Error: Could not read environment variables for DNS_PROXY_SUFFIX or DNS_1 or DNS_2\n')
@@ -666,16 +670,13 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     response = DNSRecord.parse(data)
     debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
 
-    if hasattr(response, 'header') and hasattr(response.header, 'rcode') and response.header.rcode != getattr(RCODE, 'NOERROR'):
-        if DNS_PROXY_SUFFIX1 != '':
+    if hasattr(response, 'header') and hasattr(response.header, 'rcode'):
+        if response.header.rcode != getattr(RCODE, 'NOERROR') and len(domain_dns_requests_to_ignore) > 0:
             question = dnsreqs2[chan].get_q()
             qn = str(question.qname)
 
-            local_domain_to_ignore = '.'.join(DNS_PROXY_SUFFIX1.split('.')[-2:])
-            failed_requests_to_ignore = ['arpa.', local_domain_to_ignore + '.', local_domain_to_ignore]
-
             ignore_failure = False
-            for domain in failed_requests_to_ignore:
+            for domain in domain_dns_requests_to_ignore:
                 if qn.endswith(domain):
                     ignore_failure = True
                     break
