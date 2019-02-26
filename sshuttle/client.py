@@ -668,7 +668,6 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
 
     if hasattr(response, 'header') and hasattr(response.header, 'rcode') and response.header.rcode != getattr(RCODE, 'NOERROR'):
 
-        global DNS_PROXY_SUFFIX1
         if DNS_PROXY_SUFFIX1 != '':
 
             question = dnsreqs2[chan].get_q()
