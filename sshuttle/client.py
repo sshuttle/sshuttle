@@ -665,6 +665,26 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
     response = DNSRecord.parse(data)
     debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
+    question = dnsreqs2[chan].get_q()
+    qn = str(question.qname)
+
+    if hasattr(response, 'header') and hasattr(response.header, 'rcode') and response.header.rcode != getattr(RCODE, 'NOERROR'):
+
+        global DNS_PROXY_SUFFIX1
+        if DNS_PROXY_SUFFIX1 != '':
+            local_domain_to_ignore = '.'.join(DNS_PROXY_SUFFIX1.split('.')[-2:])
+            failed_requests_to_ignore = ['arpa.', local_domain_to_ignore + '.', local_domain_to_ignore]
+
+            ignore_failure = False
+            for domain in failed_requests_to_ignore:
+                if qn.endswith(domain):
+                    ignore_failure = True
+                    break
+
+            if not ignore_failure:
+                log('DNS Error - For the DNS request: %r   >>>>> DNS response: %r <<<<<<' %
+                    (dnsreqs2[chan], response))
+
     del mux.channels[chan]
     del dnsreqs[chan]
     del dnsreqs2[chan]
