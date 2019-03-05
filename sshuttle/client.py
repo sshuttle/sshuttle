@@ -40,10 +40,16 @@ except AttributeError:
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
-
 def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
+
+def toggle_debug(signum, frame):
+    old_level = helpers.verbose
+    helpers.verbose = (helpers.verbose + 1) % 4
+    log('Received signal %d, changing log level from %d to %d\n' % (signum, old_level, helpers.verbose))
+
+signal.signal(signal.SIGUSR2, toggle_debug)
 
 ALWAYS_CONNECTED_ON = "ON"
 ALWAYS_CONNECTED_OFF = "OFF"
