@@ -40,10 +40,20 @@ except AttributeError:
 
 _extra_fd = os.open('/dev/null', os.O_RDONLY)
 
-
 def got_signal(signum, frame):
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
+
+def increment_log_level(signum, frame):
+    old_level = helpers.verbose
+    # Increment the log level verbosity by one, wrapping from 3 (max) back to 0 (min).
+    helpers.verbose = (helpers.verbose + 1) % 4
+    log('Received signal %d, changing log level from %d to %d\n' % (signum, old_level, helpers.verbose))
+
+# Invocation examples:
+#   kill -SIGUSR2 <pid>
+#   killall -s USR2 sshuttle
+signal.signal(signal.SIGUSR2, increment_log_level)
 
 ALWAYS_CONNECTED_ON = "ON"
 ALWAYS_CONNECTED_OFF = "OFF"
