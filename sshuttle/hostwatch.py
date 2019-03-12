@@ -5,6 +5,7 @@ import select
 import errno
 import os
 import sys
+import tempfile
 import platform
 
 import subprocess as ssubprocess
@@ -13,7 +14,7 @@ from sshuttle.helpers import log, debug1, debug2, debug3
 
 POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30
-CACHEFILE = os.path.expanduser('~/.sshuttle.hosts')
+CACHEFILE = os.path.join(tempfile.gettempdir(), '.sshuttle.hosts.' + str(os.getuid()))
 
 
 _nmb_ok = True
