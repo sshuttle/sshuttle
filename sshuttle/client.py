@@ -86,29 +86,6 @@ alwaysConnected = "alwaysConnected"
 aclAlwaysConnected = "aclAlwaysConnected"
 sshuttleAclEventsChannel = "aclEvents"
 
-preferreddns = ''
-notpreferreddns = ''
-domain_dns_requests_to_ignore = []
-
-try:
-    DNS_PROXY_SUFFIX1 = os.environ['DNS_PROXY_SUFFIX']
-    DNS_PROXY_SUFFIX2 = DNS_PROXY_SUFFIX1 + '.'
-    DNS_1 = os.environ['DNS_1']
-    DNS_2 = os.environ['DNS_2']
-
-    preferreddns = DNS_1
-    notpreferreddns = DNS_2
-
-    local_domain_to_ignore = '.'.join(DNS_PROXY_SUFFIX1.split('.')[-2:])
-    domain_dns_requests_to_ignore = ['arpa.', local_domain_to_ignore + '.', local_domain_to_ignore]
-
-except KeyError:
-    log('Error: Could not read environment variables for DNS_PROXY_SUFFIX or DNS_1 or DNS_2\n')
-    DNS_PROXY_SUFFIX1 = ''
-    DNS_PROXY_SUFFIX2 = ''
-    DNS_1 = ''
-    DNS_2 = ''
-
 REDIS_HOST = None
 REDIS_PORT = None
 try:
@@ -680,21 +657,6 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     response = DNSRecord.parse(data)
     debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
 
-    if hasattr(response, 'header') and hasattr(response.header, 'rcode'):
-        if response.header.rcode != getattr(RCODE, 'NOERROR') and len(domain_dns_requests_to_ignore) > 0:
-            question = dnsreqs2[chan].get_q()
-            qn = str(question.qname)
-
-            ignore_failure = False
-            for domain in domain_dns_requests_to_ignore:
-                if qn.endswith(domain):
-                    ignore_failure = True
-                    break
-
-            if not ignore_failure:
-                log('DNS Error - For the DNS request: %r   >>>>> DNS response: %r <<<<<<' %
-                    (dnsreqs2[chan], response))
-
     del mux.channels[chan]
     del dnsreqs[chan]
     del dnsreqs2[chan]
@@ -709,41 +671,13 @@ def ondns(listener, method, mux, handlers):
     srcip, dstip, data = t
     request = DNSRecord.parse(data)
 
-    qname = request.q.qname
-    qn = str(qname)
-    qtype = request.q.qtype
-    qt = QTYPE[qtype]
-
     chan = mux.next_channel()
     dnsreqs2[chan] = request
     dnsreqs[chan] = now + 30
     mux.channels[chan] = lambda cmd, data: dns_done(
         chan, data, method, listener, srcip=dstip, dstip=srcip, mux=mux)
 
-    global preferreddns
-    global notpreferreddns
-
-    if preferreddns and notpreferreddns and DNS_PROXY_SUFFIX1 and \
-            (qn.endswith(DNS_PROXY_SUFFIX1) or qn.endswith(DNS_PROXY_SUFFIX2)):
-        try:
-            response = send_udp(data, preferreddns, 53)
-            dns_done(chan, response, method, listener, srcip=dstip, dstip=srcip, mux=mux)
-        except socket.error:
-            debug3('Error: Could not contact DNS server %r, now trying %r' % (preferreddns, notpreferreddns))
-
-            _notpreferreddns = notpreferreddns
-            notpreferreddns = preferreddns
-            preferreddns = _notpreferreddns
-
-            # try the other AD server if there was an error...
-            try:
-                response = send_udp(data, preferreddns, 53)
-                dns_done(chan, response, method, listener, srcip=dstip, dstip=srcip, mux=mux)
-            except socket.error:
-                # fallback to agent if both AD servers are down.
-                mux.send(chan, ssnet.CMD_DNS_REQ, data)
-    else:
-        mux.send(chan, ssnet.CMD_DNS_REQ, data)
+    mux.send(chan, ssnet.CMD_DNS_REQ, data)
 
     expire_connections(now, mux)
 

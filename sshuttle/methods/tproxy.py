@@ -153,7 +153,7 @@ class Method(BaseMethod):
             # if it happens, log the source ip.
             # Background info: The ntpd service caused this in
             # the past, so it is important to configure your ntpd server where the
-            # sshuttle client runs to not listen on all IPs.  (i.e. 
+            # sshuttle client runs to not listen on all IPs.  (i.e.
             # add "interface ignore wildcard" to the /etc/ntp.conf and restart the ntpd service)
             sender.bind(srcip)
             sender.sendto(data, dstip)
@@ -230,19 +230,20 @@ class Method(BaseMethod):
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
 
+
         # get the address of eth0
         ni.ifaddresses('eth0')
-        ip = ni.ifaddresses('eth0')[2][0]['addr']
+        myip = ni.ifaddresses('eth0')[2][0]['addr']
 
         # add a rule not route packets that are
-        # generated locally though sshuttle
-        _ipt('-A', mark_chain, '-j', 'RETURN', 
-            '--src', '%s/32' % ip)
+        # generated locally though sshuttle, unless they're DNS requests
+        _ipt('-A', mark_chain, '-j', 'RETURN',
+            '--src', '%s/32' % myip, '!', '--dest', '1.0.0.0')
 
         # add a rule to not route packets that are
         # destined to the local address though sshuttle
-        _ipt('-A', mark_chain, '-j', 'RETURN', 
-            '--dest', '%s/32' % ip)
+        _ipt('-A', mark_chain, '-j', 'RETURN',
+            '--dest', '%s/32' % myip)
 
 
         if udp:
@@ -251,11 +252,11 @@ class Method(BaseMethod):
 
         for _, ip in [i for i in nslist if i[0] == family]:
             _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s/32' % ip, '--src', '%s/32' % myip,
                  '-m', 'udp', '-p', 'udp', '--dport', '53')
             _ipt('-A', tproxy_chain, '-j', 'TPROXY',
                  '--tproxy-mark', '0x1/0x1',
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s/32' % ip, '--src', '%s/32' % myip,
                  '-m', 'udp', '-p', 'udp', '--dport', '53',
                  '--on-port', str(dnsport))
 
