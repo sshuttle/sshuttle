@@ -236,7 +236,8 @@ class Method(BaseMethod):
         myip = ni.ifaddresses('eth0')[2][0]['addr']
 
         # add a rule not route packets that are
-        # generated locally though sshuttle, unless they're DNS requests
+        # generated locally though sshuttle,
+        # unless they're destined for 1.0.0.0
         _ipt('-A', mark_chain, '-j', 'RETURN',
             '--src', '%s/32' % myip, '!', '--dest', '1.0.0.0')
 
