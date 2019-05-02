@@ -10,7 +10,7 @@ path_to_sshuttle = sys.argv[0]
 path_to_dist_packages = os.path.dirname(os.path.abspath(__file__))[:-9]
 
 # randomize command alias to avoid collisions
-command_alias = 'SSHUTTLE8%(num)d' % {'num': uuid4().hex[-3:]}
+command_alias = 'SSHUTTLE8%(num)s' % {'num': uuid4().hex[-3:]}
 
 # Template for the sudoers file
 template = '''
