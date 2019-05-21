@@ -609,7 +609,6 @@ def main(listenip_v6, listenip_v4,
         required.ipv6 = None
         required.ipv4 = None
 
-
     required.udp = avail.udp
     required.dns = len(nslist) > 0
     required.user = False if user is None else True

@@ -53,8 +53,8 @@ class Method(BaseMethod):
         # Firstly we always skip all LOCAL addtrype address, i.e. avoid
         # tunnelling the traffic designated to all local TCP/IP addresses.
         _ipt('-A', chain, '-j', 'RETURN',
-                '-m', 'addrtype',
-                '--dst-type', 'LOCAL')
+             '-m', 'addrtype',
+             '--dst-type', 'LOCAL')
 
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
