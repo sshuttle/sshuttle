@@ -37,6 +37,10 @@ Obtaining sshuttle
 
       pacman --sync sshuttle
 
+- Fedora::
+
+      dnf install sshuttle
+
 - From PyPI::
 
       sudo pip install sshuttle
