@@ -50,6 +50,12 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', *args)
         _ipt('-I', 'PREROUTING', '1', *args)
 
+        # Firstly we always skip all LOCAL addtrype address, i.e. avoid
+        # tunnelling the traffic designated to all local TCP/IP addresses.
+        _ipt('-A', chain, '-j', 'RETURN',
+             '-m', 'addrtype',
+             '--dst-type', 'LOCAL')
+
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
