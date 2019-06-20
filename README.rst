@@ -35,7 +35,7 @@ Obtaining sshuttle
       
 - Arch Linux::
 
-      pacman --sync sshuttle
+      pacman -Sy sshuttle
 
 - Fedora::
 
