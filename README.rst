@@ -35,7 +35,11 @@ Obtaining sshuttle
       
 - Arch Linux::
 
-      pacman --sync sshuttle
+      pacman -S sshuttle
+
+- Fedora::
+
+      dnf install sshuttle
 
 - From PyPI::
 

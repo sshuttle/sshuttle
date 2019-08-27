@@ -602,8 +602,13 @@ def main(listenip_v6, listenip_v4,
         except KeyError:
             raise Fatal("User %s does not exist." % user)
 
-    required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
-    required.ipv4 = len(subnets_v4) > 0 or listenip_v4 is not None
+    if fw.method.name != 'nat':
+        required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
+        required.ipv4 = len(subnets_v4) > 0 or listenip_v4 is not None
+    else:
+        required.ipv6 = None
+        required.ipv4 = None
+
     required.udp = avail.udp
     required.dns = len(nslist) > 0
     required.user = False if user is None else True
