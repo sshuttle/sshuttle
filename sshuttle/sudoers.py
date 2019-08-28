@@ -47,11 +47,9 @@ def save_config(content, file_name):
     if returncode:
         log('Failed updating sudoers file.\n')
         debug1(streamdata)
-
         exit(returncode)
     else:
         log('Success, sudoers file update.\n')
-        
         exit(0)
 
 
