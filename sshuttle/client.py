@@ -185,12 +185,6 @@ class MultiListener:
 class FirewallClient:
 
     def __init__(self, method_name, sudo_pythonpath):
-
-        # Default to sudo unless on OpenBSD in which case use built in `doas`
-        elevbin = 'sudo'
-        if platform.platform().startswith('OpenBSD'):
-            elevbin = 'doas'
-
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))
         argvbase = ([sys.executable, sys.argv[0]] +
@@ -199,9 +193,11 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
-        elev_prefix = [part % {'eb': elevbin}
-                       for part in ['%(eb)s', '-p',
-                                    '[local %(eb)s] Password: ']]
+        # Default to sudo unless on OpenBSD in which case use built in `doas`
+        if platform.platform().startswith('OpenBSD'):
+            elev_prefix = ['doas']
+        else:
+            elev_prefix = ['sudo', '-p', '[local %(eb)s] Password: ']
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
                             'PYTHONPATH=%s' % python_path]
