@@ -10,6 +10,12 @@ MAX_CHANNEL = 65535
 BUFFER_SIZE = 65536
 FULLNESS_SIZE = 1048576
 
+# Pause/Resume traffic between client and edge
+MB = 1024 * 1024
+PAUSE_TRAFFIC_TO_EDGE_THRESHOLD = 100 * MB
+INDIVIDUAL_BUFFER_PAUSE_SIZE = 10 * MB
+INDIVIDUAL_BUFFER_RESUME_SIZE = 1 * MB
+
 # these don't exist in the socket module in python 2.3!
 SHUT_RD = 0
 SHUT_WR = 1
@@ -34,6 +40,8 @@ CMD_DNS_RESPONSE = 0x420b
 CMD_UDP_OPEN = 0x420c
 CMD_UDP_DATA = 0x420d
 CMD_UDP_CLOSE = 0x420e
+CMD_PAUSE = 0x420f      # Use when client -> to edge too fast for edge to handle - pause reading
+CMD_RESUME = 0x4210     # Use when client -> to edge too fast for edge to handle - resume reading
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -51,6 +59,8 @@ cmd_to_name = {
     CMD_UDP_OPEN: 'UDP_OPEN',
     CMD_UDP_DATA: 'UDP_DATA',
     CMD_UDP_CLOSE: 'UDP_CLOSE',
+    CMD_PAUSE: 'PAUSE',
+    CMD_RESUME: 'RESUME',
 }
 
 
@@ -103,6 +113,7 @@ def _try_peername(sock):
 
 
 _swcount = 0
+_global_mux_wrapper_buffer_size = 0  # Keep track of all buffer movement from client -> when too big, pause on busy channels
 
 
 class SockWrapper:
@@ -121,6 +132,7 @@ class SockWrapper:
         self.connection_is_allowed_callback = connection_is_allowed_callback
         self.try_connect()
         self.isWrite = False
+        self.isPaused = False   # traffic to the edge is paused (always false in SockWrapper; may be true in MuxWrapper)
 
     def __del__(self):
         global _swcount
@@ -257,6 +269,7 @@ class SockWrapper:
             self.noread()
 
     def copy_to(self, outwrap):
+        wrote = 0
         if self.buf and self.buf[0]:
             wrote = outwrap.write(self.buf[0])
             self.buf[0] = self.buf[0][wrote:]
@@ -264,6 +277,7 @@ class SockWrapper:
             self.buf.pop(0)
         if not self.buf and self.shut_read:
             outwrap.nowrite()
+        return wrote
 
 
 class Handler:
@@ -316,15 +330,17 @@ class Proxy(Handler):
     def process_wrap(self, wrap1, wrap2, r, w, rh, wh):
         if wrap1.connect_to:
             wrap1.isWrite = True
-            _add(w, wrap1.rsock)
+            if not wrap2.isPaused:
+                _add(w, wrap1.rsock)
         elif wrap1.buf:
             if not wrap2.too_full():
                 wrap2.isWrite = True
                 _add(w, wrap2.wsock)
         elif not wrap1.shut_read:
-            _add(r, wrap1.rsock)
-            _add_map(rh, wrap1.rsock.fileno(), self)
-    
+            if not wrap2.isPaused:
+                _add(r, wrap1.rsock)
+                _add_map(rh, wrap1.rsock.fileno(), self)
+
     def maybe_add_to_wh(self,wh):
         if self.wrap2.isWrite or self.wrap1.isWrite:
             _add(wh, self)
@@ -543,6 +559,7 @@ class Mux(Handler):
         if self.outbuf and self.wsock in w:
             self.flush()
 
+
 class MuxWrapper(SockWrapper):
 
     def __init__(self, mux, channel):
@@ -551,10 +568,20 @@ class MuxWrapper(SockWrapper):
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
         self.socks = []
+        self.buf_total = 0      # total size of this mux wrapper's buffer
         debug2('new channel: %d\n' % channel)
 
     def __del__(self):
         self.nowrite()
+
+        if self.buf_total > 0:
+            # If the wrapper is destroyed (e.g., by iperf3), might still have data in the buffer
+            # Do not need to make sure buffer is flushed but do need to reduce the size of the global var
+            global _global_mux_wrapper_buffer_size
+            _global_mux_wrapper_buffer_size -= self.buf_total
+            debug3('MuxWrapper on channel %d dead. Remove %d from global mux wrap buf size, which is now %d\n' %
+                   (self.channel, self.buf_total, _global_mux_wrapper_buffer_size))
+
         SockWrapper.__del__(self)
 
     def __repr__(self):
@@ -620,9 +647,60 @@ class MuxWrapper(SockWrapper):
         elif cmd == CMD_TCP_DATA:
             self.isWrite = True
             self.buf.append(data)
+            self.maybe_pause(data)
+        elif cmd == CMD_PAUSE:
+            self.isPaused = True
+            debug2('MuxWrapper.got_packet received CMD_PAUSE on channel %s\n' % self.channel)
+        elif cmd == CMD_RESUME:
+            self.isPaused = False
+            debug2('MuxWrapper.got_packet received CMD_RESUME on channel %s\n' % self.channel)
         else:
             raise Exception('unknown command %d (%d bytes)'
                             % (cmd, len(data)))
+
+    # Check size of overall buffer; if too big, and individual buffer too big, send a pause.
+    def maybe_pause(self, data):
+        self.buf_total = self.buf_total + len(data)
+
+        global _global_mux_wrapper_buffer_size
+        _global_mux_wrapper_buffer_size += len(data)
+
+        debug3('Global mux wrap buf size: %d. Individual buf size: %d. On channel %s\n'
+            % (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
+
+        if not self.isPaused and _global_mux_wrapper_buffer_size > PAUSE_TRAFFIC_TO_EDGE_THRESHOLD and self.buf_total\
+                > INDIVIDUAL_BUFFER_PAUSE_SIZE:
+            self.mux.send(self.channel, CMD_PAUSE, b(''))
+            self.isPaused = True
+            log('Global mux wrap buf size: %d (above threshold). Individual buf size: %d (above threshold). Sent CMD_PAUSE on channel %s\n'
+                % (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
+
+    # Overwrite super method in SockWrapper
+    def copy_to(self, outwrap):
+        # Get the num bits written from super's usual method
+        wrote = SockWrapper.copy_to(self, outwrap)
+        # If there are any bits written, decrease from this wrapper's buffer size and check if we should resume or not
+        if wrote:
+            self.maybe_resume(wrote)
+        else:
+            # sometimes wrote might be 0 or none
+            debug3('MuxWrapper.copy_to on channel %d show wrote = %s\n' % (self.channel, wrote))
+
+    # Check size of individual buffer; if small enough, send a resume.
+    def maybe_resume(self, wrote):
+        self.buf_total = self.buf_total - wrote
+
+        global _global_mux_wrapper_buffer_size
+        _global_mux_wrapper_buffer_size -= wrote
+
+        debug3('Global mux wrap buf size: %d. Individual buf size: %d. On channel %s\n' %
+            (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
+
+        if self.isPaused and self.buf_total < INDIVIDUAL_BUFFER_RESUME_SIZE:
+            self.mux.send(self.channel, CMD_RESUME, b(''))
+            self.isPaused = False
+            log('Global mux wrap buf size: %d. Individual buf size: %d (below threshold). Sent CMD_RESUME on channel %s\n' %
+                (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
 
 
 def connect_dst(family, ip, port):
@@ -668,5 +746,6 @@ def runonce(handlers, mux):
             handler.callback(None)
             handler_count += 1
 
-    debug1('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' % (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
+    debug1('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' %
+           (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
 
