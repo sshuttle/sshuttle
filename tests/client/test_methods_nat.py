@@ -140,7 +140,11 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         call(AF_INET, 'nat', '-I', 'OUTPUT', '1', '-j', 'sshuttle-1025'),
         call(AF_INET, 'nat', '-I', 'PREROUTING', '1', '-j', 'sshuttle-1025'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
-             '-m', 'addrtype', '--dst-type', 'LOCAL'),
+             '-m', 'addrtype', '--dst-type', 'LOCAL',
+             '!', '-p', 'udp'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
+             '-m', 'addrtype', '--dst-type', 'LOCAL',
+             '-p', 'udp', '!', '--dport', '53'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080')
     ]
