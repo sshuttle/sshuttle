@@ -56,7 +56,8 @@ cmd_to_name = {
 NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
             errno.EHOSTUNREACH, errno.ENETUNREACH,
             errno.EHOSTDOWN, errno.ENETDOWN,
-            errno.ENETUNREACH]
+            errno.ENETUNREACH, errno.ECONNABORTED,
+            errno.ECONNRESET]
 
 
 def _add(l, elem):
