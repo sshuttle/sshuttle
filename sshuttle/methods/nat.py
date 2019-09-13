@@ -54,7 +54,13 @@ class Method(BaseMethod):
         # tunnelling the traffic designated to all local TCP/IP addresses.
         _ipt('-A', chain, '-j', 'RETURN',
              '-m', 'addrtype',
-             '--dst-type', 'LOCAL')
+             '--dst-type', 'LOCAL',
+             '!', '-p', 'udp')
+        # Skip LOCAL traffic if it's not DNS.
+        _ipt('-A', chain, '-j', 'RETURN',
+             '-m', 'addrtype',
+             '--dst-type', 'LOCAL',
+             '-p', 'udp', '!', '--dport', '53')
 
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
