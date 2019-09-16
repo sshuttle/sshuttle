@@ -41,7 +41,7 @@ CMD_UDP_OPEN = 0x420c
 CMD_UDP_DATA = 0x420d
 CMD_UDP_CLOSE = 0x420e
 CMD_PAUSE = 0x420f      # Use when client -> to edge too fast for edge to handle - pause reading
-CMD_RESUME = 0x4210     # Use when client -> to edge too fast for edge to handle - resume reading
+CMD_RESUME = 0x4210     # Use when client -> to edge buffer drains below threshold - resume reading
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
