@@ -41,6 +41,10 @@ Obtaining sshuttle
 
       dnf install sshuttle
 
+- NixOS::
+
+      nix-env -iA nixos.sshuttle
+
 - From PyPI::
 
       sudo pip install sshuttle
@@ -70,6 +74,10 @@ It is also possible to install into a virtualenv as a non-root user.
 - Homebrew::
 
       brew install sshuttle
+
+- Nix::
+
+      nix-env -iA nixpkgs.sshuttle
 
 
 Documentation
