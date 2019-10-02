@@ -41,6 +41,18 @@ Obtaining sshuttle
 
       dnf install sshuttle
 
+- Mac OS X (From Homebrew)::
+
+      brew install sshuttle
+
+- NixOS::
+
+      nix-env -iA nixos.sshuttle
+
+- Nix::
+
+      nix-env -iA nixpkgs.sshuttle
+
 - From PyPI::
 
       sudo pip install sshuttle
