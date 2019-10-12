@@ -168,7 +168,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
              '--on-port', '1024'),
         call(AF_INET6, 'mangle', '-A', 'sshuttle-m-1024', '-j', 'MARK',
              '--set-mark', '1', '--dest', u'2404:6800:4004:80c::/64',
-             '-m', 'udp', '-p', 'udp'),
+             '-m', 'udp', '-p', 'udp', '--dport', '8000:9000'),
         call(AF_INET6, 'mangle', '-A', 'sshuttle-t-1024', '-j', 'TPROXY',
              '--tproxy-mark', '0x1/0x1', '--dest', u'2404:6800:4004:80c::/64',
              '-m', 'udp', '-p', 'udp', '--dport', '8000:9000',
