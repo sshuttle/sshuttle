@@ -244,7 +244,8 @@ class Method(BaseMethod):
                 else:
                     _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
                          '--dest', '%s/%s' % (snet, swidth),
-                         '-m', 'udp', '-p', 'udp')
+                         '-m', 'udp',
+                         *udp_ports)
                     _ipt('-A', tproxy_chain, '-j', 'TPROXY',
                          '--tproxy-mark', '0x1/0x1',
                          '--dest', '%s/%s' % (snet, swidth),
