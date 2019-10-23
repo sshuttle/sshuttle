@@ -55,6 +55,13 @@ Obtaining sshuttle
       cd sshuttle
       sudo ./setup.py install
 
+- FreeBSD::
+
+      # ports
+      cd /usr/ports/net/py-sshuttle && make install clean
+      # pkg
+      pkg install py36-sshuttle
+
 It is also possible to install into a virtualenv as a non-root user.
 
 - From PyPI::
