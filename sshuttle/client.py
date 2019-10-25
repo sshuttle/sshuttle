@@ -11,7 +11,7 @@ import sys
 import platform
 import json
 from dnslib import *
-from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
+from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper, Metrics
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
@@ -19,6 +19,7 @@ import ipaddress
 import threading
 import redis
 import time
+from statsd import StatsClient
 try:
     from pwd import getpwnam
 except ImportError:
@@ -54,6 +55,8 @@ def increment_log_level(signum, frame):
 #   kill -SIGUSR2 <pid>
 #   killall -s USR2 sshuttle
 signal.signal(signal.SIGUSR2, increment_log_level)
+
+SSHUTTLE_METRIC_PREFIX = "sshuttle.router."
 
 ALWAYS_CONNECTED_ON = "ON"
 ALWAYS_CONNECTED_OFF = "OFF"
@@ -159,6 +162,57 @@ def daemon_cleanup():
             raise
 
 
+class ClientMetrics(Metrics):
+
+    def __init__(self):
+        self.dns_request_count = 0
+        self.udp_request_count = 0
+        self.client = StatsClient('localhost', 8125, SSHUTTLE_METRIC_PREFIX + str(os.getpid()))
+        super().__init__()
+
+    def incr_dns_request_count(self):
+        self.dns_request_count += 1
+
+    def incr_udp_request_count(self):
+        self.udp_request_count += 1
+
+    def get_and_reset_dns_request_count(self):
+        dns_request_count = self.dns_request_count
+        self.dns_request_count = 0
+        return dns_request_count
+
+    def get_and_reset_udp_request_count(self):
+        udp_request_count = self.udp_request_count
+        self.udp_request_count = 0
+        return udp_request_count
+
+    def _log(self):
+
+        debug1(
+            'handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
+            'size_to_edge %d, paused_to_edge_count %d, dns_request_count %d, udp_request_count %d, executed_read %d'
+            ', executed_write %d, select_count %d\n'
+            % (self.max_handlers, self.max_dns_channels, self.max_udp_channels, self.max_fullness,
+               self.max_outbufs, self.too_full_flush_count,
+               self.max_mux_wrapper_buffer_size, self.paused_to_the_edge_count, self.dns_request_count,
+               self.udp_request_count, self.executed_read_count, self.executed_write_count, self.select_count))
+
+        self.client.gauge('handlers', self.get_and_reset_max_handlers())
+        self.client.gauge('mux_size', self.get_and_reset_max_fullness())
+        self.client.gauge('mux_outbufs', self.get_and_reset_max_outbufs())
+        self.client.gauge('size_to_edge', self.get_and_reset_size_to_edge())
+        self.client.gauge('dns_channels', self.get_and_reset_max_dns_channels())
+        self.client.gauge('udp_channels', self.get_and_reset_max_udp_channels())
+
+        self.client.incr('paused_to_edge_count', self.get_and_reset_paused_to_edge_count())
+        self.client.incr('mux_flush_count', self.get_and_reset_too_full_flush_count())
+        self.client.incr('dns_request_count', self.get_and_reset_dns_request_count())
+        self.client.incr('udp_request_count', self.get_and_reset_udp_request_count())
+        self.client.incr('select_count', self.get_and_reset_select_count())
+        self.client.incr('executed_read_count', self.get_and_reset_executed_read_count())
+        self.client.incr('executed_write_count', self.get_and_reset_executed_write_count())
+
+
 class MultiListener:
 
     def __init__(self, kind=socket.SOCK_STREAM, proto=0):
@@ -175,7 +229,7 @@ class MultiListener:
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
-    def add_handler(self, handlers, callback, method, mux):
+    def add_handler(self, handlers, callback, method, mux, client_metrics):
         assert(self.bind_called)
         socks = []
         if self.v6:
@@ -186,7 +240,7 @@ class MultiListener:
         handlers.append(
             Handler(
                 socks,
-                lambda sock: callback(sock, method, mux, handlers)
+                lambda sock: callback(sock, method, mux, handlers, client_metrics)
             )
         )
 
@@ -378,6 +432,7 @@ def expire_connections(now, mux):
             del mux.channels[chan]
     for chan in remove:
         del dnsreqs[chan]
+        del dnsreqs2[chan]
     debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
 
     remove = []
@@ -426,7 +481,7 @@ def check_connections_allowed(mux):
     _sources_modified = False
 
 
-def onaccept_tcp(listener, method, mux, handlers):
+def onaccept_tcp(listener, method, mux, handlers, client_metrics):
     global _extra_fd
     try:
         sock, srcip = listener.accept()
@@ -465,7 +520,7 @@ def onaccept_tcp(listener, method, mux, handlers):
         return
     mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
              (sock.family, dstip[0].encode("ASCII"), dstip[1]))
-    outwrap = MuxWrapper(mux, chan)
+    outwrap = MuxWrapper(mux, chan, client_metrics)
     s = Proxy(SockWrapper(sock, sock, None, None, lambda: connection_is_active(sock)), outwrap)
     handlers.append(s)
     active_tcp_conns[sock] = True
@@ -624,7 +679,7 @@ def udp_done(chan, data, method, sock, dstip):
     method.send_udp(sock, srcip, dstip, data)
 
 
-def onaccept_udp(listener, method, mux, handlers):
+def onaccept_udp(listener, method, mux, handlers, client_metrics):
     now = time.time()
     t = method.recv_udp(listener, 4096)
     if t is None:
@@ -649,13 +704,19 @@ def onaccept_udp(listener, method, mux, handlers):
     hdr = b"%s,%d," % (dstip[0].encode("ASCII"), dstip[1])
     mux.send(chan, ssnet.CMD_UDP_DATA, hdr + data)
 
+    client_metrics.incr_udp_request_count()
+
     expire_connections(now, mux)
 
 
 def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
-    response = DNSRecord.parse(data)
-    debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
+    try:
+        response = DNSRecord.parse(data)
+        debug3('For the DNS request: %r   >>>>> DNS response: %r <<<<<<' % (dnsreqs2[chan], response))
+    except Exception as e:
+        debug3("An exception has occurred while parsing DNS response: {}\n\n".format(e))
+        debug3("Response data %s from channel %d\n" % (data, chan))
 
     del mux.channels[chan]
     del dnsreqs[chan]
@@ -663,7 +724,7 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     method.send_udp(sock, srcip, dstip, data)
 
 
-def ondns(listener, method, mux, handlers):
+def ondns(listener, method, mux, handlers, client_metrics):
     now = time.time()
     t = method.recv_udp(listener, 4096)
     if t is None:
@@ -678,6 +739,8 @@ def ondns(listener, method, mux, handlers):
         chan, data, method, listener, srcip=dstip, dstip=srcip, mux=mux)
 
     mux.send(chan, ssnet.CMD_DNS_REQ, data)
+
+    client_metrics.incr_dns_request_count()
 
     expire_connections(now, mux)
 
@@ -939,7 +1002,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             raise Fatal("failed to establish ssh session (1)")
         else:
             raise
-    mux = Mux(serversock, serversock)
+
+    client_metrics = ClientMetrics()
+    mux = Mux(serversock, serversock, client_metrics)
 
     expected = b'SSHUTTLE0001'
 
@@ -1005,13 +1070,13 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                 fw.sethostip(name, ip)
     mux.got_host_list = onhostlist
 
-    tcp_listener.add_handler(handlers, onaccept_tcp, method, mux)
+    tcp_listener.add_handler(handlers, onaccept_tcp, method, mux, client_metrics)
 
     if udp_listener:
-        udp_listener.add_handler(handlers, onaccept_udp, method, mux)
+        udp_listener.add_handler(handlers, onaccept_udp, method, mux, client_metrics)
 
     if dns_listener:
-        dns_listener.add_handler(handlers, ondns, method, mux)
+        dns_listener.add_handler(handlers, ondns, method, mux, client_metrics)
 
     if seed_hosts is not None:
         debug1('seed_hosts: %r\n' % seed_hosts)
@@ -1023,7 +1088,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             raise Fatal('server died with error code %d' % rv)
 
         check_connections_allowed(mux)
-        ssnet.runonce(handlers, mux)
+        client_metrics.save_max_dns_channels(dnsreqs)
+        client_metrics.save_max_upd_channels(udp_by_src)
+        ssnet.runonce(handlers, mux, client_metrics)
         if latency_control:
             mux.check_fullness()
 

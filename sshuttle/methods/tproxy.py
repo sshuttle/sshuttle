@@ -227,6 +227,10 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
         _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
         _ipt('-A', divert_chain, '-j', 'ACCEPT')
+        # Allow localhost to localhost traffic to bypass sshuttle
+        _ipt('-A', tproxy_chain, '-j', 'RETURN',
+             '--src', '127.0.0.1/32',
+             '--dest', '127.0.0.1/32')
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
 

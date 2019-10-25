@@ -6,3 +6,4 @@ filelock
 dnslib
 redis
 redlock
+statsd
