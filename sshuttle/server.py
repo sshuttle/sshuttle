@@ -11,7 +11,7 @@ import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
 import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
-from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
+from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper, Metrics
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
 
@@ -149,6 +149,27 @@ def start_hostwatch(seed_hosts, auto_hosts):
             os._exit(rv)
     s1.close()
     return pid, s2
+
+
+class ServerMetrics(Metrics):
+
+    def _log(self):
+
+        #  Avoid double counting of the handlers.  Handlers contain both udp and dns channel.
+        #  This is only true for the server.
+
+        dns_channels = self.get_and_reset_max_dns_channels()
+        udp_channels = self.get_and_reset_max_udp_channels()
+        handlers = self.get_and_reset_max_handlers() - (dns_channels + udp_channels)
+
+        log('handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
+            'size_to_edge %d, paused_to_edge_count %d, executed_read_count %d, executed_write_count %d, '
+            'select_count %d\n'
+            % (handlers, dns_channels, udp_channels, self.get_and_reset_max_fullness(),
+               self.get_and_reset_max_outbufs(), self.get_and_reset_too_full_flush_count(),
+               self.get_and_reset_size_to_edge(), self.get_and_reset_paused_to_edge_count(),
+               self.get_and_reset_executed_read_count(), self.get_and_reset_executed_write_count(),
+               self.get_and_reset_select_count()))
 
 
 class Hostwatch:
@@ -295,11 +316,12 @@ def main(latency_control, auto_hosts, to_nameserver):
     sys.stdout.write('\0\0SSHUTTLE0001')
     sys.stdout.flush()
 
+    server_metrics = ServerMetrics()
     handlers = []
     mux = Mux(socket.fromfd(sys.stdin.fileno(),
                             socket.AF_INET, socket.SOCK_STREAM),
               socket.fromfd(sys.stdout.fileno(),
-                            socket.AF_INET, socket.SOCK_STREAM))
+                            socket.AF_INET, socket.SOCK_STREAM), server_metrics)
     routepkt = ''
     for r in routes:
         routepkt += '%d,%s,%d\n' % r
@@ -342,7 +364,7 @@ def main(latency_control, auto_hosts, to_nameserver):
             family = socket.AF_INET6
         dstport = int(dstport)
         outwrap = ssnet.connect_dst(family, dstip, dstport)
-        handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
+        handlers.append(Proxy(MuxWrapper(mux, channel, server_metrics), outwrap))
     mux.new_channel = new_channel
 
     dnshandlers = {}
@@ -390,7 +412,9 @@ def main(latency_control, auto_hosts, to_nameserver):
                 raise Fatal(
                     'hostwatch exited unexpectedly: code 0x%04x\n' % rv)
 
-        ssnet.runonce(handlers, mux)
+        server_metrics.save_max_dns_channels(dnshandlers)
+        server_metrics.save_max_upd_channels(udphandlers)
+        ssnet.runonce(handlers, mux, server_metrics)
         if latency_control:
             mux.check_fullness()
 

@@ -4,6 +4,7 @@ import socket
 import errno
 import select
 import os
+import time
 from sshuttle.helpers import b, binary_type, log, debug1, debug2, debug3, Fatal
 
 MAX_CHANNEL = 65535
@@ -394,7 +395,7 @@ class Proxy(Handler):
 
 class Mux(Handler):
 
-    def __init__(self, rsock, wsock):
+    def __init__(self, rsock, wsock, metrics):
         Handler.__init__(self, [rsock, wsock])
         self.rsock = rsock
         self.wsock = wsock
@@ -408,6 +409,7 @@ class Mux(Handler):
         self.outbuf = []
         self.fullness = 0
         self.too_full = False
+        self.metrics = metrics
         self.send(0, CMD_PING, b('chicken'))
 
     def next_channel(self):
@@ -430,6 +432,7 @@ class Mux(Handler):
         if self.fullness > FULLNESS_SIZE:
             if not self.too_full:
                 self.send(0, CMD_PING, b'rttest')
+                self.metrics.incr_too_full_flush_count()
             self.too_full = True
         # ob = []
         # for b in self.outbuf:
@@ -458,6 +461,9 @@ class Mux(Handler):
                % (channel, cmd_to_name.get(cmd, hex(cmd)),
                   len(data), len(self.outbuf[-1]), self.fullness))
         self.fullness += len(data)
+
+        self.metrics.save_max_fullness(self.fullness)
+        self.metrics.save_max_outbufs(self.outbuf)
 
     def got_packet(self, channel, cmd, data):
         debug2('<  channel=%d cmd=%s len=%d\n'
@@ -562,13 +568,14 @@ class Mux(Handler):
 
 class MuxWrapper(SockWrapper):
 
-    def __init__(self, mux, channel):
+    def __init__(self, mux, channel, metrics):
         SockWrapper.__init__(self, mux.rsock, mux.wsock)
         self.mux = mux
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
         self.socks = []
         self.buf_total = 0      # total size of this mux wrapper's buffer
+        self.metrics = metrics
         debug2('new channel: %d\n' % channel)
 
     def __del__(self):
@@ -664,6 +671,7 @@ class MuxWrapper(SockWrapper):
 
         global _global_mux_wrapper_buffer_size
         _global_mux_wrapper_buffer_size += len(data)
+        self.metrics.save_max_mux_wrapper_buffer_size(_global_mux_wrapper_buffer_size)
 
         debug3('Global mux wrap buf size: %d. Individual buf size: %d. On channel %s\n'
             % (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
@@ -672,6 +680,7 @@ class MuxWrapper(SockWrapper):
                 > INDIVIDUAL_BUFFER_PAUSE_SIZE:
             self.mux.send(self.channel, CMD_PAUSE, b(''))
             self.isPaused = True
+            self.metrics.incr_paused_to_the_edge_count()
             log('Global mux wrap buf size: %d (above threshold). Individual buf size: %d (above threshold). Sent CMD_PAUSE on channel %s\n'
                 % (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
 
@@ -703,6 +712,133 @@ class MuxWrapper(SockWrapper):
                 (_global_mux_wrapper_buffer_size, self.buf_total, self.channel))
 
 
+class Metrics:
+
+    def __init__(self):
+        self.max_handlers = 0  # Used to track the max number of handlers.
+        self.max_mux_wrapper_buffer_size = 0  # Used to track the max size of data to the edge.
+        self.paused_to_the_edge_count = 0  # Used to track the max size of data to the edge.
+        self.too_full_flush_count = 0  # Used to count the amount of times too_full was hit and mux flushed.
+        self.max_fullness = 0  # Used to track the max fullness of the mux in bytes.
+        self.max_outbufs = 0  # Used to track the max number of buffers seen for the mux.
+        self.dns_request_count = 0  # Used to count the number of dns request.
+        self.udp_request_count = 0  # Used to count the number of udp request.
+        self.max_dns_channels = 0  # Used to track the max number of channels being used by dns.
+        self.max_udp_channels = 0  # Used to track the max number of channels being used by udp.
+        self.executed_read_count = 0  # Used to track the number of sockets that were actually read.
+        self.executed_write_count = 0  # Used to track the number of sockets that were actually written too.
+        self.select_count = 0  # Used to track the number of time that select was called and processed the handlers.
+        self.time_to_send_metrics = time.time() + 60  # Send gauge metrics once a minute.
+
+    def log_metrics(self):
+        now = time.time()
+
+        if self.time_to_send_metrics < now:
+            self._log()
+            self.time_to_send_metrics = now + 60
+
+    def _log(self):
+        log('_log should be overloaded\n')
+
+    def save_max_handlers(self, handlers):
+        current_handlers = len(handlers)
+        if current_handlers > self.max_handlers:
+            self.max_handlers = current_handlers
+
+    def save_max_dns_channels(self, dns_channels):
+        current_dns_channels = len(dns_channels)
+        if current_dns_channels > self.max_dns_channels:
+            self.max_dns_channels = current_dns_channels
+
+    def save_max_upd_channels(self, udp_channels):
+        current_udp_channels = len(udp_channels)
+        if current_udp_channels > self.max_udp_channels:
+            self.max_udp_channels = current_udp_channels
+
+    def save_max_mux_wrapper_buffer_size(self, mux_wrapper_buffer_size):
+        if mux_wrapper_buffer_size > self.max_mux_wrapper_buffer_size:
+            self.max_mux_wrapper_buffer_size = mux_wrapper_buffer_size
+
+    def incr_paused_to_the_edge_count(self):
+        self.paused_to_the_edge_count += 1
+
+    def incr_too_full_flush_count(self):
+        self.too_full_flush_count += 1
+
+    def save_max_fullness(self, fullness):
+        if fullness > self.max_fullness:
+            self.max_fullness = fullness
+
+    def save_max_outbufs(self, outbuf):
+        current_outbufs = len(outbuf)
+        if current_outbufs > self.max_outbufs:
+            self.max_outbufs = current_outbufs
+
+    def get_and_reset_size_to_edge(self):
+        max_mux_wrapper_buffer_size = self.max_mux_wrapper_buffer_size
+        self.max_mux_wrapper_buffer_size = 0
+        return max_mux_wrapper_buffer_size
+
+    def get_and_reset_paused_to_edge_count(self):
+        paused_to_the_edge = self.paused_to_the_edge_count
+        self.paused_to_the_edge_count = 0
+        return paused_to_the_edge
+
+    def get_and_reset_too_full_flush_count(self):
+        too_full_flush_count = self.too_full_flush_count
+        self.too_full_flush_count = 0
+        return too_full_flush_count
+
+    def get_and_reset_max_fullness(self):
+        max_fullness = self.max_fullness
+        self.max_fullness = 0
+        return max_fullness
+
+    def get_and_reset_max_outbufs(self):
+        max_outbufs = self.max_outbufs
+        self.max_outbufs = 0
+        return max_outbufs
+
+    def get_and_reset_max_handlers(self):
+        max_handlers = self.max_handlers
+        self.max_handlers = 0
+        return max_handlers
+
+    def get_and_reset_max_udp_channels(self):
+        max_udp_channels = self.max_udp_channels
+        self.max_udp_channels = 0
+        return max_udp_channels
+
+    def get_and_reset_max_dns_channels(self):
+        max_dns_channels = self.max_dns_channels
+        self.max_dns_channels = 0
+        return max_dns_channels
+
+    def get_and_reset_executed_read_count(self):
+        executed_read_count = self.executed_read_count
+        self.executed_read_count = 0
+        return executed_read_count
+
+    def get_and_reset_executed_write_count(self):
+        executed_write_count = self.executed_write_count
+        self.executed_write_count = 0
+        return executed_write_count
+
+    def get_and_reset_select_count(self):
+        select_count = self.select_count
+        self.select_count = 0
+        return select_count
+
+    def incr_executed_read_count(self):
+        self.executed_read_count += 1
+
+    def incr_executed_write_count(self):
+        self.executed_write_count += 1
+
+    def incr_select_count(self):
+        self.select_count += 1
+
+
 def connect_dst(family, ip, port):
     debug2('Connecting to %s:%d\n' % (ip, port))
     outsock = socket.socket(family)
@@ -710,7 +846,8 @@ def connect_dst(family, ip, port):
                        connect_to=(ip, port),
                        peername='%s:%d' % (ip, port))
 
-def runonce(handlers, mux):
+
+def runonce(handlers, mux, metrics):
     r = []
     w = []
     x = []
@@ -721,6 +858,8 @@ def runonce(handlers, mux):
     for h in to_remove:
         handlers.remove(h)
 
+    metrics.save_max_handlers(handlers)
+
     mux.pre_select(r, w, x)
 
     for s in handlers:
@@ -730,22 +869,32 @@ def runonce(handlers, mux):
                mux.fullness, mux.too_full))
     waitingr = len(r)
     waitingw = len(w)
+
+    metrics.log_metrics()
+
     (r, w, x) = select.select(r, w, x)
     debug2('  Ready: %d r=%r w=%r x=%r\n'
            % (len(handlers), _fds(r), _fds(w), _fds(x)))
+
+    metrics.incr_select_count()
+
     mux.callback(r, w)
 
-    handler_count = 0
+    handler_read_count = 0
     for sock in r:
-         h = rh.get(sock.fileno()) 
-         h.callback(sock)
-         handler_count += 1
+        h = rh.get(sock.fileno())
+        h.callback(sock)
+        handler_read_count += 1
+        metrics.incr_executed_read_count()
+
+    handler_write_count = 0
 
     for handler in wh:
         if handler.is_ready():
             handler.callback(None)
-            handler_count += 1
+            handler_write_count += 1
+            metrics.incr_executed_write_count()
 
-    debug1('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d,  Ready w %d, Executed %d, mux too full %s\n' %
-           (len(handlers), waitingr,  len(r), waitingw, len(w), handler_count, mux.too_full))
+    debug1('Total Handler %d, Waiting r %d,  Ready r %d, Waiting w %d, Ready w %d, Executed r %d, Executed w %d, mux too full %s\n' %
+           (len(handlers), waitingr,  len(r), waitingw, len(w), handler_read_count, handler_write_count, mux.too_full))
 
