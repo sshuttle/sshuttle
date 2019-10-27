@@ -197,7 +197,7 @@ class FirewallClient:
         if platform.platform().startswith('OpenBSD'):
             elev_prefix = ['doas']
         else:
-            elev_prefix = ['sudo', '-p', '[local %(eb)s] Password: ']
+            elev_prefix = ['sudo', '-p', '[local sudo] Password: ']
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
                             'PYTHONPATH=%s' % python_path]
