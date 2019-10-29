@@ -17,6 +17,9 @@ def main():
     if opt.wrap:
         import sshuttle.ssnet as ssnet
         ssnet.MAX_CHANNEL = opt.wrap
+    if opt.latency_buffer_size:
+        import sshuttle.ssnet as ssnet
+        ssnet.LATENCY_BUFFER_SIZE = opt.latency_buffer_size
     helpers.verbose = opt.verbose
 
     try:
