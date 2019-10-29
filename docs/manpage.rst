@@ -189,6 +189,13 @@ Options
     control feature, maximizing bandwidth usage.  Use at
     your own risk.
 
+.. option:: --latency-buffer-size
+
+    Set the size of the buffer used in latency control. The
+    default is ``32768``. Changing this option allows a compromise
+    to be made between latency and bandwidth without completely
+    disabling latency control (with :option:`--no-latency-control`).
+
 .. option:: -D, --daemon
 
     Automatically fork into the background after connecting

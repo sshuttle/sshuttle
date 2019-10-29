@@ -244,6 +244,16 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--latency-buffer-size",
+    metavar="SIZE",
+    type=int,
+    default=32768,
+    dest="latency_buffer_size",
+    help="""
+    size of latency control buffer
+    """
+)
+parser.add_argument(
     "--wrap",
     metavar="NUM",
     type=int,
