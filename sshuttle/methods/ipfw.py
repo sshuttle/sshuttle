@@ -106,6 +106,7 @@ def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
     debug1('>> %s\n' % ' '.join(argv))
     return ssubprocess.call(argv, stdout=open(os.devnull, 'w'))
+    # No env: No output. (Or error that won't be parsed.)
 
 
 _changedctls = []
@@ -139,6 +140,7 @@ def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
     debug1('>> %s\n' % ' '.join(argv))
     rv = ssubprocess.call(argv)
+    # No env: No output. (Or error that won't be parsed.)
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
 
@@ -147,6 +149,7 @@ def ipfw_noexit(*args):
     argv = ['ipfw', '-q'] + list(args)
     debug1('>> %s\n' % ' '.join(argv))
     ssubprocess.call(argv)
+    # No env: No output. (Or error that won't be parsed.)
 
 
 class Method(BaseMethod):

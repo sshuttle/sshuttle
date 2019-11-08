@@ -220,6 +220,7 @@ class FirewallClient:
                 if argv[0] == 'su':
                     sys.stderr.write('[local su] ')
                 self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
+                # No env: Talking to `FirewallClient.start`, which has no i18n.
                 e = None
                 break
             except OSError as e:

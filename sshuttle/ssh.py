@@ -133,6 +133,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     debug2('executing: %r\n' % argv)
     p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
                           close_fds=True, stderr=stderr)
+    # No env: Would affect the entire sshuttle.
     os.close(s1a)
     os.close(s1b)
     s2.sendall(content)

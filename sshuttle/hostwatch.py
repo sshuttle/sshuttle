@@ -131,7 +131,8 @@ def _check_netstat():
     }
     argv = ['netstat', '-n']
     try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null, env=env)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
+                              env=env)
         content = p.stdout.read().decode("ASCII")
         p.wait()
     except OSError:
@@ -149,10 +150,15 @@ def _check_smb(hostname):
     global _smb_ok
     if not _smb_ok:
         return
-    argv = ['smbclient', '-U', '%', '-L', hostname]
     debug2(' > smb: %s\n' % hostname)
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    argv = ['smbclient', '-U', '%', '-L', hostname]
     try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
+                              env=env)
         lines = p.stdout.readlines()
         p.wait()
     except OSError:
@@ -207,10 +213,15 @@ def _check_nmb(hostname, is_workgroup, is_master):
     global _nmb_ok
     if not _nmb_ok:
         return
-    argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
     debug2(' > n%d%d: %s\n' % (is_workgroup, is_master, hostname))
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
     try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
+                              env=env)
         lines = p.stdout.readlines()
         rv = p.wait()
     except OSError:
