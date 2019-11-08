@@ -125,9 +125,13 @@ def _check_dns(hostname):
 
 def _check_netstat():
     debug2(' > netstat\n')
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
     argv = ['netstat', '-n']
     try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null)
+        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null, env=env)
         content = p.stdout.read().decode("ASCII")
         p.wait()
     except OSError:
