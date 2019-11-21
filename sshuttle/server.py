@@ -153,7 +153,7 @@ def start_hostwatch(seed_hosts, auto_hosts):
 
 class ServerMetrics(Metrics):
 
-    def _log(self):
+    def _log(self, mux):
 
         #  Avoid double counting of the handlers.  Handlers contain both udp and dns channel.
         #  This is only true for the server.
@@ -162,14 +162,44 @@ class ServerMetrics(Metrics):
         udp_channels = self.get_and_reset_max_udp_channels()
         handlers = self.get_and_reset_max_handlers() - (dns_channels + udp_channels)
 
-        log('handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
+        outbufs = self.get_and_reset_max_outbufs()
+        fullness = self.get_and_reset_max_fullness()
+        too_full_flush_count = self.get_and_reset_too_full_flush_count()
+        mux_wrapper_buffer_size = self.get_and_reset_size_to_edge()
+        paused_to_the_edge_count = self.get_and_reset_paused_to_edge_count()
+        executed_read_count = self.get_and_reset_executed_read_count()
+        executed_write_count = self.get_and_reset_executed_write_count()
+        select_count = self.get_and_reset_select_count()
+        mux_not_ready_for_read_count = self.get_and_reset_mux_not_ready_for_read_count()
+        mux_not_ready_for_write_count = self.get_and_reset_mux_not_ready_for_write_count()
+
+        # This is needed because the dns and upd channels are on a timer. Timing might make the max dns and udp to
+        # be larger than handlers.
+
+        if handlers < 0:
+            handlers = 0
+
+        # We manipulate these values.  Just guarding against mistakes.
+
+        if fullness < 0:
+            fullness = 0
+
+        if mux_wrapper_buffer_size < 0:
+            mux_wrapper_buffer_size = 0
+
+        debug1('handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
             'size_to_edge %d, paused_to_edge_count %d, executed_read_count %d, executed_write_count %d, '
-            'select_count %d\n'
-            % (handlers, dns_channels, udp_channels, self.get_and_reset_max_fullness(),
-               self.get_and_reset_max_outbufs(), self.get_and_reset_too_full_flush_count(),
-               self.get_and_reset_size_to_edge(), self.get_and_reset_paused_to_edge_count(),
-               self.get_and_reset_executed_read_count(), self.get_and_reset_executed_write_count(),
-               self.get_and_reset_select_count()))
+            'select_count %d, mux_not_ready_for_read_count %d, mux_not_ready_for_write_count %d\n'
+            % (handlers, dns_channels, udp_channels, fullness, outbufs, too_full_flush_count, mux_wrapper_buffer_size,
+               paused_to_the_edge_count, executed_read_count, executed_write_count, select_count,
+               mux_not_ready_for_read_count, mux_not_ready_for_write_count))
+
+        p = struct.pack('!ccHHHHHHLLLLLLL', b('M'), b('M'), handlers, dns_channels, udp_channels,
+                        outbufs, too_full_flush_count, paused_to_the_edge_count, fullness, mux_wrapper_buffer_size,
+                        executed_read_count, executed_write_count, select_count, mux_not_ready_for_read_count,
+                        mux_not_ready_for_write_count)
+
+        mux.send(0, ssnet.CMD_METRICS, p)
 
 
 class Hostwatch:

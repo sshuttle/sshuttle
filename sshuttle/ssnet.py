@@ -43,6 +43,7 @@ CMD_UDP_DATA = 0x420d
 CMD_UDP_CLOSE = 0x420e
 CMD_PAUSE = 0x420f      # Use when client -> to edge too fast for edge to handle - pause reading
 CMD_RESUME = 0x4210     # Use when client -> to edge buffer drains below threshold - resume reading
+CMD_METRICS = 0x4211    # Used when the server send metrics to the client
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -62,6 +63,7 @@ cmd_to_name = {
     CMD_UDP_CLOSE: 'UDP_CLOSE',
     CMD_PAUSE: 'PAUSE',
     CMD_RESUME: 'RESUME',
+    CMD_METRICS: 'METRICS',
 }
 
 
@@ -474,6 +476,8 @@ class Mux(Handler):
             debug2('received PING response\n')
             self.too_full = False
             self.fullness = 0
+        elif cmd == CMD_METRICS:
+            self.metrics.process_server_metrics(data)
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_TCP_CONNECT:
@@ -515,6 +519,7 @@ class Mux(Handler):
         self.wsock.setblocking(False)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wsock.fileno(), self.outbuf[0])
+            self.fullness -= wrote
             debug2('mux wrote: %r/%d\n' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
@@ -562,8 +567,13 @@ class Mux(Handler):
         if self.rsock in r:
             r.remove(self.rsock)
             self.handle()
-        if self.outbuf and self.wsock in w:
-            self.flush()
+        else:
+            self.metrics.incr_mux_not_ready_for_read_count()
+        if self.outbuf:
+            if self.wsock in w:
+                self.flush()
+            else:
+                self.metrics.incr_mux_not_ready_for_write_count()
 
 
 class MuxWrapper(SockWrapper):
@@ -726,18 +736,20 @@ class Metrics:
         self.max_dns_channels = 0  # Used to track the max number of channels being used by dns.
         self.max_udp_channels = 0  # Used to track the max number of channels being used by udp.
         self.executed_read_count = 0  # Used to track the number of sockets that were actually read.
-        self.executed_write_count = 0  # Used to track the number of sockets that were actually written too.
+        self.executed_write_count = 0  # Used to track the number of sockets that were actually written to.
         self.select_count = 0  # Used to track the number of time that select was called and processed the handlers.
         self.time_to_send_metrics = time.time() + 60  # Send gauge metrics once a minute.
+        self.mux_not_ready_for_read_count = 0  # Used to track the number of time that the mux wasn't ready to read
+        self.mux_not_ready_for_write_count = 0  # Used to track the number of time that the mux wasn't ready to write
 
-    def log_metrics(self):
+    def log_metrics(self, mux):
         now = time.time()
 
         if self.time_to_send_metrics < now:
-            self._log()
+            self._log(mux)
             self.time_to_send_metrics = now + 60
 
-    def _log(self):
+    def _log(self, mux):
         log('_log should be overloaded\n')
 
     def save_max_handlers(self, handlers):
@@ -764,6 +776,12 @@ class Metrics:
 
     def incr_too_full_flush_count(self):
         self.too_full_flush_count += 1
+
+    def incr_mux_not_ready_for_read_count(self):
+        self.mux_not_ready_for_read_count += 1
+
+    def incr_mux_not_ready_for_write_count(self):
+        self.mux_not_ready_for_write_count += 1
 
     def save_max_fullness(self, fullness):
         if fullness > self.max_fullness:
@@ -829,6 +847,16 @@ class Metrics:
         self.select_count = 0
         return select_count
 
+    def get_and_reset_mux_not_ready_for_read_count(self):
+        mux_not_ready_for_read_count = self.mux_not_ready_for_read_count
+        self.mux_not_ready_for_read_count = 0
+        return mux_not_ready_for_read_count
+
+    def get_and_reset_mux_not_ready_for_write_count(self):
+        mux_not_ready_for_write_count = self.mux_not_ready_for_write_count
+        self.mux_not_ready_for_write_count = 0
+        return mux_not_ready_for_write_count
+
     def incr_executed_read_count(self):
         self.executed_read_count += 1
 
@@ -870,7 +898,7 @@ def runonce(handlers, mux, metrics):
     waitingr = len(r)
     waitingw = len(w)
 
-    metrics.log_metrics()
+    metrics.log_metrics(mux)
 
     (r, w, x) = select.select(r, w, x)
     debug2('  Ready: %d r=%r w=%r x=%r\n'
