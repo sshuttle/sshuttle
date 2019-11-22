@@ -12,7 +12,7 @@ import platform
 import json
 from dnslib import *
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper, Metrics
-from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
+from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
 import ipaddress
@@ -56,7 +56,8 @@ def increment_log_level(signum, frame):
 #   killall -s USR2 sshuttle
 signal.signal(signal.SIGUSR2, increment_log_level)
 
-SSHUTTLE_METRIC_PREFIX = "sshuttle.router."
+SSHUTTLE_METRIC_ROUTER = "sshuttle.router."
+SSHUTTLE_METRIC_GATEWAY = "sshuttle.gateway."
 
 ALWAYS_CONNECTED_ON = "ON"
 ALWAYS_CONNECTED_OFF = "OFF"
@@ -167,7 +168,8 @@ class ClientMetrics(Metrics):
     def __init__(self):
         self.dns_request_count = 0
         self.udp_request_count = 0
-        self.client = StatsClient('localhost', 8125, SSHUTTLE_METRIC_PREFIX + str(os.getpid()))
+        self.client = StatsClient('localhost', 8125, SSHUTTLE_METRIC_ROUTER + str(os.getpid()))
+        self.server = StatsClient('localhost', 8125, SSHUTTLE_METRIC_GATEWAY + str(os.getpid()))
         super().__init__()
 
     def incr_dns_request_count(self):
@@ -186,16 +188,46 @@ class ClientMetrics(Metrics):
         self.udp_request_count = 0
         return udp_request_count
 
-    def _log(self):
+    def process_server_metrics(self, data):
+
+        (m1, m2, handlers, dns_channels, udp_channels, outbufs, too_full_flush_count, paused_to_the_edge_count, fullness, mux_wrapper_buffer_size,
+         executed_read_count, executed_write_count, select_count, mux_not_ready_for_read_count, mux_not_ready_for_write_count) = \
+            struct.unpack_from('!ccHHHHHHLLLLLLL', data, 0)
+        assert (m1 == b('M'))
+        assert (m2 == b('M'))
+
+        debug1('Received from server: handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
+            'size_to_edge %d, paused_to_edge_count %d, executed_read_count %d, executed_write_count %d, '
+            'select_count %d, mux_not_ready_for_read_count %d, mux_not_ready_for_write_count %d\n'
+            % (handlers, dns_channels, udp_channels, fullness, outbufs,  too_full_flush_count, mux_wrapper_buffer_size,
+         paused_to_the_edge_count, executed_read_count, executed_write_count, select_count, mux_not_ready_for_read_count, mux_not_ready_for_write_count))
+
+        self.server.gauge('handlers', handlers)
+        self.server.gauge('mux_size', fullness)
+        self.server.gauge('mux_outbufs', outbufs)
+        self.server.gauge('size_to_edge', mux_wrapper_buffer_size)
+        self.server.gauge('dns_channels', dns_channels)
+        self.server.gauge('udp_channels', udp_channels)
+
+        self.server.incr('paused_to_edge_count', paused_to_the_edge_count)
+        self.server.incr('mux_flush_count', too_full_flush_count)
+        self.server.incr('select_count', select_count)
+        self.server.incr('executed_read_count', executed_read_count)
+        self.server.incr('executed_write_count', executed_write_count)
+        self.server.incr('mux_not_ready_for_read_count', mux_not_ready_for_read_count)
+        self.server.incr('mux_not_ready_for_write_count', mux_not_ready_for_write_count)
+
+    def _log(self, mux):
 
         debug1(
             'handlers %d, dns_channels %d, upd_channels %d, mux_size %d, mux_outbufs %d, mux_flush_count %d, '
             'size_to_edge %d, paused_to_edge_count %d, dns_request_count %d, udp_request_count %d, executed_read %d'
-            ', executed_write %d, select_count %d\n'
+            ', executed_write %d, select_count %d, mux_not_ready_for_read_count %d, mux_not_ready_for_write_count %d\n'
             % (self.max_handlers, self.max_dns_channels, self.max_udp_channels, self.max_fullness,
                self.max_outbufs, self.too_full_flush_count,
                self.max_mux_wrapper_buffer_size, self.paused_to_the_edge_count, self.dns_request_count,
-               self.udp_request_count, self.executed_read_count, self.executed_write_count, self.select_count))
+               self.udp_request_count, self.executed_read_count, self.executed_write_count, self.select_count,
+               self.mux_not_ready_for_read_count, self.mux_not_ready_for_write_count))
 
         self.client.gauge('handlers', self.get_and_reset_max_handlers())
         self.client.gauge('mux_size', self.get_and_reset_max_fullness())
@@ -211,6 +243,8 @@ class ClientMetrics(Metrics):
         self.client.incr('select_count', self.get_and_reset_select_count())
         self.client.incr('executed_read_count', self.get_and_reset_executed_read_count())
         self.client.incr('executed_write_count', self.get_and_reset_executed_write_count())
+        self.client.incr('mux_not_ready_for_read_count', self.get_and_reset_mux_not_ready_for_read_count())
+        self.client.incr('mux_not_ready_for_write_count', self.get_and_reset_mux_not_ready_for_write_count())
 
 
 class MultiListener:
