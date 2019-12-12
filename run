@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -e
 export PYTHONPATH="$(dirname $0):$PYTHONPATH"
+export PATH="$(dirname $0)/bin:$PATH"
 
 python_best_version() {
   if [ -x "$(command -v python3)" ] &&

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# William Mantly <wmantly@gmail.com>
+# MIT License
+# https://github.com/wmantly/sudoers-add
+
+NEWLINE=$'\n'
+CONTENT=""
+ME="$(basename "$(test -L "$0" && readlink "$0" || echo "$0")")"
+
+if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
+	echo "Usage: $ME [file_path] [sudoers-file-name]"
+	echo "Usage: [content] | $ME sudoers-file-name"
+	echo "This will take a sudoers config validate it and add it to /etc/sudoers.d/{sudoers-file-name}"
+	echo "The config can come from a file, first usage example or piped in second example."
+
+	exit 0
+fi
+
+if [ "$1" == "" ]; then
+	(>&2 echo "This command take at lest one argument. See $ME --help")
+
+	exit 1	
+fi
+
+if [ "$2" == "" ]; then
+	FILE_NAME=$1
+	shift
+else
+	FILE_NAME=$2
+fi
+
+if [[ $EUID -ne 0 ]]; then
+	echo "This script must be run as root"
+
+	exit 1
+fi
+
+while read -r line
+do
+	CONTENT+="${line}${NEWLINE}"
+done < "${1:-/dev/stdin}"
+
+if [ "$CONTENT" == "" ]; then
+	(>&2 echo "No config content specified. See $ME --help")
+	exit 1
+fi
+
+if [ "$FILE_NAME" == "" ]; then
+	(>&2 echo "No sudoers file name specified. See $ME --help")
+	exit 1
+fi
+
+# Make a temp file to hold the sudoers config
+umask 077
+TEMP_FILE=$(mktemp)
+echo "$CONTENT" > "$TEMP_FILE"
+
+# Make sure the content is valid
+visudo_STDOUT=$(visudo -c -f "$TEMP_FILE" 2>&1)
+visudo_code=$?
+# The temp file is no longer needed
+rm "$TEMP_FILE"
+
+if [ $visudo_code -eq 0 ]; then
+	echo "$CONTENT" > "/etc/sudoers.d/$FILE_NAME"
+	chmod 0440 "/etc/sudoers.d/$FILE_NAME"
+	echo "The sudoers file /etc/sudoers.d/$FILE_NAME has been successfully created!"
+
+	exit 0
+else
+	echo "Invalid sudoers config!"
+	echo "$visudo_STDOUT"
+
+	exit 1
+fi
+
