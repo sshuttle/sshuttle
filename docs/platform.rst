@@ -9,3 +9,4 @@ Contents:
    chromeos
    tproxy
    windows
+   openwrt

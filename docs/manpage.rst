@@ -28,7 +28,7 @@ Options
 -------
 .. program:: sshuttle
 
-.. option:: subnets
+.. option:: <subnets>
 
     A list of subnets to route over the VPN, in the form
     ``a.b.c.d[/width][port[-port]]``.  Valid examples are 1.2.3.4 (a
@@ -44,13 +44,13 @@ Options
     to during startup will be routed over the VPN. Valid examples are
     example.com, example.com:8000 and example.com:8000-9000.
 
-.. option:: --method [auto|nat|nft|tproxy|pf]
+.. option:: --method <auto|nat|nft|tproxy|pf>
 
    Which firewall method should sshuttle use? For auto, sshuttle attempts to
    guess the appropriate method depending on what it can find in PATH. The
    default value is auto.
 
-.. option:: -l, --listen=[ip:]port
+.. option:: -l <[ip:]port>, --listen=<[ip:]port>
 
     Use this ip address and port number as the transparent
     proxy port.  By default :program:`sshuttle` finds an available
@@ -97,10 +97,10 @@ Options
     server. All queries to any of the local system's DNS
     servers (/etc/resolv.conf) will be intercepted and
     resolved on the remote side of the tunnel instead, there
-    using the DNS specified via the :option:`--to-ns=` option,
+    using the DNS specified via the :option:`--to-ns` option,
     if specified.
 
-.. option:: --ns-hosts=server1[,server2[,server3[...]]]
+.. option:: --ns-hosts=<server1[,server2[,server3[...]]]>
 
     Capture local DNS requests to the specified server(s)
     and forward to the remote DNS server. Contrary to the
@@ -111,7 +111,7 @@ Options
     requests should be resolved on the remote side of the
     tunnel, e.g. in combination with dnsmasq.
 
-.. option:: --to-ns=server
+.. option:: --to-ns=<server>
 
     The DNS to forward requests to when remote DNS
     resolution is enabled. If not given, sshuttle will
@@ -125,14 +125,14 @@ Options
     The default is just ``python``, which means to use the
     default python interpreter on the remote system's PATH.
 
-.. option:: -r, --remote=[username@]sshserver[:port]
+.. option:: -r <[username@]sshserver[:port]>, --remote=<[username@]sshserver[:port]>
 
     The remote hostname and optional username and ssh
     port number to use for connecting to the remote server.
     For example, example.com, testuser@example.com,
     testuser@example.com:2222, or example.com:2244.
 
-.. option:: -x, --exclude=subnet
+.. option:: -x <subnet>, --exclude=<subnet>
 
     Explicitly exclude this subnet from forwarding.  The
     format of this option is the same as the ``<subnets>``
@@ -141,7 +141,7 @@ Options
     ``0/0 -x 1.2.3.0/24`` to forward everything except the
     local subnet over the VPN, for example.
 
-.. option:: -X, --exclude-from=file
+.. option:: -X <file>, --exclude-from=<file>
 
     Exclude the subnets specified in a file, one subnet per
     line. Useful when you have lots of subnets to exclude.
@@ -207,7 +207,7 @@ Options
     :manpage:`syslog(3)` service instead of stderr.  This is
     implicit if you use :option:`--daemon`.
 
-.. option:: --pidfile=pidfilename
+.. option:: --pidfile=<pidfilename>
 
     when using :option:`--daemon`, save :program:`sshuttle`'s pid to
     *pidfilename*.  The default is ``sshuttle.pid`` in the
@@ -252,7 +252,7 @@ Options
     Default is the current user.set ALL for all users. Only works with
     --sudoers or --sudoers-no-modify option.
 
---option:: --sudoers-filename
+.. option:: --sudoers-filename
 
     Set the file name for the sudoers.d file to be added. Default is
     "sshuttle_auto". Only works with --sudoers.
@@ -269,7 +269,7 @@ file.
 
 To run :program:`sshuttle` with options defined in, e.g., `/etc/sshuttle.conf`
 just pass the path to the file preceded by the `@` character, e.g.
-:option:`@/etc/sshuttle.conf`.
+`@/etc/sshuttle.conf`.
 
 When running :program:`sshuttle` with options defined in a configuration file,
 options can still be passed via the command line in addition to what is
