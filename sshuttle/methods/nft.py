@@ -1,6 +1,6 @@
 import socket
 from sshuttle.firewall import subnet_weight
-from sshuttle.linux import nft, nft_get_handle, nft_chain_exists, nonfatal
+from sshuttle.linux import nft, nonfatal
 from sshuttle.methods import BaseMethod
 
 
@@ -16,22 +16,19 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by nft")
 
-        table = "nat"
+        table = 'sshuttle-%s' % port
 
         def _nft(action, *args):
             return nft(family, table, action, *args)
 
+        chain = table
+
         # basic cleanup/setup of chains
         _nft('add table', '')
-        # prerouting, postrouting, and output chains may already exist
-        for chain in ['prerouting', 'postrouting', 'output']:
-            rules = '{{ type nat hook {} priority -100; policy accept; }}' \
-                    .format(chain)
-            if not nft_chain_exists(family, table, chain):
-                _nft('add chain', chain, rules)
-
-        chain = 'sshuttle-%s' % port
-
+        _nft('add chain', 'prerouting',
+             '{ type nat hook prerouting priority -100; policy accept; }')
+        _nft('add chain', 'output',
+             '{ type nat hook output priority -100; policy accept; }')
         _nft('add chain', chain)
         _nft('flush chain', chain)
         _nft('add rule', 'output jump %s' % chain)
@@ -70,16 +67,10 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by nft method_name")
 
-        table = "nat"
+        table = 'sshuttle-%s' % port
 
         def _nft(action, *args):
             return nft(family, table, action, *args)
 
-        chain = 'sshuttle-%s' % port
-
         # basic cleanup/setup of chains
-        handle = nft_get_handle('chain ip nat output', chain)
-        nonfatal(_nft, 'delete rule', 'output', handle)
-        handle = nft_get_handle('chain ip nat prerouting', chain)
-        nonfatal(_nft, 'delete rule', 'prerouting', handle)
-        nonfatal(_nft, 'delete chain', chain)
+        nonfatal(_nft, 'delete table', '')

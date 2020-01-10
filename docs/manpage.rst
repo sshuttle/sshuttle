@@ -44,7 +44,7 @@ Options
     to during startup will be routed over the VPN. Valid examples are
     example.com, example.com:8000 and example.com:8000-9000.
 
-.. option:: --method [auto|nat|tproxy|pf]
+.. option:: --method [auto|nat|nft|tproxy|pf]
 
    Which firewall method should sshuttle use? For auto, sshuttle attempts to
    guess the appropriate method depending on what it can find in PATH. The
