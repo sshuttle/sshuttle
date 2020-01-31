@@ -1,5 +1,6 @@
 import socket
 from sshuttle.firewall import subnet_weight
+from sshuttle.helpers import Fatal, log
 from sshuttle.linux import nft, nft_get_handle, nonfatal
 from sshuttle.methods import BaseMethod
 
@@ -21,16 +22,19 @@ class Method(BaseMethod):
         def _nft(action, *args):
             return nft(family, table, action, *args)
 
-        chain = 'sshuttle-%s' % port
-
         # basic cleanup/setup of chains
         _nft('add table', '')
-        _nft('add chain', 'prerouting',
-             '{ type nat hook prerouting priority -100; policy accept; }')
-        _nft('add chain', 'postrouting',
-             '{ type nat hook postrouting priority 100; policy accept; }')
-        _nft('add chain', 'output',
-             '{ type nat hook output priority -100; policy accept; }')
+        # prerouting, postrouting, and output chains may already exist
+        for chain in ['prerouting', 'postrouting', 'output']:
+            rules = '{{ type nat hook {} priority -100; policy accept; }}' \
+                    .format(chain)
+            try:
+                _nft('add chain', chain, rules)
+            except Fatal:
+                log('Chain {} already exists, ignoring\n'.format(chain))
+
+        chain = 'sshuttle-%s' % port
+
         _nft('add chain', chain)
         _nft('flush chain', chain)
         _nft('add rule', 'output jump %s' % chain)
