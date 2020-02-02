@@ -68,6 +68,32 @@ def nft(family, table, action, *args):
         raise Fatal('%r returned %d' % (argv, rv))
 
 
+def nft_chain_exists(family, table, name):
+    if family == socket.AF_INET:
+        fam = 'ip'
+    elif family == socket.AF_INET6:
+        fam = 'ip6'
+    else:
+        raise Exception('Unsupported family "%s"' % family_to_string(family))
+    argv = ['nft', 'list', 'chain', fam, table, name]
+    debug1('>> %s\n' % ' '.join(argv))
+    env = {
+        'PATH': os.environ['PATH'],
+        'LC_ALL': "C",
+    }
+    try:
+        table_exists = False
+        output = ssubprocess.check_output(argv, env=env,
+                                          stderr=ssubprocess.STDOUT)
+        for line in output.decode('ASCII').split('\n'):
+            if line.startswith('table %s %s ' % (fam, table)):
+                table_exists = True
+            if table_exists and ('chain %s {' % name) in line:
+                return True
+    except ssubprocess.CalledProcessError:
+        return False
+
+
 def nft_get_handle(expression, chain):
     cmd = 'nft'
     argv = [cmd, 'list', expression, '-a']
