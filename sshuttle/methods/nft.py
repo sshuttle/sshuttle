@@ -1,7 +1,7 @@
 import socket
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import Fatal, log
-from sshuttle.linux import nft, nft_get_handle, nonfatal
+from sshuttle.linux import nft, nft_get_handle, nft_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
 
 
@@ -28,10 +28,8 @@ class Method(BaseMethod):
         for chain in ['prerouting', 'postrouting', 'output']:
             rules = '{{ type nat hook {} priority -100; policy accept; }}' \
                     .format(chain)
-            try:
+            if not nft_chain_exists(family, table, chain):
                 _nft('add chain', chain, rules)
-            except Fatal:
-                log('Chain {} already exists, ignoring\n'.format(chain))
 
         chain = 'sshuttle-%s' % port
 
