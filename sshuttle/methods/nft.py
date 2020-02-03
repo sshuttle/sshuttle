@@ -1,6 +1,5 @@
 import socket
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import Fatal, log
 from sshuttle.linux import nft, nft_get_handle, nft_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
 
