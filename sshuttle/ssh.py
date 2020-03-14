@@ -102,7 +102,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
             if portl:
                 rhost = "{}@{}".format(username, l[1].split(':')[0])
             else:
-                rhost = "{}@{}".format(username, l[1])
+                rhost = rhostport
 
     else:  # IPv4
         ipv4 = True
