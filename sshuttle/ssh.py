@@ -64,8 +64,10 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
     password = False
     ipv6 = False
+    ipv4 = False
 
     if re.sub(r'.*@', '', rhostport or '').count(':') > 1:
+        ipv6 = True
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
             rhost = result[0].strip('[')
@@ -77,15 +79,16 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         # through.
         else:
             rhost = rhostport
-        ipv6 = True
 
     else:  # IPv4
         ipv4 = True
         l = (rhostport or '')
+
         if len(l.split(':')) == 2 or len(l.split(':')) == 3:
+
             l = (rhostport or '').rsplit('@', 1)
             if len(l[0].split(":")) == 3:
-                port = l[0].split(":")[2]
+                portl = ['-p', str(int(l[0].split(":")[2]))]
                 password = l[0].split(":")[1]
 
             if len(l[0].split(":")) == 2:
@@ -95,6 +98,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                 portl = ['-p', str(int(l[1].split(':')[1]))]
 
             username = l[0].split(":")[0]
+
             if portl:
                 rhost = "{}@{}".format(username, l[1].split(':')[0])
             else:
@@ -155,7 +159,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                     portl +
                     [rhost, '--', pycmd])
 
-        elif ipv6 == True:
+        else:
             argv = (sshl +
                     portl +
                     [rhost, '--', pycmd])
