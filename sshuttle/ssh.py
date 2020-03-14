@@ -66,8 +66,28 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     ipv6 = False
     ipv4 = False
 
-    if re.sub(r'.*@', '', rhostport or '').count(':') > 1:
+
+
+
+    if re.sub(r'.*@', '', rhostport or '').count(':') >= 1:
         ipv6 = True
+
+        # fix For ipv6
+        l = (rhostport or '')
+        if len(l.split(':')) == 4 or len(l.split(':')) == 5:
+            l = (rhostport or '').rsplit('@', 1)
+            if len(l[0].split(":")) == 3:
+                portl = ['-p', str(int(l[0].split(":")[2]))]
+                password = l[0].split(":")[1]
+
+            if len(l[0].split(":")) == 2:
+                password = l[0].split(":")[1]
+
+            if len(l[0].split(":")) == 1:
+                portl = ['-p', str(int(l[1].split(':')[2]))]
+
+            username = l[0].split(":")[0]
+
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
             rhost = result[0].strip('[')
@@ -78,7 +98,11 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         # can't disambiguate IPv6 colons and a port number. pass the hostname
         # through.
         else:
-            rhost = rhostport
+
+            if portl:
+                rhost = "{}@{}".format(username, l[1].split(':')[0])
+            else:
+                rhost = "{}@{}".format(username, l[1])
 
     else:  # IPv4
         ipv4 = True
@@ -108,7 +132,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
             l = (rhostport or '').rsplit(':', 1)
             try:
                 rhost = l[0]
-            except:
+            except KeyError:
                 rhost = l[1]
 
         # if len(l) > 2:
@@ -153,7 +177,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                      "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
-        if password and ipv4:
+        if password:
             os.environ['SSHPASS'] = str(password)
             argv = (["sshpass", "-e"] + sshl +
                     portl +
