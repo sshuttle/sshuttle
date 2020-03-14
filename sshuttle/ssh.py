@@ -6,7 +6,6 @@ import zlib
 import imp
 import subprocess as ssubprocess
 import shlex
-
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -63,7 +62,7 @@ def empackage(z, name, data=None):
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
-
+    password = False
     if re.sub(r'.*@', '', rhostport or '').count(':') > 1:
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
@@ -77,10 +76,36 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         else:
             rhost = rhostport
     else:  # IPv4
-        host_port = (rhostport or '').rsplit(':', 1)
-        rhost = host_port[0]
-        if len(host_port) > 1:
-            portl = ['-p', str(int(host_port[1]))]
+        l = (rhostport or '')
+        if len(l.split(':')) == 2 or len(l.split(':')) == 3:
+            l = (rhostport or '').rsplit('@', 1)
+            if len(l[0].split(":")) == 3:
+                port = l[0].split(":")[2]
+                password = l[0].split(":")[1]
+
+            if len(l[0].split(":")) == 2:
+                password = l[0].split(":")[1]
+
+            if len(l[0].split(":")) == 1:
+                portl = ['-p', str(int(l[1].split(':')[1]))]
+
+            username = l[0].split(":")[0]
+            if portl:
+                rhost = "{}@{}".format(username, l[1].split(':')[0])
+            else:
+                rhost = "{}@{}".format(username, l[1])
+
+        elif len(l.split(':')) == 1:
+            l = (rhostport or '').rsplit(':', 1)
+            try:
+                print(l[0].split(":")[0])
+                rhost = l[0]
+            except:
+                print(l)
+                rhost = l[1]
+
+        # if len(l) > 2:
+        #     portl = ['-p', str(int(l[1]))]
 
     if rhost == '-':
         rhost = None
@@ -119,10 +144,18 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         else:
             pycmd = ("P=python3; $P -V 2>%s || P=python; "
                      "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
-            pycmd = ("exec /bin/sh -c %s" % quote(pycmd))
-        argv = (sshl +
-                portl +
-                [rhost, '--', pycmd])
+            pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
+
+        if password:
+            os.environ['SSHPASS'] = str(password)
+            argv = (["sshpass", "-e"] + sshl +
+                    portl +
+                    [rhost, '--', pycmd])
+
+        else:
+            argv = (sshl +
+                    portl +
+                    [rhost, '--', pycmd])
     (s1, s2) = socket.socketpair()
 
     def setup():
@@ -133,7 +166,6 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     debug2('executing: %r\n' % argv)
     p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
                           close_fds=True, stderr=stderr)
-    # No env: Would affect the entire sshuttle.
     os.close(s1a)
     os.close(s1b)
     s2.sendall(content)
