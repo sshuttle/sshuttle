@@ -80,6 +80,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         ipv6 = True
 
     else:  # IPv4
+        ipv4 = True
         l = (rhostport or '')
         if len(l.split(':')) == 2 or len(l.split(':')) == 3:
             l = (rhostport or '').rsplit('@', 1)
@@ -154,7 +155,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                     portl +
                     [rhost, '--', pycmd])
 
-        else:
+        elif ipv6 == True:
             argv = (sshl +
                     portl +
                     [rhost, '--', pycmd])
