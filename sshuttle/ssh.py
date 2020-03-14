@@ -63,6 +63,8 @@ def empackage(z, name, data=None):
 def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
     password = False
+    ipv6 = False
+
     if re.sub(r'.*@', '', rhostport or '').count(':') > 1:
         if rhostport.count(']') or rhostport.count('['):
             result = rhostport.split(']')
@@ -75,6 +77,8 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         # through.
         else:
             rhost = rhostport
+        ipv6 = True
+
     else:  # IPv4
         l = (rhostport or '')
         if len(l.split(':')) == 2 or len(l.split(':')) == 3:
@@ -98,8 +102,10 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         elif len(l.split(':')) == 1:
             l = (rhostport or '').rsplit(':', 1)
             try:
+                print(l[0].split(":")[0])
                 rhost = l[0]
             except:
+                print(l)
                 rhost = l[1]
 
         # if len(l) > 2:
@@ -144,7 +150,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                      "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
-        if password:
+        if password and ipv4:
             os.environ['SSHPASS'] = str(password)
             argv = (["sshpass", "-e"] + sshl +
                     portl +
