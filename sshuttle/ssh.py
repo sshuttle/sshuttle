@@ -98,10 +98,8 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         elif len(l.split(':')) == 1:
             l = (rhostport or '').rsplit(':', 1)
             try:
-                print(l[0].split(":")[0])
                 rhost = l[0]
             except:
-                print(l)
                 rhost = l[1]
 
         # if len(l) > 2:
