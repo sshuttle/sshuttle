@@ -7,7 +7,6 @@ import platform
 import traceback
 
 import sshuttle.ssyslog as ssyslog
-import sshuttle.sdnotify as sdnotify
 from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
@@ -220,8 +219,6 @@ def main(method_name, syslog):
                 user)
 
         stdout.write('STARTED\n')
-        sdnotify.send(sdnotify.ready(),
-                      sdnotify.status('Connected'))
 
         try:
             stdout.flush()
@@ -247,7 +244,6 @@ def main(method_name, syslog):
                 break
     finally:
         try:
-            sdnotify.send(sdnotify.stop())
             debug1('firewall manager: undoing changes.\n')
         except BaseException:
             debug2('An error occurred, ignoring it.')
