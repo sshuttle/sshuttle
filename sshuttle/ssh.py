@@ -117,7 +117,6 @@ def parse_hostport(rhostport):
     return username, password, port, host
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
-    portl = []
     username, password, port, host = parse_hostport(rhostport)
 
     rhost = "{}@{}".format(username, host)
