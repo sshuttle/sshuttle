@@ -60,86 +60,41 @@ def empackage(z, name, data=None):
     return b'%s\n%d\n%s' % (name.encode("ASCII"), len(content), content)
 
 
+def parse_hostport(rhostport):
+
+    username = re.split(r'\s*:', rhostport)[0]
+    password = re.split(r'\s*:', rhostport)[1]
+    host = None
+
+    if "@" in password:
+        # default define password
+        password = None
+        host = password
+
+    if host is None:
+        # default define port
+        port = 22
+        host = re.split(r'\s*:', rhostport)[1]
+        if "@" in host:
+            # check type IPv4/IPv6
+            if host.split("@")[1] == "":
+                # it's IPv6
+                host = "{}".format(re.split(r'\s*@', rhostport)[1])
+            else:
+                # it's IPv4
+                host = "{}".format(re.split(r'\s*@', rhostport)[1])
+    else:
+        port = re.split(r'\s*:', rhostport)[2]
+
+    return username, password, port, host
+
 def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
     password = False
-    ipv6 = False
-    ipv4 = False
 
+    username, password, port, host = parse_hostport(rhostport)
 
-
-
-    if re.sub(r'.*@', '', rhostport or '').count(':') >= 1:
-        ipv6 = True
-
-        # fix For ipv6
-        l = (rhostport or '')
-        if len(l.split(':')) == 4 or len(l.split(':')) == 5:
-            l = (rhostport or '').rsplit('@', 1)
-            if len(l[0].split(":")) == 3:
-                portl = ['-p', str(int(l[0].split(":")[2]))]
-                password = l[0].split(":")[1]
-
-            if len(l[0].split(":")) == 2:
-                password = l[0].split(":")[1]
-
-            if len(l[0].split(":")) == 1:
-                portl = ['-p', str(int(l[1].split(':')[2]))]
-
-            username = l[0].split(":")[0]
-
-        if rhostport.count(']') or rhostport.count('['):
-            result = rhostport.split(']')
-            rhost = result[0].strip('[')
-            if len(result) > 1:
-                result[1] = result[1].strip(':')
-                if result[1] != '':
-                    portl = ['-p', str(int(result[1]))]
-        # can't disambiguate IPv6 colons and a port number. pass the hostname
-        # through.
-        else:
-
-            if portl:
-                rhost = "{}@{}".format(username, l[1].split(':')[0])
-            else:
-                rhost = rhostport
-
-    else:  # IPv4
-        ipv4 = True
-        l = (rhostport or '')
-
-        if len(l.split(':')) == 2 or len(l.split(':')) == 3:
-
-            l = (rhostport or '').rsplit('@', 1)
-            if len(l[0].split(":")) == 3:
-                portl = ['-p', str(int(l[0].split(":")[2]))]
-                password = l[0].split(":")[1]
-
-            if len(l[0].split(":")) == 2:
-                password = l[0].split(":")[1]
-
-            if len(l[0].split(":")) == 1:
-                portl = ['-p', str(int(l[1].split(':')[1]))]
-
-            username = l[0].split(":")[0]
-
-            if portl:
-                rhost = "{}@{}".format(username, l[1].split(':')[0])
-            else:
-                rhost = "{}@{}".format(username, l[1])
-
-        elif len(l.split(':')) == 1:
-            l = (rhostport or '').rsplit(':', 1)
-            try:
-                rhost = l[0]
-            except KeyError:
-                rhost = l[1]
-
-        # if len(l) > 2:
-        #     portl = ['-p', str(int(l[1]))]
-
-    if rhost == '-':
-        rhost = None
+    rhost = "{}@{}".format(username, host)
 
     z = zlib.compressobj(1)
     content = readfile('sshuttle.assembler')
@@ -177,15 +132,15 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                      "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
-        if password:
+        if password is not None:
             os.environ['SSHPASS'] = str(password)
             argv = (["sshpass", "-e"] + sshl +
-                    portl +
+                    ["-p", str(port)] +
                     [rhost, '--', pycmd])
 
         else:
             argv = (sshl +
-                    portl +
+                    ["-p", str(port)] +
                     [rhost, '--', pycmd])
     (s1, s2) = socket.socketpair()
 
