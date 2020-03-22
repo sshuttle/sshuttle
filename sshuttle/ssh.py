@@ -65,6 +65,7 @@ def parse_hostport(rhostport):
     port = ""
     username = re.split(r'\s*:', rhostport)[0]
     password = None
+    host = None
 
     try:
         password = re.split(r'\s*:', rhostport)[1]
@@ -73,17 +74,12 @@ def parse_hostport(rhostport):
     except (IndexError, TypeError):
         pass
 
-    host = None
-
     if password is None or "@" in password:
         # default define password
         password = None
         host = password
 
     if host is None:
-
-        host = re.split(r'\s*@', rhostport)[1]
-
         # split for ipv4 or ipv6
         host = "{}".format(re.split(r'\s*@', rhostport)[1])
         # try if port define
@@ -166,4 +162,3 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     s2.sendall(content)
     s2.sendall(content2)
     return p, s2
-
