@@ -83,8 +83,12 @@ def parse_hostport(rhostport):
             else:
                 # it's IPv4
                 host = "{}".format(re.split(r'\s*@', rhostport)[1])
-    else:
-        port = re.split(r'\s*:', rhostport)[2]
+                
+        # try if port define
+        try:
+            port = re.split(r'\s*:', rhostport)[2].split('@')[0]
+        except IndexError:
+            pass
 
     return username, password, port, host
 
@@ -92,6 +96,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
     password = False
 
+    print(parse_hostport(rhostport))
     username, password, port, host = parse_hostport(rhostport)
 
     rhost = "{}@{}".format(username, host)
