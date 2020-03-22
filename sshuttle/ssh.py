@@ -78,26 +78,35 @@ def parse_hostport(rhostport):
         host = password
 
     if host is None:
-        # default define port
-        port = 22
         try:
             host = re.split(r'\s*:', rhostport)[1]
         except IndexError:
             host = re.split(r'\s*:', rhostport)[0]
+
+        # it's IPv4
         if "@" in host:
-            # check type IPv4/IPv6
             if host.split("@")[1] == "":
-                # it's IPv6
-                host = "{}".format(re.split(r'\s*@', rhostport)[1])
-            else:
                 # it's IPv4
                 host = "{}".format(re.split(r'\s*@', rhostport)[1])
 
-        # try if port define
-        try:
-            port = re.split(r'\s*:', rhostport)[2].split('@')[0]
-        except IndexError:
-            pass
+                # try if port define
+                try:
+                    port = re.split(r'\s*:', rhostport)[2].split('@')[0]
+                except IndexError:
+                    pass
+
+        # it's IPv6
+        else:
+            host = "{}".format(re.split(r'\s*@', rhostport)[1]).split("@")[0]
+
+            # try if port define
+            try:
+                port = re.split(r'\s*:', rhostport)[2].split('@')[0]
+            except IndexError:
+                pass
+
+    if port == "":
+        port = 22
 
     if password == "":
         password = False
