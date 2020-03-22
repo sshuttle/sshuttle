@@ -61,9 +61,11 @@ def empackage(z, name, data=None):
 
 
 def parse_hostport(rhostport):
-
+    # default define variable
+    port = ""
     username = re.split(r'\s*:', rhostport)[0]
     password = ""
+
     try:
         password = re.split(r'\s*:', rhostport)[1]
         if "@" in password:
@@ -78,6 +80,7 @@ def parse_hostport(rhostport):
         host = password
 
     if host is None:
+
         try:
             host = re.split(r'\s*:', rhostport)[1]
         except IndexError:
