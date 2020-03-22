@@ -518,10 +518,13 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         # set --auto-nets, we might as well wait for the message first, then
         # ignore its contents.
         mux.got_routes = None
-        fw.start()
-        sdnotify.send(sdnotify.ready(), sdnotify.status('Connected'))
+        serverready()
 
     mux.got_routes = onroutes
+
+    def serverready():
+        fw.start()
+        sdnotify.send(sdnotify.ready(), sdnotify.status('Connected'))
 
     def onhostlist(hostlist):
         debug2('got host list: %r\n' % hostlist)
