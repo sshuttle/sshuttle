@@ -98,13 +98,14 @@ def parse_hostport(rhostport):
             port = re.split(r'\s*:', rhostport)[2].split('@')[0]
         except IndexError:
             pass
+
+    if password = "":
+        password = False
+
     return username, password, port, host
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
     portl = []
-    password = False
-
-    print(parse_hostport(rhostport))
     username, password, port, host = parse_hostport(rhostport)
 
     rhost = "{}@{}".format(username, host)
