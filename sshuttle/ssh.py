@@ -64,18 +64,19 @@ def parse_hostport(rhostport):
     # default define variable
     port = ""
     username = re.split(r'\s*:', rhostport)[0]
-    password = ""
+    password = None
 
     try:
         password = re.split(r'\s*:', rhostport)[1]
         if "@" in password:
             password = password.split("@")[0]
-    except IndexError:
+    except (IndexError, TypeError):
         pass
+
 
     host = None
 
-    if "@" in password:
+    if password is None or "@" in password:
         # default define password
         password = None
         host = password
@@ -112,8 +113,8 @@ def parse_hostport(rhostport):
     if port == "":
         port = 22
 
-    if len(password) == 0:
-        password = False
+    if password is None or len(password) == 0:
+        password = None
 
     return username, password, port, host
 
