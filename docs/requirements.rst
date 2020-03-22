@@ -87,7 +87,6 @@ Additional Suggested Software
    
    [Service]
    Type=notify
-   NotifyAccess=all
    ExecStart=/usr/bin/sshuttle --dns --remote <user>@<server> <subnets...>
    
    [Install]
