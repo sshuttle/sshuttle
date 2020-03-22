@@ -108,10 +108,10 @@ def parse_hostport(rhostport):
             except IndexError:
                 pass
 
-    if port is "":
+    if port == "":
         port = 22
 
-    if password is "":
+    if password == "":
         password = False
 
     return username, password, port, host
