@@ -63,7 +63,13 @@ def empackage(z, name, data=None):
 def parse_hostport(rhostport):
 
     username = re.split(r'\s*:', rhostport)[0]
-    password = re.split(r'\s*:', rhostport)[1]
+    password = ""
+    try:
+        password = re.split(r'\s*:', rhostport)[1]
+        if "@" in password:
+            password = password.split("@")[0]
+    except IndexError:
+        pass
     host = None
 
     if "@" in password:
@@ -74,7 +80,10 @@ def parse_hostport(rhostport):
     if host is None:
         # default define port
         port = 22
-        host = re.split(r'\s*:', rhostport)[1]
+        try:
+            host = re.split(r'\s*:', rhostport)[1]
+        except IndexError:
+            host = re.split(r'\s*:', rhostport)[0]
         if "@" in host:
             # check type IPv4/IPv6
             if host.split("@")[1] == "":
@@ -83,13 +92,12 @@ def parse_hostport(rhostport):
             else:
                 # it's IPv4
                 host = "{}".format(re.split(r'\s*@', rhostport)[1])
-                
+
         # try if port define
         try:
             port = re.split(r'\s*:', rhostport)[2].split('@')[0]
         except IndexError:
             pass
-
     return username, password, port, host
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
