@@ -72,6 +72,7 @@ def parse_hostport(rhostport):
             password = password.split("@")[0]
     except IndexError:
         pass
+
     host = None
 
     if "@" in password:
@@ -111,7 +112,7 @@ def parse_hostport(rhostport):
     if port == "":
         port = 22
 
-    if password == "":
+    if len(password) == 0:
         password = False
 
     return username, password, port, host
