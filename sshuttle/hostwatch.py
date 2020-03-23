@@ -108,7 +108,7 @@ def _check_revdns(ip):
         debug3('<    %s\n' % r[0])
         check_host(r[0])
         found_host(r[0], ip)
-    except socket.herror:
+    except (socket.herror, UnicodeError):
         pass
 
 
@@ -119,7 +119,7 @@ def _check_dns(hostname):
         debug3('<    %s\n' % ip)
         check_host(ip)
         found_host(hostname, ip)
-    except socket.gaierror:
+    except (socket.gaierror, UnicodeError):
         pass
 
 
