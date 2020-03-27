@@ -11,6 +11,7 @@ import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
 import sshuttle.ssh as ssh
 import sshuttle.ssyslog as ssyslog
+import sshuttle.sdnotify as sdnotify
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
@@ -517,8 +518,13 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         # set --auto-nets, we might as well wait for the message first, then
         # ignore its contents.
         mux.got_routes = None
-        fw.start()
+        serverready()
+
     mux.got_routes = onroutes
+
+    def serverready():
+        fw.start()
+        sdnotify.send(sdnotify.ready(), sdnotify.status('Connected'))
 
     def onhostlist(hostlist):
         debug2('got host list: %r\n' % hostlist)
@@ -798,6 +804,8 @@ def main(listenip_v6, listenip_v4,
                 # it's not our child anymore; can't waitpid
                 fw.p.returncode = 0
             fw.done()
+            sdnotify.send(sdnotify.stop())
+
         finally:
             if daemon:
                 daemon_cleanup()
