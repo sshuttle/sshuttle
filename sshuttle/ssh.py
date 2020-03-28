@@ -64,6 +64,11 @@ def parse_hostport(rhostport):
     # default define variable
     port = ""
     username = re.split(r'\s*:', rhostport)[0]
+
+    # Fix #410 bad username error detect
+    if "@" in username:
+        username = re.split(r'\s*@', rhostport)[0]
+
     password = None
     host = None
 
@@ -82,9 +87,12 @@ def parse_hostport(rhostport):
     if host is None:
         # split for ipv4 or ipv6
         host = "{}".format(re.split(r'\s*@', rhostport)[1])
+
         # try if port define
         try:
-            port = re.split(r'\s*:', rhostport)[2].split('@')[0]
+            # Fix #410 detect host:port
+            port = re.split(r'\s*:', host)[1]
+            host = re.split(r'\s*:', host)[0]
         except IndexError:
             pass
 
