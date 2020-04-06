@@ -61,43 +61,33 @@ def empackage(z, name, data=None):
 
 
 def parse_hostport(rhostport):
+    """
+    parses the given rhostport variable, looking like this:
+
+            [username[:password]@]host[:port]
+
+    if only host is given, can be a hostname, IPv4/v6 address or a ssh alias 
+    from ~/.ssh/config
+
+    and returns a tuple (username, password, port, host)
+    """
     # default define variable
-    port = ""
-    username = re.split(r'\s*:', rhostport)[0]
-
-    # Fix #410 bad username error detect
-    if "@" in username:
-        username = re.split(r'\s*@', rhostport)[0]
-
+    port = 22
+    username = None
     password = None
-    host = None
+    host = rhostport
 
-    try:
-        password = re.split(r'\s*:', rhostport)[1]
-        if "@" in password:
-            password = password.split("@")[0]
-    except (IndexError, TypeError):
-        pass
+    if "@" in host:
+    # split username (and possible password) from the host[:port]
+        username, host = host.split("@")
+        # Fix #410 bad username error detect
+        # username cannot contain an @ sign in this scenario
+        if ":" in username:
+            username, password = username.split(":")
 
-    if password is None or "@" in password:
-        # default define password
-        password = None
-        host = password
-
-    if host is None:
-        # split for ipv4 or ipv6
-        host = "{}".format(re.split(r'\s*@', rhostport)[1])
-
-        # try if port define
-        try:
-            # Fix #410 detect host:port
-            port = re.split(r'\s*:', host)[1]
-            host = re.split(r'\s*:', host)[0]
-        except IndexError:
-            pass
-
-    if port == "":
-        port = 22
+    if ":" in host:
+        # split rightmost : to get the port in case of ipv6 addresses
+        host, port = host.rsplit(":",1)
 
     if password is None or len(password) == 0:
         password = None
@@ -106,8 +96,10 @@ def parse_hostport(rhostport):
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
     username, password, port, host = parse_hostport(rhostport)
-
-    rhost = "{}@{}".format(username, host)
+    if username:
+        rhost = "{}@{}".format(username, host)
+    else:
+        rhost = host
 
     z = zlib.compressobj(1)
     content = readfile('sshuttle.assembler')
