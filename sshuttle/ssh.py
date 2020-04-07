@@ -66,7 +66,7 @@ def parse_hostport(rhostport):
 
             [username[:password]@]host[:port]
 
-    if only host is given, can be a hostname, IPv4/v6 address or a ssh alias 
+    if only host is given, can be a hostname, IPv4/v6 address or a ssh alias
     from ~/.ssh/config
 
     and returns a tuple (username, password, port, host)
@@ -78,7 +78,7 @@ def parse_hostport(rhostport):
     host = rhostport
 
     if "@" in host:
-    # split username (and possible password) from the host[:port]
+        # split username (and possible password) from the host[:port]
         username, host = host.split("@")
         # Fix #410 bad username error detect
         # username cannot contain an @ sign in this scenario
@@ -87,12 +87,13 @@ def parse_hostport(rhostport):
 
     if ":" in host:
         # split rightmost : to get the port in case of ipv6 addresses
-        host, port = host.rsplit(":",1)
+        host, port = host.rsplit(":", 1)
 
     if password is None or len(password) == 0:
         password = None
 
     return username, password, port, host
+
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
     username, password, port, host = parse_hostport(rhostport)
