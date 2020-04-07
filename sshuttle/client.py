@@ -19,6 +19,8 @@ import ipaddress
 import threading
 import redis
 import time
+from websocket import create_connection
+import requests
 from statsd import StatsClient
 try:
     from pwd import getpwnam
@@ -71,6 +73,7 @@ _acl_always_connected = {}
 _allowed_targets_modified = False
 _sources_modified = False
 _always_connected = ALWAYS_CONNECTED_OFF
+_acl_missing = False
 
 ALLOWED_TCP_ACL_TYPE = 1
 DISALLOWED_ACL_TYPE = 2
@@ -797,12 +800,19 @@ class AclHandler:
     def reload_acl_file(self):
         global _allowed_targets_modified
         global _sources_modified
+        global _acl_missing
 
         self.pullAcl()
         if (self.acl_type is ALLOWED_TCP_ACL_TYPE):
+            if self.acl is None:
+                _acl_missing = True
+                return
             self.reload_tcp_acl_targets_file()
             _allowed_targets_modified = True
         elif (self.acl_type is ALLOWED_UDP_ACL_TYPE):
+            if self.acl is None:
+                _acl_missing = True
+                return
             self.reload_udp_acl_targets_file()
             _allowed_targets_modified = True
         elif (self.acl_type is ACL_SOURCES_TYPE):
@@ -995,6 +1005,25 @@ class ChannelListener(threading.Thread):
         AclHandler(self.redisClient, ACL_EXCLUDED_SOURCES_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ALWAYS_CONNECTED_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_ALWAYS_CONNECTED_TYPE).reload_acl_file()
+
+        if _acl_missing:
+            log("Missing mandatory acl type, keeping old value and attempting recovery\n")
+            lb = requests.get('http://localhost').text
+            if lb is not None:
+                ws = None
+                try:
+                    lb = lb[:-1]
+                    router_update_server = "ws://" + lb + ":8087"
+                    log("Create websocket to %s\n" % router_update_server)
+                    ws = create_connection(router_update_server)
+                    log("Send recover messageType over websocket\n")
+                    ws.send("{\"messageType\": \"recover\"}")
+                except Exception as e:
+                    log("An exception has occurred while recovering from missing acl: {}\n\n".format(e))
+                if ws is not None:
+                    ws.close()
+            global _acl_missing
+            _acl_missing = False
 
     def initializeChannelHandlers(self):
         try:
