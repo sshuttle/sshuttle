@@ -7,3 +7,5 @@ dnslib
 redis
 redlock
 statsd
+websocket-client
+requests
