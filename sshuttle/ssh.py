@@ -7,7 +7,13 @@ import imp
 import subprocess as ssubprocess
 import shlex
 import ipaddress
-import urllib.parse
+
+# ensure backwards compatiblity with python2.7
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -100,7 +106,7 @@ def parse_hostport(rhostport):
             host = ipaddress.ip_address(host)
         except ValueError:
             # if that fails parse as URL to get the port
-            parsed = urllib.parse.urlparse('//{}'.format(host))
+            parsed = urlparse('//{}'.format(host))
             try:
                 host = ipaddress.ip_address(parsed.hostname)
             except ValueError:
