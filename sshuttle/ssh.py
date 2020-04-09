@@ -89,23 +89,25 @@ def parse_hostport(rhostport):
             username, password = username.split(":")
 
     if ":" in host:
-        # Got a port specified, lets check how to handle the
-        # hostname/ip-address
-        if ("[" in host) or ("]" in host):
-            # special case: is it an IPv6 adress with port specification?
-            #   Then this should look like this: [::1]:22
+        # IPv6 address and/or got a port specified
 
+        # If it is an IPv6 adress with port specification,
+        # then it will look like: [::1]:22
+
+        try:
+            # try to parse host as an IP adress,
+            # if that works it is an IPv6 address
+            host = ipaddress.ip_address(host)
+        except ValueError:
+            # if that fails parse as URL to get the port
+            parsed = urllib.parse.urlparse('//{}'.format(host))
             try:
-                # try to parse host as an IP adress, if that fails parse as URL
-                host = ipaddress.ip_address(host)
-            except ValueError:
-                parsed = urllib.parse.urlparse('//{}'.format(host))
                 host = ipaddress.ip_address(parsed.hostname)
-                port = parsed.port
+            except ValueError:
+                # else if both fails, we have a hostname with port
+                host = parsed.hostname
+            port = parsed.port
 
-        else:
-            # split rightmost : to get the port in case of ipv6 addresses
-            host, port = host.rsplit(":", 1)
 
     if password is None or len(password) == 0:
         password = None
