@@ -6,6 +6,8 @@ import zlib
 import imp
 import subprocess as ssubprocess
 import shlex
+import ipaddress
+import urllib.parse
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -71,7 +73,7 @@ def parse_hostport(rhostport):
 
     and returns a tuple (username, password, port, host)
     """
-    # default define variable
+    # default port for SSH is TCP port 22
     port = 22
     username = None
     password = None
@@ -83,11 +85,27 @@ def parse_hostport(rhostport):
         # Fix #410 bad username error detect
         # username cannot contain an @ sign in this scenario
         if ":" in username:
+            # this will even allow for the username to be empty
             username, password = username.split(":")
 
     if ":" in host:
-        # split rightmost : to get the port in case of ipv6 addresses
-        host, port = host.rsplit(":", 1)
+        # Got a port specified, lets check how to handle the
+        # hostname/ip-address
+        if ("[" in host) or ("]" in host):
+            # special case: is it an IPv6 adress with port specification?
+            #   Then this should look like this: [::1]:22
+
+            try:
+                # try to parse host as an IP adress, if that fails parse as URL
+                host = ipaddress.ip_address(host)
+            except ValueError:
+                parsed = urllib.parse.urlparse('//{}'.format(host))
+                host = ipaddress.ip_address(parsed.hostname)
+                port = parsed.port
+
+        else:
+            # split rightmost : to get the port in case of ipv6 addresses
+            host, port = host.rsplit(":", 1)
 
     if password is None or len(password) == 0:
         password = None
