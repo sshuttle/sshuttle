@@ -6,6 +6,14 @@ import zlib
 import imp
 import subprocess as ssubprocess
 import shlex
+import ipaddress
+
+# ensure backwards compatiblity with python2.7
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
@@ -61,53 +69,64 @@ def empackage(z, name, data=None):
 
 
 def parse_hostport(rhostport):
-    # default define variable
-    port = ""
-    username = re.split(r'\s*:', rhostport)[0]
+    """
+    parses the given rhostport variable, looking like this:
 
-    # Fix #410 bad username error detect
-    if "@" in username:
-        username = re.split(r'\s*@', rhostport)[0]
+            [username[:password]@]host[:port]
 
+    if only host is given, can be a hostname, IPv4/v6 address or a ssh alias
+    from ~/.ssh/config
+
+    and returns a tuple (username, password, port, host)
+    """
+    # default port for SSH is TCP port 22
+    port = 22
+    username = None
     password = None
-    host = None
+    host = rhostport
 
-    try:
-        password = re.split(r'\s*:', rhostport)[1]
-        if "@" in password:
-            password = password.split("@")[0]
-    except (IndexError, TypeError):
-        pass
+    if "@" in host:
+        # split username (and possible password) from the host[:port]
+        username, host = host.split("@")
+        # Fix #410 bad username error detect
+        # username cannot contain an @ sign in this scenario
+        if ":" in username:
+            # this will even allow for the username to be empty
+            username, password = username.split(":")
 
-    if password is None or "@" in password:
-        # default define password
-        password = None
-        host = password
+    if ":" in host:
+        # IPv6 address and/or got a port specified
 
-    if host is None:
-        # split for ipv4 or ipv6
-        host = "{}".format(re.split(r'\s*@', rhostport)[1])
+        # If it is an IPv6 adress with port specification,
+        # then it will look like: [::1]:22
 
-        # try if port define
         try:
-            # Fix #410 detect host:port
-            port = re.split(r'\s*:', host)[1]
-            host = re.split(r'\s*:', host)[0]
-        except IndexError:
-            pass
+            # try to parse host as an IP adress,
+            # if that works it is an IPv6 address
+            host = ipaddress.ip_address(host)
+        except ValueError:
+            # if that fails parse as URL to get the port
+            parsed = urlparse('//{}'.format(host))
+            try:
+                host = ipaddress.ip_address(parsed.hostname)
+            except ValueError:
+                # else if both fails, we have a hostname with port
+                host = parsed.hostname
+            port = parsed.port
 
-    if port == "":
-        port = 22
 
     if password is None or len(password) == 0:
         password = None
 
     return username, password, port, host
 
+
 def connect(ssh_cmd, rhostport, python, stderr, options):
     username, password, port, host = parse_hostport(rhostport)
-
-    rhost = "{}@{}".format(username, host)
+    if username:
+        rhost = "{}@{}".format(username, host)
+    else:
+        rhost = host
 
     z = zlib.compressobj(1)
     content = readfile('sshuttle.assembler')

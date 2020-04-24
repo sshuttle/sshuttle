@@ -177,9 +177,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-r", "--remote",
-    metavar="[USERNAME@]ADDR[:PORT]",
+    metavar="[USERNAME[:PASSWORD]@]ADDR[:PORT]",
     help="""
-    ssh hostname (and optional username) of remote %(prog)s server
+    ssh hostname (and optional username and password) of remote %(prog)s server
     """
 )
 parser.add_argument(
