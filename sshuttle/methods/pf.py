@@ -429,7 +429,6 @@ class Method(BaseMethod):
         except socket.error:
             _, e = sys.exc_info()[:2]
             if e.args[0] == errno.EINVAL:
-                debug2("get_tcp_dstip error: sock.getpeername() %s\nsocket is probably closed.\n" % e)
                 return sock.getsockname()
 
         proxy = sock.getsockname()
