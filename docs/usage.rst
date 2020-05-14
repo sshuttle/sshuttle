@@ -20,6 +20,11 @@ Forward all traffic::
 
       sshuttle -r username@sshserver 0/0
 
+
+- For 'My VPN broke and need a temporary solution FAST to access local IPv4 addresses': 
+
+      sshuttle --dns -NHr username@sshserver 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+
 If you would also like your DNS queries to be proxied
 through the DNS server of the server you are connect to::
 
