@@ -294,10 +294,7 @@ def main(latency_control, auto_hosts, to_nameserver, auto_nets):
     sys.stdout.flush()
 
     handlers = []
-    mux = Mux(socket.fromfd(sys.stdin.fileno(),
-                            socket.AF_INET, socket.SOCK_STREAM),
-              socket.fromfd(sys.stdout.fileno(),
-                            socket.AF_INET, socket.SOCK_STREAM))
+    mux = Mux(sys.stdin, sys.stdout)
     handlers.append(mux)
 
     debug1('auto-nets:' + str(auto_nets) + '\n')

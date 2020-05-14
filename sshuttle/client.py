@@ -461,7 +461,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             raise Fatal("failed to establish ssh session (1)")
         else:
             raise
-    mux = Mux(serversock, serversock)
+    mux = Mux(serversock.makefile("rb"), serversock.makefile("wb"))
     handlers.append(mux)
 
     expected = b'SSHUTTLE0001'

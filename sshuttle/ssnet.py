@@ -339,10 +339,10 @@ class Proxy(Handler):
 
 class Mux(Handler):
 
-    def __init__(self, rsock, wsock):
-        Handler.__init__(self, [rsock, wsock])
-        self.rsock = rsock
-        self.wsock = wsock
+    def __init__(self, rfile, wfile):
+        Handler.__init__(self, [rfile, wfile])
+        self.rfile = rfile
+        self.wfile = wfile
         self.new_channel = self.got_dns_req = self.got_routes = None
         self.got_udp_open = self.got_udp_data = self.got_udp_close = None
         self.got_host_req = self.got_host_list = None
@@ -439,9 +439,9 @@ class Mux(Handler):
                 callback(cmd, data)
 
     def flush(self):
-        self.wsock.setblocking(False)
+        os.set_blocking(self.wfile.fileno(), False)
         if self.outbuf and self.outbuf[0]:
-            wrote = _nb_clean(os.write, self.wsock.fileno(), self.outbuf[0])
+            wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
             debug2('mux wrote: %r/%d\n' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
@@ -449,9 +449,9 @@ class Mux(Handler):
             self.outbuf[0:1] = []
 
     def fill(self):
-        self.rsock.setblocking(False)
+        os.set_blocking(self.rfile.fileno(), False)
         try:
-            read = _nb_clean(os.read, self.rsock.fileno(), LATENCY_BUFFER_SIZE)
+            read = _nb_clean(os.read, self.rfile.fileno(), LATENCY_BUFFER_SIZE)
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
@@ -481,22 +481,22 @@ class Mux(Handler):
                 break
 
     def pre_select(self, r, w, x):
-        _add(r, self.rsock)
+        _add(r, self.rfile)
         if self.outbuf:
-            _add(w, self.wsock)
+            _add(w, self.wfile)
 
     def callback(self, sock):
-        (r, w, _) = select.select([self.rsock], [self.wsock], [], 0)
-        if self.rsock in r:
+        (r, w, _) = select.select([self.rfile], [self.wfile], [], 0)
+        if self.rfile in r:
             self.handle()
-        if self.outbuf and self.wsock in w:
+        if self.outbuf and self.wfile in w:
             self.flush()
 
 
 class MuxWrapper(SockWrapper):
 
     def __init__(self, mux, channel):
-        SockWrapper.__init__(self, mux.rsock, mux.wsock)
+        SockWrapper.__init__(self, mux.rfile, mux.wfile)
         self.mux = mux
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
