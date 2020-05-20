@@ -6,7 +6,7 @@ Client side Requirements
 
 - sudo, or root access on your client machine.
   (The server doesn't need admin access.)
-- Python 2.7 or Python 3.5.
+- Python 3.5 or greater.
 
 
 Linux with NAT method
@@ -31,14 +31,6 @@ Supports:
 * IPv6 TCP
 * IPv6 UDP (requires ``recvmsg`` - see below)
 * IPv6 DNS (requires ``recvmsg`` - see below)
-
-.. _PyXAPI: http://www.pps.univ-paris-diderot.fr/~ylg/PyXAPI/
-
-Full UDP or DNS support with the TPROXY method requires the ``recvmsg()``
-syscall. This is not available in Python 2, however it is in Python 3.5 and
-later. Under Python 2 you might find it sufficient to install PyXAPI_ in
-order to get the ``recvmsg()`` function. See :doc:`tproxy` for more
-information.
 
 
 MacOS / FreeBSD / OpenBSD / pfSense
