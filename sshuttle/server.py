@@ -25,7 +25,7 @@ def _ipmatch(ipstr):
     # FIXME: IPv4 only
     if ipstr == 'default':
         ipstr = '0.0.0.0/0'
-    m = re.match('^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
+    m = re.match(r'^(\d+(\.\d+(\.\d+(\.\d+)?)?)?)(?:/(\d+))?$', ipstr)
     if m:
         g = m.groups()
         ips = g[0]

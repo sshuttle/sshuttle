@@ -114,7 +114,6 @@ def parse_hostport(rhostport):
                 host = parsed.hostname
             port = parsed.port
 
-
     if password is None or len(password) == 0:
         password = None
 
