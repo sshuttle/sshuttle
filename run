@@ -7,8 +7,6 @@ python_best_version() {
   if [ -x "$(command -v python3)" ] &&
       python3 -c "import sys; sys.exit(not sys.version_info > (3, 5))"; then
     exec python3 "$@"
-  elif [ -x "$(command -v python2.7)" ]; then
-    exec python2.7 "$@"
   else
     exec python "$@"
   fi
