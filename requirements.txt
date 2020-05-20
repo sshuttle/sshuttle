@@ -1,1 +1,1 @@
-setuptools-scm==1.15.6
+setuptools-scm==3.5.0
