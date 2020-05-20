@@ -224,7 +224,7 @@ class FirewallClient:
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
                 e = None
                 break
-            except OSError as e:
+            except OSError:
                 pass
         self.argv = argv
         s1.close()
@@ -304,8 +304,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(b'[^-\w\.]', hostname))
-        assert(not re.search(b'[^0-9.]', ip))
+        assert(not re.search(rb'[^-\w\.]', hostname))
+        assert(not re.search(rb'[^0-9.]', ip))
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
