@@ -61,14 +61,14 @@ NET_ERRS = [errno.ECONNREFUSED, errno.ETIMEDOUT,
             errno.ECONNRESET]
 
 
-def _add(l, elem):
-    if elem not in l:
-        l.append(elem)
+def _add(socks, elem):
+    if elem not in socks:
+        socks.append(elem)
 
 
-def _fds(l):
+def _fds(socks):
     out = []
-    for i in l:
+    for i in socks:
         try:
             out.append(i.fileno())
         except AttributeError:
