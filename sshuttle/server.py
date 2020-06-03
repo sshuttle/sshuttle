@@ -6,6 +6,7 @@ import time
 import sys
 import os
 import platform
+from shutil import which
 
 import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
@@ -14,11 +15,6 @@ import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver
-
-try:
-    from shutil import which
-except ImportError:
-    from distutils.spawn import find_executable as which
 
 
 def _ipmatch(ipstr):
