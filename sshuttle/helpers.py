@@ -5,8 +5,6 @@ import errno
 logprefix = ''
 verbose = 0
 
-binary_type = bytes
-
 
 def b(s):
     return s.encode("ASCII")
