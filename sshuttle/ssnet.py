@@ -5,7 +5,7 @@ import errno
 import select
 import os
 
-from sshuttle.helpers import b, binary_type, log, debug1, debug2, debug3, Fatal
+from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
 
 MAX_CHANNEL = 65535
 LATENCY_BUFFER_SIZE = 32768
@@ -382,7 +382,7 @@ class Mux(Handler):
         # log('outbuf: %d %r\n' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
-        assert isinstance(data, binary_type)
+        assert isinstance(data, bytes)
         assert len(data) <= 65535
         p = struct.pack('!ccHHH', b('S'), b('S'), channel, cmd, len(data)) \
             + data

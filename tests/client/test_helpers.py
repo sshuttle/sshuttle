@@ -1,4 +1,3 @@
-import sys
 import io
 import socket
 from socket import AF_INET, AF_INET6
@@ -193,9 +192,5 @@ def test_family_ip_tuple():
 def test_family_to_string():
     assert sshuttle.helpers.family_to_string(AF_INET) == "AF_INET"
     assert sshuttle.helpers.family_to_string(AF_INET6) == "AF_INET6"
-    if sys.version_info < (3, 0):
-        expected = "1"
-        assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == "1"
-    else:
-        expected = 'AddressFamily.AF_UNIX'
+    expected = 'AddressFamily.AF_UNIX'
     assert sshuttle.helpers.family_to_string(socket.AF_UNIX) == expected

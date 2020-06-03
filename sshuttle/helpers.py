@@ -5,16 +5,9 @@ import errno
 logprefix = ''
 verbose = 0
 
-if sys.version_info[0] == 3:
-    binary_type = bytes
 
-    def b(s):
-        return s.encode("ASCII")
-else:
-    binary_type = str
-
-    def b(s):
-        return s
+def b(s):
+    return s.encode("ASCII")
 
 
 def log(s):
