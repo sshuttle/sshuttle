@@ -228,12 +228,7 @@ class FirewallClient:
                 pass
         self.argv = argv
         s1.close()
-        if sys.version_info < (3, 0):
-            # python 2.7
-            self.pfile = s2.makefile('wb+')
-        else:
-            # python 3.5
-            self.pfile = s2.makefile('rwb')
+        self.pfile = s2.makefile('rwb')
         if e:
             log('Spawning firewall manager: %r\n' % self.argv)
             raise Fatal(e)
