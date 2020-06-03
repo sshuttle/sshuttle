@@ -3,7 +3,8 @@ import os
 import re
 import socket
 import zlib
-import imp
+import inspect
+import importlib
 import subprocess as ssubprocess
 import shlex
 from shlex import quote
@@ -15,37 +16,9 @@ from sshuttle.helpers import debug2
 
 
 def readfile(name):
-    tokens = name.split(".")
-    f = None
-
-    token = tokens[0]
-    token_name = [token]
-    token_str = ".".join(token_name)
-
-    try:
-        f, pathname, description = imp.find_module(token_str)
-
-        for token in tokens[1:]:
-            module = imp.load_module(token_str, f, pathname, description)
-            if f is not None:
-                f.close()
-
-            token_name.append(token)
-            token_str = ".".join(token_name)
-
-            f, pathname, description = imp.find_module(
-                token, module.__path__)
-
-        if f is not None:
-            contents = f.read()
-        else:
-            contents = ""
-
-    finally:
-        if f is not None:
-            f.close()
-
-    return contents.encode("UTF8")
+    module = importlib.import_module(name)
+    source = inspect.getsource(module)
+    return source.encode("UTF8")
 
 
 def empackage(z, name, data=None):
