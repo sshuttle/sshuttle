@@ -1,6 +1,10 @@
 import sys
 import zlib
-import imp
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import imp
 
 verbosity = verbosity  # noqa: F821 must be a previously defined global
 z = zlib.decompressobj()

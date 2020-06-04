@@ -3,15 +3,19 @@ import os
 import re
 import socket
 import zlib
-import imp
 import subprocess as ssubprocess
 import shlex
 from shlex import quote
 import ipaddress
 from urllib.parse import urlparse
+import warnings
 
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import imp
 
 
 def readfile(name):
