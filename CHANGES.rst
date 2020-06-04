@@ -9,6 +9,14 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+1.0.1 - 2020-06-05
+------------------
+
+Fixed
+~~~~~
+* Errors in python long_documentation.
+
+
 1.0.0 - 2020-06-05
 ------------------
 
