@@ -484,6 +484,8 @@ def expire_connections(now, mux):
     debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
 
 def check_connections_allowed(mux):
+    global _allowed_targets_modified
+    global _sources_modified
     # we also want to close all TCP connections from sources that have expired their lease
     if not _allowed_targets_modified and not _sources_modified:
        return
@@ -512,8 +514,6 @@ def check_connections_allowed(mux):
                 pass
 
     tcp_conns = new_tcp_conns
-    global _allowed_targets_modified
-    global _sources_modified
     _allowed_targets_modified = False
     _sources_modified = False
 
@@ -854,7 +854,7 @@ class AclHandler:
 
         if self.acl is not None:
             try:
-                _new_allowed_sources = json.loads(self.acl, "utf-8")
+                _new_allowed_sources = json.loads(self.acl)
                 _allowed_sources = _new_allowed_sources
             except BaseException as e:
                 debug3("An exception has occurred while loading the sources data: {}\n\n".format(e))
@@ -869,7 +869,7 @@ class AclHandler:
 
         if self.acl is not None:
             try:
-                _new_excluded_sources = json.loads(self.acl, "utf-8")
+                _new_excluded_sources = json.loads(self.acl)
                 _excluded_sources = _new_excluded_sources
             except BaseException as e:
                 debug3("An exception has occurred while loading the excluded sources data: {}\n\n".format(e))
@@ -884,7 +884,7 @@ class AclHandler:
 
         if self.acl is not None:
             try:
-                _new_targets = json.loads(self.acl, "utf-8")
+                _new_targets = json.loads(self.acl)
                 _allowed_tcp_targets = _new_targets
             except BaseException as e:
                 debug3("An exception has occurred while loading the TCP allowed targets (sshuttleAcl) data: {}\n\n".format(e))
@@ -902,7 +902,7 @@ class AclHandler:
 
         if self.acl is not None:
             try:
-                _new_targets = json.loads(self.acl, "utf-8")
+                _new_targets = json.loads(self.acl)
                 _allowed_udp_targets = _new_targets
             except BaseException as e:
                 debug3("An exception has occurred while loading the UDP allowed targets (sshuttleAclUdp) data: {}\n\n".format(e))
@@ -932,7 +932,7 @@ class AclHandler:
 
         if self.acl is not None:
             try:
-                _new_acl_always_connected = json.loads(self.acl, "utf-8")
+                _new_acl_always_connected = json.loads(self.acl)
                 _acl_always_connected = _new_acl_always_connected
             except BaseException as e:
                 debug3("An exception occurred while loading the aclAlwaysConnected data: {}\n\n".format(e))
@@ -1006,6 +1006,7 @@ class ChannelListener(threading.Thread):
         AclHandler(self.redisClient, ALWAYS_CONNECTED_TYPE).reload_acl_file()
         AclHandler(self.redisClient, ACL_ALWAYS_CONNECTED_TYPE).reload_acl_file()
 
+        global _acl_missing
         if _acl_missing:
             log("Missing mandatory acl type, keeping old value and attempting recovery\n")
             lb = requests.get('http://localhost').text
@@ -1022,7 +1023,6 @@ class ChannelListener(threading.Thread):
                     log("An exception has occurred while recovering from missing acl: {}\n\n".format(e))
                 if ws is not None:
                     ws.close()
-            global _acl_missing
             _acl_missing = False
 
     def initializeChannelHandlers(self):

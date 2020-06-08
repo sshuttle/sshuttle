@@ -19,7 +19,7 @@ def ipt_chain_exists(family, table, name):
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    argv = [cmd, '-t', table, '-nL']
+    argv = [cmd, '-w', '-t', table, '-nL']
     env = {
         'PATH': os.environ['PATH'],
         'LC_ALL': "C",
@@ -39,7 +39,7 @@ def ipt_rule_exists(family, table, chain, name):
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    argv = [cmd, '-t', table, '-nL', chain]
+    argv = [cmd, '-w', '-t', table, '-nL', chain]
     debug1('>> %s\n' % ' '.join(argv))
     env = {
         'PATH': os.environ['PATH'],
@@ -61,7 +61,7 @@ def ipt_rule_count(family, table, chain):
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    argv = [cmd, '-t', table, '-L', chain]
+    argv = [cmd, '-w', '-t', table, '-L', chain]
     argv1 = ['grep',  '-Ecv', "^$|^Chain |^target"]
     debug1('>> %s\n' % ' '.join(argv))
     env = {
@@ -76,9 +76,9 @@ def ipt_rule_count(family, table, chain):
 
 def ipt(family, table, *args):
     if family == socket.AF_INET6:
-        argv = ['ip6tables', '-t', table] + list(args)
+        argv = ['ip6tables', '-w', '-t', table] + list(args)
     elif family == socket.AF_INET:
-        argv = ['iptables', '-t', table] + list(args)
+        argv = ['iptables', '-w', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('>> %s\n' % ' '.join(argv))
