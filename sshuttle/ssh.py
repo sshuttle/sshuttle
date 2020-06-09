@@ -3,7 +3,6 @@ import os
 import re
 import socket
 import zlib
-import inspect
 import importlib
 import subprocess as ssubprocess
 import shlex
@@ -16,9 +15,9 @@ from sshuttle.helpers import debug2
 
 
 def readfile(name):
-    module = importlib.import_module(name)
-    source = inspect.getsource(module)
-    return source.encode("UTF8")
+    spec = importlib.util.find_spec(name)
+    with open(spec.origin, "rt") as f:
+        return f.read().encode("utf-8")
 
 
 def empackage(z, name, data=None):
