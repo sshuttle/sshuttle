@@ -9,6 +9,57 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+1.0.1 - 2020-06-05
+------------------
+
+Fixed
+~~~~~
+* Errors in python long_documentation.
+
+
+1.0.0 - 2020-06-05
+------------------
+
+Added
+~~~~~
+* Python 3.8 support.
+* sshpass support.
+* Auto sudoers file (#269).
+* option for latency control buffer size.
+* Docs: FreeBSD'.
+* Docs: Nix'.
+* Docs: openwrt'.
+* Docs: install instructions for Fedora'.
+* Docs: install instructions for Arch Linux'.
+* Docs: 'My VPN broke and need a solution fast'.
+
+Removed
+~~~~~~~
+* Python 2.6 support.
+* Python 2.7 support.
+
+Fixed
+~~~~~
+* Remove debug message for getpeername failure.
+* Fix crash triggered by port scans closing socket.
+* Added "Running as a service" to docs.
+* Systemd integration.
+* Trap UnicodeError to handle cases where hostnames returned by DNS are invalid.
+* Formatting error in CHANGES.rst
+* Various errors in documentation.
+* Nftables based method.
+* Make hostwatch locale-independent (#379).
+* Add tproxy udp port mark filter that was missed in #144, fixes #367.
+* Capturing of local DNS servers.
+* Crashing on ECONNABORTED.
+* Size of pf_rule, which grew in OpenBSD 6.4.
+* Use prompt for sudo, not needed for doas.
+* Arch linux installation instructions.
+* tests for existing PR-312 (#337).
+* Hyphen in hostname.
+* Assembler import (#319).
+
+
 0.78.5 - 2019-01-28
 -------------------
 
