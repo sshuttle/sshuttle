@@ -2,11 +2,6 @@ import sys
 import zlib
 import types
 
-# Unfortunately, this breaks the new readfile
-# since we're actually attempting to import now,
-# and this is illegal.
-# There's code in ssh.py that prepends a prelude which defines verbosity.
-
 verbosity = verbosity  # noqa: F821 must be a previously defined global
 z = zlib.decompressobj()
 while 1:
