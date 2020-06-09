@@ -14,7 +14,7 @@ import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
 
-def readfile(name):
+def get_module_source(name):
     spec = importlib.util.find_spec(name)
     with open(spec.origin, "rt") as f:
         return f.read().encode("utf-8")
@@ -22,7 +22,7 @@ def readfile(name):
 
 def empackage(z, name, data=None):
     if not data:
-        data = readfile(name)
+        data = get_module_source(name)
     content = z.compress(data)
     content += z.flush(zlib.Z_SYNC_FLUSH)
 
@@ -89,7 +89,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         rhost = host
 
     z = zlib.compressobj(1)
-    content = readfile('sshuttle.assembler')
+    content = get_module_source('sshuttle.assembler')
     optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in list(options.items()))
     optdata = optdata.encode("UTF8")
     content2 = (empackage(z, 'sshuttle') +
