@@ -10,14 +10,11 @@ from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
 MAX_CHANNEL = 65535
 LATENCY_BUFFER_SIZE = 32768
 
-# these don't exist in the socket module in python 2.3!
 SHUT_RD = 0
 SHUT_WR = 1
 SHUT_RDWR = 2
 
-
 HDR_LEN = 8
-
 
 CMD_EXIT = 0x4200
 CMD_PING = 0x4201

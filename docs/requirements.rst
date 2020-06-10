@@ -57,9 +57,8 @@ cmd.exe with Administrator access. See :doc:`windows` for more information.
 
 Server side Requirements
 ------------------------
-The server can run in any version of Python between 2.4 and 3.6.
-However it is recommended that you use Python 2.7, Python 3.5 or later whenever
-possible as support for older versions might be dropped in the future.
+
+- Python 3.5 or greater.
 
 
 Additional Suggested Software
