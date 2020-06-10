@@ -1,6 +1,6 @@
 import sys
 import zlib
-import imp
+import types
 
 verbosity = verbosity  # noqa: F821 must be a previously defined global
 z = zlib.decompressobj()
@@ -15,7 +15,7 @@ while 1:
                              % (name, nbytes))
         content = z.decompress(sys.stdin.read(nbytes))
 
-        module = imp.new_module(name)
+        module = types.ModuleType(name)
         parents = name.rsplit(".", 1)
         if len(parents) == 2:
             parent, parent_name = parents

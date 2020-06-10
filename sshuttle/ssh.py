@@ -3,7 +3,7 @@ import os
 import re
 import socket
 import zlib
-import imp
+import importlib
 import subprocess as ssubprocess
 import shlex
 from shlex import quote
@@ -14,43 +14,15 @@ import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2
 
 
-def readfile(name):
-    tokens = name.split(".")
-    f = None
-
-    token = tokens[0]
-    token_name = [token]
-    token_str = ".".join(token_name)
-
-    try:
-        f, pathname, description = imp.find_module(token_str)
-
-        for token in tokens[1:]:
-            module = imp.load_module(token_str, f, pathname, description)
-            if f is not None:
-                f.close()
-
-            token_name.append(token)
-            token_str = ".".join(token_name)
-
-            f, pathname, description = imp.find_module(
-                token, module.__path__)
-
-        if f is not None:
-            contents = f.read()
-        else:
-            contents = ""
-
-    finally:
-        if f is not None:
-            f.close()
-
-    return contents.encode("UTF8")
+def get_module_source(name):
+    spec = importlib.util.find_spec(name)
+    with open(spec.origin, "rt") as f:
+        return f.read().encode("utf-8")
 
 
 def empackage(z, name, data=None):
     if not data:
-        data = readfile(name)
+        data = get_module_source(name)
     content = z.compress(data)
     content += z.flush(zlib.Z_SYNC_FLUSH)
 
@@ -116,7 +88,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         rhost = host
 
     z = zlib.compressobj(1)
-    content = readfile('sshuttle.assembler')
+    content = get_module_source('sshuttle.assembler')
     optdata = ''.join("%s=%r\n" % (k, v) for (k, v) in list(options.items()))
     optdata = optdata.encode("UTF8")
     content2 = (empackage(z, 'sshuttle') +
