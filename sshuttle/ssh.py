@@ -76,9 +76,8 @@ def parse_hostport(rhostport):
 
     if "@" in host:
         # split username (and possible password) from the host[:port]
-        username, host = host.split("@")
+        username, host = host.rsplit("@", 1)
         # Fix #410 bad username error detect
-        # username cannot contain an @ sign in this scenario
         if ":" in username:
             # this will even allow for the username to be empty
             username, password = username.split(":")
