@@ -40,8 +40,9 @@ def parse_hostport(rhostport):
 
     and returns a tuple (username, password, port, host)
     """
-    # default port for SSH is TCP port 22
-    port = 22
+    # leave use of default port to ssh command to prevent overwriting
+    # ports configured in ~/.ssh/config when no port is given
+    port = None
     username = None
     password = None
     host = rhostport
@@ -116,6 +117,10 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
             sshl = shlex.split(ssh_cmd)
         else:
             sshl = ['ssh']
+        if port is not None:
+            portl = ["-p", str(port)]
+        else:
+            portl = []
         if python:
             pycmd = "'%s' -c '%s'" % (python, pyscript)
         else:
@@ -126,12 +131,12 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         if password is not None:
             os.environ['SSHPASS'] = str(password)
             argv = (["sshpass", "-e"] + sshl +
-                    ["-p", str(port)] +
+                    portl +
                     [rhost, '--', pycmd])
 
         else:
             argv = (sshl +
-                    ["-p", str(port)] +
+                    portl +
                     [rhost, '--', pycmd])
     (s1, s2) = socket.socketpair()
 
