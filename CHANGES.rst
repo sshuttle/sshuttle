@@ -9,6 +9,17 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+1.0.2 - 2020-06-18
+------------------
+
+Fixed
+~~~~~
+* Leave use of default port to ssh command.
+* Remove unwanted references to Python 2.7 in docs.
+* Replace usage of deprecated imp.
+* Fix connection with @ sign in username.
+
+
 1.0.1 - 2020-06-05
 ------------------
 
