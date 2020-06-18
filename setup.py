@@ -61,6 +61,7 @@ setup(
             'sshuttle = sshuttle.cmdline:main',
         ],
     },
+    python_requires='>=3.5',
     tests_require=[
         'pytest',
         'pytest-cov',
