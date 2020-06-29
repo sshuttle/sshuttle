@@ -4,6 +4,7 @@ import re
 import socket
 import zlib
 import importlib
+import importlib.util
 import subprocess as ssubprocess
 import shlex
 from shlex import quote
