@@ -21,7 +21,7 @@ Forward all traffic::
       sshuttle -r username@sshserver 0/0
 
 
-- For 'My VPN broke and need a temporary solution FAST to access local IPv4 addresses': 
+- For 'My VPN broke and need a temporary solution FAST to access local IPv4 addresses'::
 
       sshuttle --dns -NHr username@sshserver 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 
@@ -70,7 +70,7 @@ Sudoers File
 sshuttle can auto-generate the proper sudoers.d file using the current user 
 for Linux and OSX. Doing this will allow sshuttle to run without asking for
 the local sudo password and to give users who do not have sudo access
-ability to run sshuttle.
+ability to run sshuttle::
 
   sshuttle --sudoers
 
@@ -82,14 +82,14 @@ option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
 values for this vary based on how your system is configured. Values such as 
 usernames, groups pre-pended with `%` and sudoers user aliases will work. See
 the sudoers manual for more information on valid user specif actions.
-The options must be used with `--sudoers`
+The options must be used with `--sudoers`::
 
   sshuttle --sudoers --sudoers-user mike
   sshuttle --sudoers --sudoers-user %sudo
 
 The name of the file to be added to sudoers.d can be configured as well. This
 is mostly not necessary but can be useful for giving more than one user
-access to sshuttle. The default is `sshuttle_auto`
+access to sshuttle. The default is `sshuttle_auto`::
 
   sshuttle --sudoer --sudoers-filename sshuttle_auto_mike
   sshuttle --sudoer --sudoers-filename sshuttle_auto_tommy
@@ -97,11 +97,11 @@ access to sshuttle. The default is `sshuttle_auto`
 You can also see what configuration will be added to your system without
 modifying anything. This can be helpfull is the auto feature does not work, or
 you want more control. This option also works with `--sudoers-username`.
-`--sudoers-filename` has no effect with this option.
+`--sudoers-filename` has no effect with this option::
 
   sshuttle --sudoers-no-modify
 
-This will simply sprint the generated configuration to STDOUT. Example
+This will simply sprint the generated configuration to STDOUT. Example::
 
   08:40 PM william$ sshuttle --sudoers-no-modify
 
