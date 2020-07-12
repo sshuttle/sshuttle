@@ -9,6 +9,16 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+1.0.3 - 2020-07-12
+------------------
+
+Fixed
+~~~~~
+* Ask setuptools to require Python 3.5 and above.
+* Add missing import.
+* Fix formatting typos in usage docs
+
+
 1.0.2 - 2020-06-18
 ------------------
 
