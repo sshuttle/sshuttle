@@ -87,7 +87,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     if username:
         rhost = "{}@{}".format(username, host)
     else:
-        rhost = host
+        rhost = str(host)
 
     z = zlib.compressobj(1)
     content = get_module_source('sshuttle.assembler')
