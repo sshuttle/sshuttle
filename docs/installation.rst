@@ -6,7 +6,8 @@ Installation
       pip install sshuttle
 
 - Debain package manager::
-		sudo apt install sshuttle
+
+      sudo apt install sshuttle
 
 - Clone::
 
@@ -18,5 +19,6 @@ Installation
 Optionally after installation
 -----------------------------
 
-- Add to sudoers file
-		sshuttle --sudoers
+- Add to sudoers file::
+
+      sshuttle --sudoers
