@@ -50,17 +50,17 @@ class Method(BaseMethod):
                      'ip daddr %s/%s' % (snet, swidth), 'return')))
             else:
                 _nft('add rule', chain, *(tcp_ports + (
-                     'ip daddr %s/%s' % (snet, swidth), 'ip ttl != 42',
+                     'ip daddr %s/%s' % (snet, swidth), 'ip ttl != 63',
                      ('redirect to :' + str(port)))))
 
         for _, ip in [i for i in nslist if i[0] == family]:
             if family == socket.AF_INET:
                 _nft('add rule', chain, 'ip protocol udp ip daddr %s' % ip,
-                     'udp dport { 53 }', 'ip ttl != 42',
+                     'udp dport { 53 }', 'ip ttl != 63',
                      ('redirect to :' + str(dnsport)))
             elif family == socket.AF_INET6:
                 _nft('add rule', chain, 'ip6 protocol udp ip6 daddr %s' % ip,
-                     'udp dport { 53 }', 'ip ttl != 42',
+                     'udp dport { 53 }', 'ip ttl != 63',
                      ('redirect to :' + str(dnsport)))
 
     def restore_firewall(self, port, family, udp, user):

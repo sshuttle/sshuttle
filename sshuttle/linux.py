@@ -71,10 +71,10 @@ def ipt_ttl(family, *args):
     global _no_ttl_module
     if not _no_ttl_module:
         # we avoid infinite loops by generating server-side connections
-        # with ttl 42.  This makes the client side not recapture those
+        # with ttl 63.  This makes the client side not recapture those
         # connections, in case client == server.
         try:
-            argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '42']
+            argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '63']
             ipt(family, *argsplus)
         except Fatal:
             ipt(family, *args)
