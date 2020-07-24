@@ -30,6 +30,10 @@ common case:
 Obtaining sshuttle
 ------------------
 
+- Ubuntu 16.04 or later::
+
+      apt-get install sshuttle
+
 - Debian stretch or later::
 
       apt-get install sshuttle
