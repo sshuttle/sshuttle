@@ -1,6 +1,6 @@
 -r requirements.txt
 attrs==19.3.0
-pytest==6.0.0
+pytest==6.0.1
 pytest-cov==2.10.0
 mock==2.0.0
 flake8==3.8.3
