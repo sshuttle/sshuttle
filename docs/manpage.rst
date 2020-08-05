@@ -65,7 +65,8 @@ Options
     :program:`sshuttle`, e.g. ``--listen localhost``.
 
     For the tproxy and pf methods this can be an IPv6 address. Use this option 
-    twice if required, to provide both IPv4 and IPv6 addresses.
+    with comma separated values if required, to provide both IPv4 and IPv6
+    addresses, e.g. ``--listen 127.0.0.1:0,[::1]:0``.
 
 .. option:: -H, --auto-hosts
 
