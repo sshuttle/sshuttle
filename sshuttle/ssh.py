@@ -65,12 +65,12 @@ def parse_hostport(rhostport):
         try:
             # try to parse host as an IP adress,
             # if that works it is an IPv6 address
-            host = ipaddress.ip_address(host)
+            host = str(ipaddress.ip_address(host))
         except ValueError:
             # if that fails parse as URL to get the port
             parsed = urlparse('//{}'.format(host))
             try:
-                host = ipaddress.ip_address(parsed.hostname)
+                host = str(ipaddress.ip_address(parsed.hostname))
             except ValueError:
                 # else if both fails, we have a hostname with port
                 host = parsed.hostname
