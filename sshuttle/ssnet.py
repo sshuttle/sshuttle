@@ -4,6 +4,7 @@ import socket
 import errno
 import select
 import os
+import fcntl
 
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
 
@@ -436,7 +437,13 @@ class Mux(Handler):
                 callback(cmd, data)
 
     def flush(self):
-        os.set_blocking(self.wfile.fileno(), False)
+        try:
+            os.set_blocking(self.wfile.fileno(), False)
+        except AttributeError:
+            # python < 3.5
+            flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
             debug2('mux wrote: %r/%d\n' % (wrote, len(self.outbuf[0])))
@@ -446,7 +453,13 @@ class Mux(Handler):
             self.outbuf[0:1] = []
 
     def fill(self):
-        os.set_blocking(self.rfile.fileno(), False)
+        try:
+            os.set_blocking(self.rfile.fileno(), False)
+        except AttributeError:
+            # python < 3.5
+            flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
         try:
             read = _nb_clean(os.read, self.rfile.fileno(), LATENCY_BUFFER_SIZE)
         except OSError:
