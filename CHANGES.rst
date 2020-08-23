@@ -9,6 +9,21 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+1.0.3 - 2020-08-24
+------------------
+
+Fixed
+~~~~~
+* Allow Mux() flush/fill to work with python < 3.5
+* Fix parse_hostport to always return string for host.
+* Require -r/--remote parameter.
+* Add missing package in OpenWRT documentation.
+* Fix doc about --listen option.
+* README: add Ubuntu.
+* Increase IP4 ttl to 63 hops instead of 42.
+* Fix formatting in installation.rst
+
+
 1.0.3 - 2020-07-12
 ------------------
 
