@@ -20,8 +20,8 @@ else:
         else:
             search_paths = os.defpath.split(os.pathsep)
 
-        for path in search_paths:
-            filepath = os.path.join(path, file)
+        for p in search_paths:
+            filepath = os.path.join(p, file)
             if os.path.exists(filepath) and os.access(filepath, mode):
                 return filepath
         return None
