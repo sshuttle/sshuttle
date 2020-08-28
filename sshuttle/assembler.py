@@ -7,8 +7,11 @@ z = zlib.decompressobj()
 while 1:
     name = sys.stdin.readline().strip()
     if name:
-        name = name.decode("ASCII")
-
+        # python2 compat: in python2 sys.stdin.readline().strip() -> str
+        #                 in python3 sys.stdin.readline().strip() -> bytes
+        # (see #481)
+        if sys.version_info >= (3, 0):
+            name = name.decode("ASCII")
         nbytes = int(sys.stdin.readline())
         if verbosity >= 2:
             sys.stderr.write('server: assembling %r (%d bytes)\n'

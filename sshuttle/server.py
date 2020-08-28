@@ -6,7 +6,24 @@ import time
 import sys
 import os
 import platform
-from shutil import which
+
+if sys.version_info >= (3, 0):
+    from shutil import which
+else:
+    # python2 compat: shutil.which is not available so we provide our own which command
+    def which(file, mode=os.F_OK | os.X_OK, path=None):
+        if path is not None:
+            search_paths = [path]
+        elif "PATH" in os.environ:
+            search_paths = os.environ["PATH"].split(os.pathsep)
+        else:
+            search_paths = os.defpath.split(os.pathsep)
+
+        for path in search_paths:
+            filepath = os.path.join(path, file)
+            if os.path.exists(filepath) and os.access(filepath, mode):
+                return filepath
+        return None
 
 import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
