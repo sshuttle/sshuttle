@@ -10,7 +10,8 @@ import platform
 if sys.version_info >= (3, 0):
     from shutil import which
 else:
-    # python2 compat: shutil.which is not available so we provide our own which command
+    # python2 compat: shutil.which is not available so we provide our
+    # own which command
     def which(file, mode=os.F_OK | os.X_OK, path=None):
         if path is not None:
             search_paths = [path]
