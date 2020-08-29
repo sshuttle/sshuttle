@@ -299,8 +299,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(rb'[^-\w\.]', hostname))
-        assert(not re.search(rb'[^0-9.]', ip))
+        assert(not re.search(br'[^-\w\.]', hostname))
+        assert(not re.search(br'[^0-9.]', ip))
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
