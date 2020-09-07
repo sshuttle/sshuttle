@@ -542,7 +542,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         debug1('seed_hosts: %r\n' % seed_hosts)
         mux.send(0, ssnet.CMD_HOST_REQ, str.encode('\n'.join(seed_hosts)))
 
-
     def check_ssh_alive():
         if daemon:
             # poll() won't tell us when process exited since the
