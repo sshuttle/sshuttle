@@ -549,13 +549,15 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             # process is no longer our child (it returns 0 all the
             # time).
             if not psutil.pid_exists(serverproc.pid):
-                raise Fatal('ssh connection to server (pid %d) exited.' % serverproc.pid)
+                raise Fatal('ssh connection to server (pid %d) exited.' %
+                            serverproc.pid)
         else:
             rv = serverproc.poll()
             # poll returns None if process hasn't exited.
             if rv is not None:
-                raise Fatal('ssh connection to server (pid %d) exited with returncode %d' % (serverproc.pid, rv))
-        
+                raise Fatal('ssh connection to server (pid %d) exited'
+                            'with returncode %d' % (serverproc.pid, rv))
+
     while 1:
         check_ssh_alive()
         ssnet.runonce(handlers, mux)
