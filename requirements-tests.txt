@@ -1,5 +1,5 @@
 -r requirements.txt
-attrs==20.1.0
+attrs==20.2.0
 pytest==6.0.1
 pytest-cov==2.10.1
 mock==2.0.0
