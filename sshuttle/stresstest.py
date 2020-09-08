@@ -38,7 +38,7 @@ while 1:
         r = [listener] + servers + clients
     print('select(%d)' % len(r))
     r, w, x = select.select(r, [], [], 5)
-    assert(r)
+    assert r
     for i in r:
         if i == listener:
             s, addr = listener.accept()
@@ -47,7 +47,7 @@ while 1:
             b = i.recv(4096)
             print('srv <<  %r' % len(b))
             if i not in remain:
-                assert(len(b) >= 4)
+                assert len(b) >= 4
                 want = struct.unpack('I', b[:4])[0]
                 b = b[4:]
                 # i.send('y'*want)
@@ -55,13 +55,13 @@ while 1:
                 want = remain[i]
             if want < len(b):
                 print('weird wanted %d bytes, got %d: %r' % (want, len(b), b))
-                assert(want >= len(b))
+                assert want >= len(b)
             want -= len(b)
             remain[i] = want
             if not b:  # EOF
                 if want:
                     print('weird: eof but wanted %d more' % want)
-                    assert(want == 0)
+                    assert want == 0
                 i.close()
                 servers.remove(i)
                 del remain[i]
@@ -76,13 +76,13 @@ while 1:
             want = remain[i]
             if want < len(b):
                 print('weird wanted %d bytes, got %d: %r' % (want, len(b), b))
-                assert(want >= len(b))
+                assert want >= len(b)
             want -= len(b)
             remain[i] = want
             if not b:  # EOF
                 if want:
                     print('weird: eof but wanted %d more' % want)
-                    assert(want == 0)
+                    assert want == 0
                 i.close()
                 clients.remove(i)
                 del remain[i]

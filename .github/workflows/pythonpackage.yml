@@ -30,6 +30,9 @@ jobs:
     - name: Lint with flake8
       run: |
         flake8 sshuttle tests --count --show-source --statistics
+    - name: Lint with pylint
+      run: |
+        pylint sshuttle
     - name: Test with pytest
       run: |
         PYTHONPATH=$PWD pytest

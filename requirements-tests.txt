@@ -5,3 +5,4 @@ pytest-cov==2.10.1
 mock==2.0.0
 flake8==3.8.4
 pyflakes==2.2.0
+pylint==2.6.0

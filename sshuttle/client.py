@@ -1,3 +1,4 @@
+""" Sshuttle client code """
 import errno
 import re
 import signal
@@ -40,53 +41,56 @@ except AttributeError:
 _extra_fd = os.open(os.devnull, os.O_RDONLY)
 
 
-def got_signal(signum, frame):
+def got_signal(signum, _frame):
+    """ Process client signal """
     log('exiting on signal %d\n' % signum)
     sys.exit(1)
 
 
-_pidname = None
+_PID_NAME = None
 
 
 def check_daemon(pidfile):
-    global _pidname
-    _pidname = os.path.abspath(pidfile)
+    """ Check if daemon """
+    global _PID_NAME
+    _PID_NAME = os.path.abspath(pidfile)
     try:
-        oldpid = open(_pidname).read(1024)
+        oldpid = open(_PID_NAME).read(1024)
     except IOError as e:
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
         else:
-            raise Fatal("c : can't read %s: %s" % (_pidname, e))
+            raise Fatal("c : can't read %s: %s" % (_PID_NAME, e))
     if not oldpid:
-        os.unlink(_pidname)
+        os.unlink(_PID_NAME)
         return  # invalid pidfile, ok
     oldpid = int(oldpid.strip() or 0)
     if oldpid <= 0:
-        os.unlink(_pidname)
+        os.unlink(_PID_NAME)
         return  # invalid pidfile, ok
     try:
         os.kill(oldpid, 0)
     except OSError as e:
         if e.errno == errno.ESRCH:
-            os.unlink(_pidname)
+            os.unlink(_PID_NAME)
             return  # outdated pidfile, ok
         elif e.errno == errno.EPERM:
             pass
         else:
             raise
     raise Fatal("%s: sshuttle is already running (pid=%d)"
-                % (_pidname, oldpid))
+                % (_PID_NAME, oldpid))
 
 
 def daemonize():
+    """ Run code as daemon """
     if os.fork():
-        os._exit(0)
+        sys.exit(0)
     os.setsid()
     if os.fork():
-        os._exit(0)
+        sys.exit(0)
 
-    outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+    outfd = os.open(_PID_NAME, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
     try:
         os.write(outfd, b'%d\n' % os.getpid())
     finally:
@@ -104,8 +108,9 @@ def daemonize():
 
 
 def daemon_cleanup():
+    """ Clean up after daemon """
     try:
-        os.unlink(_pidname)
+        os.unlink(_PID_NAME)
     except OSError as e:
         if e.errno == errno.ENOENT:
             pass
@@ -114,6 +119,7 @@ def daemon_cleanup():
 
 
 class MultiListener:
+    """ Listen to multiple sockets """
 
     def __init__(self, kind=socket.SOCK_STREAM, proto=0):
         self.type = kind
@@ -123,14 +129,14 @@ class MultiListener:
         self.bind_called = False
 
     def setsockopt(self, level, optname, value):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.setsockopt(level, optname, value)
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
-        assert(self.bind_called)
+        assert self.bind_called
         socks = []
         if self.v6:
             socks.append(self.v6)
@@ -145,7 +151,7 @@ class MultiListener:
         )
 
     def listen(self, backlog):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
@@ -160,7 +166,7 @@ class MultiListener:
                     raise e
 
     def bind(self, address_v6, address_v4):
-        assert(not self.bind_called)
+        assert not self.bind_called
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
@@ -174,7 +180,7 @@ class MultiListener:
             self.v4 = None
 
     def print_listening(self, what):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             listenip = self.v6.getsockname()
             debug1('%s listening on %r.\n' % (what, listenip))
@@ -186,6 +192,7 @@ class MultiListener:
 
 
 class FirewallClient:
+    """ Start firewall code """
 
     def __init__(self, method_name, sudo_pythonpath):
         self.auto_nets = []
@@ -309,8 +316,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(br'[^-\w\.]', hostname))
-        assert(not re.search(br'[^0-9.]', ip))
+        assert not re.search(br'[^-\w\.]', hostname)
+        assert not re.search(br'[^0-9.]', ip)
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
@@ -326,6 +333,7 @@ udp_by_src = {}
 
 
 def expire_connections(now, mux):
+    """ Expire connections that have timed out """
     remove = []
     for chan, timeout in dnsreqs.items():
         if timeout < now:
@@ -349,6 +357,7 @@ def expire_connections(now, mux):
 
 
 def onaccept_tcp(listener, method, mux, handlers):
+    """ Accept a new TCP connection """
     global _extra_fd
     try:
         sock, srcip = listener.accept()
@@ -386,6 +395,7 @@ def onaccept_tcp(listener, method, mux, handlers):
 
 
 def udp_done(chan, data, method, sock, dstip):
+    """ Respond to UDP request """
     (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r\n' % (srcip, dstip,))
@@ -393,6 +403,7 @@ def udp_done(chan, data, method, sock, dstip):
 
 
 def onaccept_udp(listener, method, mux, handlers):
+    """ Accept a new UDP request """
     now = time.time()
     t = method.recv_udp(listener, 4096)
     if t is None:
@@ -415,6 +426,7 @@ def onaccept_udp(listener, method, mux, handlers):
 
 
 def dns_done(chan, data, method, sock, srcip, dstip, mux):
+    """ Respond to a DNS request """
     debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
@@ -422,6 +434,7 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
 
 
 def ondns(listener, method, mux, handlers):
+    """ Accept a new DNS request """
     now = time.time()
     t = method.recv_udp(listener, 4096)
     if t is None:
@@ -499,7 +512,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     sys.stdout.flush()
     if daemon:
         daemonize()
-        log('daemonizing (%s).\n' % _pidname)
+        log('daemonizing (%s).\n' % _PID_NAME)
 
     def onroutes(routestr):
         if auto_nets:
@@ -581,6 +594,7 @@ def main(listenip_v6, listenip_v4,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
          user, sudo_pythonpath):
+    """ Main client code """
 
     if not remotename:
         print("WARNING: You must specify -r/--remote to securely route "
@@ -821,7 +835,7 @@ def main(listenip_v6, listenip_v4,
                 raise e
 
     if not bound:
-        assert(last_e)
+        assert last_e
         raise last_e
     tcp_listener.listen(10)
     tcp_listener.print_listening("TCP redirector")
@@ -867,7 +881,7 @@ def main(listenip_v6, listenip_v4,
 
         dns_listener.print_listening("DNS")
         if not bound:
-            assert(last_e)
+            assert last_e
             raise last_e
     else:
         dnsport_v6 = 0
