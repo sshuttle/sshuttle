@@ -6,6 +6,7 @@ import subprocess as ssubprocess
 import os
 import sys
 import platform
+import psutil
 
 import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
@@ -541,11 +542,23 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         debug1('seed_hosts: %r\n' % seed_hosts)
         mux.send(0, ssnet.CMD_HOST_REQ, str.encode('\n'.join(seed_hosts)))
 
-    while 1:
-        rv = serverproc.poll()
-        if rv:
-            raise Fatal('server died with error code %d' % rv)
+    def check_ssh_alive():
+        if daemon:
+            # poll() won't tell us when process exited since the
+            # process is no longer our child (it returns 0 all the
+            # time).
+            if not psutil.pid_exists(serverproc.pid):
+                raise Fatal('ssh connection to server (pid %d) exited.' %
+                            serverproc.pid)
+        else:
+            rv = serverproc.poll()
+            # poll returns None if process hasn't exited.
+            if rv is not None:
+                raise Fatal('ssh connection to server (pid %d) exited'
+                            'with returncode %d' % (serverproc.pid, rv))
 
+    while 1:
+        check_ssh_alive()
         ssnet.runonce(handlers, mux)
         if latency_control:
             mux.check_fullness()
