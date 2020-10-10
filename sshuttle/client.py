@@ -17,6 +17,7 @@ from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers
 from sshuttle.methods import get_method, Features
+from sshuttle import __version__
 try:
     from pwd import getpwnam
 except ImportError:
@@ -581,7 +582,7 @@ def main(listenip_v6, listenip_v4,
         except Fatal as e:
             log("%s\n" % e)
             return 5
-    debug1('Starting sshuttle proxy.\n')
+    debug1('Starting sshuttle proxy (version %s).\n' % __version__)
 
     fw = FirewallClient(method_name, sudo_pythonpath)
 
