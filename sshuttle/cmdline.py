@@ -47,8 +47,15 @@ def main():
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
         else:
-            includes = opt.subnets + opt.subnets_file
-            excludes = opt.exclude
+            # parse_subnetports() is used to create a list of includes
+            # and excludes. It returns a list of one or more items for
+            # each subnet. It returns a list since "-x example.com"
+            # might find that example.com has multiple IP addresses. Here,
+            # we flatten these lists.
+            includes = [item for sublist in opt.subnets+opt.subnets_file
+                        for item in sublist]
+            excludes = [item for sublist in opt.exclude for item in sublist]
+
             if not includes and not opt.auto_nets:
                 parser.error('at least one subnet, subnet file, '
                              'or -N expected')
