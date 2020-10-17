@@ -47,7 +47,8 @@ def test_parse_subnetport_ip4_with_mask():
         == [(socket.AF_INET, '0.0.0.0', 0, 0, 0)]
     with pytest.raises(Fatal) as excinfo:
         sshuttle.options.parse_subnetport('10.0.0.0/33')
-    assert str(excinfo.value) == 'Slash in CIDR notation (/33) is not between 0 and 32'
+    assert str(excinfo.value) \
+        == 'Slash in CIDR notation (/33) is not between 0 and 32'
 
 
 def test_parse_subnetport_ip4_with_port():
@@ -82,7 +83,8 @@ def test_parse_subnetport_ip6_with_mask():
         == [(socket.AF_INET6, '::', 0, 0, 0)]
     with pytest.raises(Fatal) as excinfo:
         sshuttle.options.parse_subnetport('fc00::/129')
-    assert str(excinfo.value) == 'Slash in CIDR notation (/129) is not between 0 and 128'
+    assert str(excinfo.value) \
+        == 'Slash in CIDR notation (/129) is not between 0 and 128'
 
 
 def test_parse_subnetport_ip6_with_port():
