@@ -67,7 +67,7 @@ def parse_subnetport(s):
                         "of /%s is not supported. Specify the IP "
                         "addresses directly if you wish to specify "
                         "a mask." % (host, cidr))
-        
+
         # Warn if a domain has multiple IPs of the same type (IPv4 vs
         # IPv6) and the mask is applied to all of the IPs.
         if len(addr_v4) > 1 or len(addr_v6) > 1:
@@ -81,7 +81,7 @@ def parse_subnetport(s):
 
         # Largest possible slash value we can use with this IP:
         max_cidr = 32 if family == socket.AF_INET else 128
-        
+
         if cidr is None:  # if no mask, use largest mask
             cidr_to_use = max_cidr
         else:   # verify user-provided mask is appropriate
@@ -93,7 +93,6 @@ def parse_subnetport(s):
 
         rv.append((family, addr[0], cidr_to_use,
                    int(fport or 0), int(lport or fport or 0)))
-
 
     return rv
 
@@ -124,7 +123,8 @@ def parse_ipport(s):
         raise Fatal('Unable to resolve address: %s' % host)
 
     if len(addrinfo) > 1:
-        print("WARNING: Host %s has more than one IP, only using one of them." % host)
+        print("WARNING: Host %s has more than one IP, only using one of them."
+              % host)
 
     family, _, _, _, addr = min(addrinfo)
     # Note: addr contains (ip, port)
