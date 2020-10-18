@@ -572,9 +572,9 @@ def main(listenip_v6, listenip_v4,
          user, sudo_pythonpath):
 
     if not remotename:
-        # XXX: We can't make it required at the argparse level,
-        #      because sshuttle calls out to itself in FirewallClient.
-        raise Fatal("You must specify -r/--remote.")
+        print("WARNING: You must specify -r/--remote to securely route "
+              "traffic to a remote machine. Running without -r/--remote "
+              "is only recommended for testing.")
 
     if daemon:
         try:
