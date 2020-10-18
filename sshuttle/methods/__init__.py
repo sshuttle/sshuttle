@@ -38,6 +38,7 @@ class BaseMethod(object):
     @staticmethod
     def get_supported_features():
         result = Features()
+        result.ipv4 = True
         result.ipv6 = False
         result.udp = False
         result.dns = True
@@ -68,7 +69,7 @@ class BaseMethod(object):
 
     def assert_features(self, features):
         avail = self.get_supported_features()
-        for key in ["udp", "dns", "ipv6", "user"]:
+        for key in ["udp", "dns", "ipv6", "ipv4", "user"]:
             if getattr(features, key) and not getattr(avail, key):
                 raise Fatal(
                     "Feature %s not supported with method %s.\n" %
