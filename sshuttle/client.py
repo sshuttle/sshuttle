@@ -586,30 +586,75 @@ def main(listenip_v6, listenip_v4,
 
     fw = FirewallClient(method_name, sudo_pythonpath)
 
-    # Get family specific subnet lists
+    # If --dns is used, store the IP addresses that the client
+    # normally uses for DNS lookups in nslist. The firewall needs to
+    # redirect packets outgoing to this server to the remote host
+    # instead.
     if dns:
         nslist += resolvconf_nameservers()
         if to_nameserver is not None:
             to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
     else:
         # option doesn't make sense if we aren't proxying dns
+        if to_nameserver and len(to_nameserver) > 0:
+            print("WARNING: --to-ns option is ignored because --dns was not "
+                  "used.")
         to_nameserver = None
 
-    subnets = subnets_include + subnets_exclude  # we don't care here
-    subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
-    nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
-    subnets_v4 = [i for i in subnets if i[0] == socket.AF_INET]
+    # Get family specific subnet lists. Also, the user may not specify
+    # any subnets if they use --auto-nets. In this case, our subnets
+    # list will be empty and the forwarded subnets will be determined
+    # later by the server.
+    subnets_v4 = [i for i in subnets_include if i[0] == socket.AF_INET]
+    subnets_v6 = [i for i in subnets_include if i[0] == socket.AF_INET6]
     nslist_v4 = [i for i in nslist if i[0] == socket.AF_INET]
+    nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
 
-    # Check features available
+    # Get available features from the firewall method
     avail = fw.method.get_supported_features()
+
+    # A feature is "required" if the user supplies us parameters which
+    # implies that the feature is needed.
     required = Features()
 
+    # Select the default addresses to bind to / listen to.
+
+    # Assume IPv4 is always available and should always be enabled. If
+    # a method doesn't provide IPv4 support or if we wish to run
+    # ipv6-only, changes to this code are required.
+    assert avail.ipv4
+    required.ipv4 = True
+
+    # listenip_v4 contains user specified value or it is set to "auto".
+    if listenip_v4 == "auto":
+        listenip_v4 = ('127.0.0.1', 0)
+
+    # listenip_v6 is...
+    #    None when IPv6 is disabled.
+    #    "auto" when listen address is unspecified.
+    #    The user specified address if provided by user
+    if listenip_v6 is None:
+        debug1("IPv6 disabled by --disable-ipv6\n")
     if listenip_v6 == "auto":
         if avail.ipv6:
+            debug1("IPv6 enabled: Using default IPv6 listen address ::1\n")
             listenip_v6 = ('::1', 0)
         else:
+            debug1("IPv6 disabled since it isn't supported by method "
+                   "%s.\n" % fw.method.name)
             listenip_v6 = None
+
+    # Make final decision about enabling IPv6:
+    required.ipv6 = False
+    if listenip_v6:
+        required.ipv6 = True
+
+    # If we get here, it is possible that listenip_v6 was user
+    # specified but not supported by the current method.
+    if required.ipv6 and not avail.ipv6:
+        raise Fatal("An IPv6 listen address was supplied, but IPv6 is "
+                    "disabled at your request or is unsupported by the %s "
+                    "method." % fw.method.name)
 
     if user is not None:
         if getpwnam is None:
@@ -618,38 +663,66 @@ def main(listenip_v6, listenip_v4,
             user = getpwnam(user).pw_uid
         except KeyError:
             raise Fatal("User %s does not exist." % user)
-
-    if fw.method.name != 'nat':
-        required.ipv6 = len(subnets_v6) > 0 or listenip_v6 is not None
-        required.ipv4 = len(subnets_v4) > 0 or listenip_v4 is not None
-    else:
-        required.ipv6 = None
-        required.ipv4 = None
-
-    required.udp = avail.udp
-    required.dns = len(nslist) > 0
     required.user = False if user is None else True
 
-    # if IPv6 not supported, ignore IPv6 DNS servers
-    if not required.ipv6:
-        nslist_v6 = []
-        nslist = nslist_v4
+    if not required.ipv6 and len(subnets_v6) > 0:
+        print("WARNING: IPv6 subnets were ignored because IPv6 is disabled "
+              "in sshuttle.")
+        subnets_v6 = []
+        subnets_include = subnets_v4
 
+    required.udp = avail.udp  # automatically enable UDP if it is available
+    required.dns = len(nslist) > 0
+
+    # Remove DNS servers using IPv6.
+    if required.dns:
+        if not required.ipv6 and len(nslist_v6) > 0:
+            print("WARNING: Your system is configured to use an IPv6 DNS "
+                  "server but sshuttle is not using IPv6. Therefore DNS "
+                  "traffic your system sends to the IPv6 DNS server won't "
+                  "be redirected via sshuttle to the remote machine.")
+            nslist_v6 = []
+            nslist = nslist_v4
+
+        if len(nslist) == 0:
+            raise Fatal("Can't redirect DNS traffic since IPv6 is not "
+                        "enabled in sshuttle and all of the system DNS "
+                        "servers are IPv6.")
+
+    # If we aren't using IPv6, we can safely ignore excluded IPv6 subnets.
+    if not required.ipv6:
+        orig_len = len(subnets_exclude)
+        subnets_exclude = [i for i in subnets_exclude
+                           if i[0] == socket.AF_INET]
+        if len(subnets_exclude) < orig_len:
+            print("WARNING: Ignoring one or more excluded IPv6 subnets "
+                  "because IPv6 is not enabled.")
+
+    # This will print error messages if we required a feature that
+    # isn't available by the current method.
     fw.method.assert_features(required)
 
-    if required.ipv6 and listenip_v6 is None:
-        raise Fatal("IPv6 required but not listening.")
-
     # display features enabled
-    debug1("IPv6 enabled: %r\n" % required.ipv6)
-    debug1("UDP enabled: %r\n" % required.udp)
-    debug1("DNS enabled: %r\n" % required.dns)
-    debug1("User enabled: %r\n" % required.user)
+    def feature_status(label, enabled, available):
+        msg = label + ": "
+        if enabled:
+            msg += "on"
+        else:
+            msg += "off "
+            if available:
+                msg += "(available)"
+            else:
+                msg += "(not available with %s method)" % fw.method.name
+        debug1(msg + "\n")
 
-    # bind to required ports
-    if listenip_v4 == "auto":
-        listenip_v4 = ('127.0.0.1', 0)
+    debug1("Method: %s\n" % fw.method.name)
+    feature_status("IPv4", required.ipv4, avail.ipv4)
+    feature_status("IPv6", required.ipv6, avail.ipv6)
+    feature_status("UDP ", required.udp, avail.udp)
+    feature_status("DNS ", required.dns, avail.dns)
+    feature_status("User", required.user, avail.user)
 
+    # Exclude traffic destined to our listen addresses.
     if required.ipv4 and \
             not any(listenip_v4[0] == sex[1] for sex in subnets_v4):
         subnets_exclude.append((socket.AF_INET, listenip_v4[0], 32, 0, 0))
@@ -657,6 +730,25 @@ def main(listenip_v6, listenip_v4,
     if required.ipv6 and \
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
+
+    # We don't print the IP+port of where we are listening here
+    # because we do that below when we have identified the ports to
+    # listen on.
+    debug1("Subnets to forward through remote host (type, IP, cidr mask "
+           "width, startPort, endPort):\n")
+    for i in subnets_include:
+        print("  "+str(i))
+    if auto_nets:
+        debug1("NOTE: Additional subnets to forward may be added below by "
+               "--auto-nets.\n")
+    debug1("Subnets to exclude from forwarding:\n")
+    for i in subnets_exclude:
+        print("  "+str(i))
+    if required.dns:
+        debug1("DNS requests normally directed at these servers will be "
+               "redirected to remote:\n")
+        for i in nslist:
+            print("  "+str(i))
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
