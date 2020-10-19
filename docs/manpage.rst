@@ -202,6 +202,11 @@ Options
     Automatically fork into the background after connecting
     to the remote server.  Implies :option:`--syslog`.
 
+.. option:: -s <file>, --subnets=<file>
+
+    Include the subnets specified in a file instead of on the
+    command line. One subnet per line.
+
 .. option:: --syslog
 
     after connecting, send all log messages to the
