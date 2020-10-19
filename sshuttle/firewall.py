@@ -47,8 +47,11 @@ def rewrite_etc_hosts(hostmap, port):
     os.rename(tmpname, HOSTSFILE)
 
 
-def restore_etc_hosts(port):
-    rewrite_etc_hosts({}, port)
+def restore_etc_hosts(hostmap, port):
+    # Only restore if we added hosts to /etc/hosts previously.
+    if len(hostmap) > 0:
+        debug2('firewall manager: undoing /etc/hosts changes.\n')
+        rewrite_etc_hosts({}, port)
 
 
 # Isolate function that needs to be replaced for tests
@@ -275,8 +278,8 @@ def main(method_name, syslog):
                 debug2('An error occurred, ignoring it.')
 
         try:
-            debug2('firewall manager: undoing /etc/hosts changes.\n')
-            restore_etc_hosts(port_v6 or port_v4)
+            # debug2() message printed in restore_etc_hosts() function.
+            restore_etc_hosts(hostmap, port_v6 or port_v4)
         except BaseException:
             try:
                 debug1("firewall manager: "
