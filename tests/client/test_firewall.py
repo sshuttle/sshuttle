@@ -55,7 +55,7 @@ def test_rewrite_etc_hosts(tmpdir):
         assert line == ""
 
     with patch('sshuttle.firewall.HOSTSFILE', new=str(new_hosts)):
-        sshuttle.firewall.restore_etc_hosts(10)
+        sshuttle.firewall.restore_etc_hosts(hostmap, 10)
     assert orig_hosts.computehash() == new_hosts.computehash()
 
 
