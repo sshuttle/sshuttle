@@ -581,7 +581,7 @@ def main(listenip_v6, listenip_v4,
             return 5
     debug1('Starting sshuttle proxy (version %s).\n' % __version__)
     helpers.logprefix = 'c : '
-    
+
     fw = FirewallClient(method_name, sudo_pythonpath)
 
     # If --dns is used, store the IP addresses that the client
