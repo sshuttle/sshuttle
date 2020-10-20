@@ -43,6 +43,8 @@ def parse_hostport(rhostport):
     """
     # leave use of default port to ssh command to prevent overwriting
     # ports configured in ~/.ssh/config when no port is given
+    if rhostport is None or len(rhostport) == 0:
+        return None, None, None, None
     port = None
     username = None
     password = None
