@@ -8,7 +8,7 @@ def nonfatal(func, *args):
     try:
         func(*args)
     except Fatal as e:
-        log('error: %s\n' % e)
+        log('fw: error: %s\n' % e)
 
 
 def ipt_chain_exists(family, table, name):
@@ -29,7 +29,7 @@ def ipt_chain_exists(family, table, name):
             if line.startswith('Chain %s ' % name):
                 return True
     except ssubprocess.CalledProcessError as e:
-        raise Fatal('%r returned %d' % (argv, e.returncode))
+        raise Fatal('fw: %r returned %d' % (argv, e.returncode))
 
 
 def ipt(family, table, *args):
@@ -39,14 +39,14 @@ def ipt(family, table, *args):
         argv = ['iptables', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('%s\n' % ' '.join(argv))
     env = {
         'PATH': os.environ['PATH'],
         'LC_ALL': "C",
     }
     rv = ssubprocess.call(argv, env=env)
     if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+        raise Fatal('fw: %r returned %d' % (argv, rv))
 
 
 def nft(family, table, action, *args):
@@ -54,14 +54,14 @@ def nft(family, table, action, *args):
         argv = ['nft', action, 'inet', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('%s\n' % ' '.join(argv))
     env = {
         'PATH': os.environ['PATH'],
         'LC_ALL': "C",
     }
     rv = ssubprocess.call(argv, env=env)
     if rv:
-        raise Fatal('%r returned %d' % (argv, rv))
+        raise Fatal('fw: %r returned %d' % (argv, rv))
 
 
 _no_ttl_module = False
@@ -79,7 +79,7 @@ def ipt_ttl(family, *args):
         except Fatal:
             ipt(family, *args)
             # we only get here if the non-ttl attempt succeeds
-            log('sshuttle: warning: your iptables is missing '
+            log('fw: WARNING: your iptables is missing '
                 'the ttl module.\n')
             _no_ttl_module = True
     else:
