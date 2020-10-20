@@ -57,7 +57,7 @@ def check_daemon(pidfile):
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
         else:
-            raise Fatal("can't read %s: %s" % (_pidname, e))
+            raise Fatal("c : can't read %s: %s" % (_pidname, e))
     if not oldpid:
         os.unlink(_pidname)
         return  # invalid pidfile, ok
@@ -433,17 +433,14 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
           to_nameserver):
 
+    helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s\n'
            % platform.python_version())
 
     method = fw.method
 
     handlers = []
-    if helpers.verbose >= 1:
-        helpers.logprefix = 'c : '
-    else:
-        helpers.logprefix = 'client: '
-    debug1('connecting to server...\n')
+    debug1('Connecting to server...\n')
 
     try:
         (serverproc, serversock) = ssh.connect(
@@ -455,7 +452,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
-            raise Fatal("failed to establish ssh session (1)")
+            raise Fatal("c : failed to establish ssh session (1)")
         else:
             raise
     mux = Mux(serversock.makefile("rb"), serversock.makefile("wb"))
@@ -473,18 +470,18 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         initstring = serversock.recv(len(expected))
     except socket.error as e:
         if e.args[0] == errno.ECONNRESET:
-            raise Fatal("failed to establish ssh session (2)")
+            raise Fatal("c : failed to establish ssh session (2)")
         else:
             raise
 
     rv = serverproc.poll()
     if rv:
-        raise Fatal('server died with error code %d' % rv)
+        raise Fatal('c : server died with error code %d' % rv)
 
     if initstring != expected:
-        raise Fatal('expected server init string %r; got %r'
+        raise Fatal('c : expected server init string %r; got %r'
                     % (expected, initstring))
-    log('Connected.\n')
+    log('Connected to server.\n')
     sys.stdout.flush()
     if daemon:
         daemonize()
@@ -555,7 +552,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             rv = serverproc.poll()
             # poll returns None if process hasn't exited.
             if rv is not None:
-                raise Fatal('ssh connection to server (pid %d) exited'
+                raise Fatal('ssh connection to server (pid %d) exited '
                             'with returncode %d' % (serverproc.pid, rv))
 
     while 1:
@@ -583,6 +580,7 @@ def main(listenip_v6, listenip_v4,
             log("%s\n" % e)
             return 5
     debug1('Starting sshuttle proxy (version %s).\n' % __version__)
+    helpers.logprefix = 'c : '
 
     fw = FirewallClient(method_name, sudo_pythonpath)
 
@@ -737,18 +735,18 @@ def main(listenip_v6, listenip_v4,
     debug1("Subnets to forward through remote host (type, IP, cidr mask "
            "width, startPort, endPort):\n")
     for i in subnets_include:
-        print("  "+str(i))
+        debug1("  "+str(i)+"\n")
     if auto_nets:
         debug1("NOTE: Additional subnets to forward may be added below by "
                "--auto-nets.\n")
     debug1("Subnets to exclude from forwarding:\n")
     for i in subnets_exclude:
-        print("  "+str(i))
+        debug1("  "+str(i)+"\n")
     if required.dns:
         debug1("DNS requests normally directed at these servers will be "
                "redirected to remote:\n")
         for i in nslist:
-            print("  "+str(i))
+            debug1("  "+str(i)+"\n")
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
@@ -765,9 +763,8 @@ def main(listenip_v6, listenip_v4,
     redirectport_v6 = 0
     redirectport_v4 = 0
     bound = False
-    debug2('Binding redirector:')
     for port in ports:
-        debug2(' %d' % port)
+        debug2('Trying to bind redirector on port %d\n' % port)
         tcp_listener = MultiListener()
 
         if required.udp:
@@ -809,7 +806,6 @@ def main(listenip_v6, listenip_v4,
             else:
                 raise e
 
-    debug2('\n')
     if not bound:
         assert(last_e)
         raise last_e
@@ -821,10 +817,9 @@ def main(listenip_v6, listenip_v4,
     bound = False
     if required.dns:
         # search for spare port for DNS
-        debug2('Binding DNS:')
         ports = range(12300, 9000, -1)
         for port in ports:
-            debug2(' %d' % port)
+            debug2('Trying to bind DNS redirector on port %d\n' % port)
             if port in used_ports:
                 continue
 
@@ -855,7 +850,7 @@ def main(listenip_v6, listenip_v4,
                     used_ports.append(port)
                 else:
                     raise e
-        debug2('\n')
+
         dns_listener.print_listening("DNS")
         if not bound:
             assert(last_e)

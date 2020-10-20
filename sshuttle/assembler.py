@@ -14,7 +14,7 @@ while 1:
             name = name.decode("ASCII")
         nbytes = int(sys.stdin.readline())
         if verbosity >= 2:
-            sys.stderr.write('server: assembling %r (%d bytes)\n'
+            sys.stderr.write(' s: assembling %r (%d bytes)\n'
                              % (name, nbytes))
         content = z.decompress(sys.stdin.read(nbytes))
 
