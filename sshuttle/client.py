@@ -552,7 +552,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             rv = serverproc.poll()
             # poll returns None if process hasn't exited.
             if rv is not None:
-                raise Fatal('ssh connection to server (pid %d) exited'
+                raise Fatal('ssh connection to server (pid %d) exited '
                             'with returncode %d' % (serverproc.pid, rv))
 
     while 1:
