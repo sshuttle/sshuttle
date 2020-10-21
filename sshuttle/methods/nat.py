@@ -50,17 +50,24 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', *args)
         _ipt('-I', 'PREROUTING', '1', *args)
 
-        # Firstly we always skip all LOCAL addtrype address, i.e. avoid
-        # tunnelling the traffic designated to all local TCP/IP addresses.
+        # This TTL hack allows the client and server to run on the
+        # same host. The connections the sshuttle server makes will
+        # have TTL set to 63.
+        _ipt_ttl('-A', chain, '-j', 'RETURN',  '-m', 'ttl', '--ttl', '63')
+
+        # Redirect DNS traffic as requested. This includes routing traffic
+        # to localhost DNS servers through sshuttle.
+        for _, ip in [i for i in nslist if i[0] == family]:
+            _ipt('-A', chain, '-j', 'REDIRECT',
+                 '--dest', '%s/32' % ip,
+                 '-p', 'udp',
+                 '--dport', '53',
+                 '--to-ports', str(dnsport))
+
+        # Don't route any remaining local traffic through sshuttle.
         _ipt('-A', chain, '-j', 'RETURN',
              '-m', 'addrtype',
-             '--dst-type', 'LOCAL',
-             '!', '-p', 'udp')
-        # Skip LOCAL traffic if it's not DNS.
-        _ipt('-A', chain, '-j', 'RETURN',
-             '-m', 'addrtype',
-             '--dst-type', 'LOCAL',
-             '-p', 'udp', '!', '--dport', '53')
+             '--dst-type', 'LOCAL')
 
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
@@ -74,16 +81,9 @@ class Method(BaseMethod):
                      '--dest', '%s/%s' % (snet, swidth),
                      *tcp_ports)
             else:
-                _ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                         '--dest', '%s/%s' % (snet, swidth),
-                         *(tcp_ports + ('--to-ports', str(port))))
-
-        for _, ip in [i for i in nslist if i[0] == family]:
-            _ipt_ttl('-A', chain, '-j', 'REDIRECT',
-                     '--dest', '%s/32' % ip,
-                     '-p', 'udp',
-                     '--dport', '53',
-                     '--to-ports', str(dnsport))
+                _ipt('-A', chain, '-j', 'REDIRECT',
+                     '--dest', '%s/%s' % (snet, swidth),
+                     *(tcp_ports + ('--to-ports', str(port))))
 
     def restore_firewall(self, port, family, udp, user):
         # only ipv4 supported with NAT

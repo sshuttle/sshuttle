@@ -34,6 +34,26 @@ class Method(BaseMethod):
         _nft('add rule', 'output jump %s' % chain)
         _nft('add rule', 'prerouting jump %s' % chain)
 
+        # This TTL hack allows the client and server to run on the
+        # same host. The connections the sshuttle server makes will
+        # have TTL set to 63.
+        _nft('add rule', chain, 'ip ttl == 63 return')
+
+        # Redirect DNS traffic as requested. This includes routing traffic
+        # to localhost DNS servers through sshuttle.
+        for _, ip in [i for i in nslist if i[0] == family]:
+            if family == socket.AF_INET:
+                _nft('add rule', chain, 'ip protocol udp ip daddr %s' % ip,
+                     'udp dport { 53 }',
+                     ('redirect to :' + str(dnsport)))
+            elif family == socket.AF_INET6:
+                _nft('add rule', chain, 'ip6 protocol udp ip6 daddr %s' % ip,
+                     'udp dport { 53 }',
+                     ('redirect to :' + str(dnsport)))
+
+        # Don't route any remaining local traffic through sshuttle
+        _nft('add rule', chain, 'fib daddr type local return')
+
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
@@ -50,18 +70,8 @@ class Method(BaseMethod):
                      'ip daddr %s/%s' % (snet, swidth), 'return')))
             else:
                 _nft('add rule', chain, *(tcp_ports + (
-                     'ip daddr %s/%s' % (snet, swidth), 'ip ttl != 63',
+                     'ip daddr %s/%s' % (snet, swidth),
                      ('redirect to :' + str(port)))))
-
-        for _, ip in [i for i in nslist if i[0] == family]:
-            if family == socket.AF_INET:
-                _nft('add rule', chain, 'ip protocol udp ip daddr %s' % ip,
-                     'udp dport { 53 }', 'ip ttl != 63',
-                     ('redirect to :' + str(dnsport)))
-            elif family == socket.AF_INET6:
-                _nft('add rule', chain, 'ip6 protocol udp ip6 daddr %s' % ip,
-                     'udp dport { 53 }', 'ip ttl != 63',
-                     ('redirect to :' + str(dnsport)))
 
     def restore_firewall(self, port, family, udp, user):
         if udp:
