@@ -18,11 +18,21 @@ def test_get_supported_features():
 
 def test_get_tcp_dstip():
     sock = Mock()
+    sock.family = AF_INET
     sock.getsockopt.return_value = struct.pack(
         '!HHBBBB', socket.ntohs(AF_INET), 1024, 127, 0, 0, 1)
     method = get_method('nat')
     assert method.get_tcp_dstip(sock) == ('127.0.0.1', 1024)
     assert sock.mock_calls == [call.getsockopt(0, 80, 16)]
+
+    sock = Mock()
+    sock.family = AF_INET6
+    sock.getsockopt.return_value = struct.pack(
+        '!HH4xBBBBBBBBBBBBBBBB', socket.ntohs(AF_INET6),
+        1024, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
+    method = get_method('nft')
+    assert method.get_tcp_dstip(sock) == ('::1', 1024)
+    assert sock.mock_calls == [call.getsockopt(41, 80, 64)]
 
 
 def test_recv_udp():
