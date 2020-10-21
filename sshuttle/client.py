@@ -201,7 +201,7 @@ class FirewallClient:
 
     def __init__(self, method_name, sudo_pythonpath, ttl):
         self.auto_nets = []
-        python_path = os.path.dirname(os.path.dirname(__file__))
+
         argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
@@ -224,7 +224,8 @@ class FirewallClient:
 
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
-                            'PYTHONPATH=%s' % python_path]
+                            'PYTHONPATH=%s' %
+                            os.path.dirname(os.path.dirname(__file__))]
         argv_tries = [elev_prefix + argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,

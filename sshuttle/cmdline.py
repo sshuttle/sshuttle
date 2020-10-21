@@ -20,7 +20,7 @@ def main():
             return 1
 
         if not opt.sudoers_filename:
-            log('--sudoers-file must be set or omited.')
+            log('--sudoers-file must be set or omitted.')
             return 1
 
         sudoers(
