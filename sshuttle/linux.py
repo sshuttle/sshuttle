@@ -74,7 +74,7 @@ def ipt_ttl(family, *args):
         # with ttl 63.  This makes the client side not recapture those
         # connections, in case client == server.
         try:
-            argsplus = list(args) + ['-m', 'ttl', '!', '--ttl', '63']
+            argsplus = list(args)
             ipt(family, *argsplus)
         except Fatal:
             ipt(family, *args)
