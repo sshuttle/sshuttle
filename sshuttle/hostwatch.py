@@ -9,7 +9,7 @@ import platform
 
 import subprocess as ssubprocess
 import sshuttle.helpers as helpers
-from sshuttle.helpers import log, debug1, debug2, debug3
+from sshuttle.helpers import log, debug1, debug2, debug3, get_env
 
 POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30
@@ -125,14 +125,10 @@ def _check_dns(hostname):
 
 def _check_netstat():
     debug2(' > netstat\n')
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
     argv = ['netstat', '-n']
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=env)
+                              env=get_env())
         content = p.stdout.read().decode("ASCII")
         p.wait()
     except OSError:
@@ -151,14 +147,10 @@ def _check_smb(hostname):
     if not _smb_ok:
         return
     debug2(' > smb: %s\n' % hostname)
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
     argv = ['smbclient', '-U', '%', '-L', hostname]
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=env)
+                              env=get_env())
         lines = p.stdout.readlines()
         p.wait()
     except OSError:
@@ -214,14 +206,10 @@ def _check_nmb(hostname, is_workgroup, is_master):
     if not _nmb_ok:
         return
     debug2(' > n%d%d: %s\n' % (is_workgroup, is_master, hostname))
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
     argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=env)
+                              env=get_env)
         lines = p.stdout.readlines()
         rv = p.wait()
     except OSError:

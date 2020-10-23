@@ -4,7 +4,7 @@ from socket import AF_INET, AF_INET6
 import pytest
 from mock import Mock, patch, call, ANY
 from sshuttle.methods import get_method
-from sshuttle.helpers import Fatal
+from sshuttle.helpers import Fatal, get_env
 from sshuttle.methods.pf import FreeBsd, Darwin, OpenBsd
 
 
@@ -316,7 +316,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
     ]
-    assert call(['kldload', 'pf']) in mock_subprocess_call.mock_calls
+    assert call(['kldload', 'pf'], env=get_env()) in \
+        mock_subprocess_call.mock_calls
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()

@@ -11,7 +11,8 @@ from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string
+from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string, \
+    get_env
 from sshuttle.methods import BaseMethod
 
 
@@ -179,7 +180,7 @@ class FreeBsd(Generic):
         return freebsd
 
     def enable(self):
-        returncode = ssubprocess.call(['kldload', 'pf'])
+        returncode = ssubprocess.call(['kldload', 'pf'], env=get_env())
         # No env: No output.
         super(FreeBsd, self).enable()
         if returncode == 0:
@@ -189,7 +190,7 @@ class FreeBsd(Generic):
         super(FreeBsd, self).disable(anchor)
         if _pf_context['loaded_by_sshuttle'] and \
                 _pf_context['started_by_sshuttle'] == 0:
-            ssubprocess.call(['kldunload', 'pf'])
+            ssubprocess.call(['kldunload', 'pf'], env=get_env())
             # No env: No output.
 
     def add_anchors(self, anchor):
@@ -386,15 +387,10 @@ else:
 def pfctl(args, stdin=None):
     argv = ['pfctl'] + shlex.split(args)
     debug1('>> %s\n' % ' '.join(argv))
-
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
     p = ssubprocess.Popen(argv, stdin=ssubprocess.PIPE,
                           stdout=ssubprocess.PIPE,
                           stderr=ssubprocess.PIPE,
-                          env=env)
+                          env=get_env())
     o = p.communicate(stdin)
     if p.returncode:
         raise Fatal('%r returned %d' % (argv, p.returncode))

@@ -1,9 +1,8 @@
-import os
 import importlib
 import socket
 import struct
 import errno
-from sshuttle.helpers import Fatal, debug3
+from sshuttle.helpers import Fatal, debug3, which
 
 
 def original_dst(sock):
@@ -87,27 +86,19 @@ class BaseMethod(object):
         return False
 
 
-def _program_exists(name):
-    paths = (os.getenv('PATH') or os.defpath).split(os.pathsep)
-    for p in paths:
-        fn = '%s/%s' % (p, name)
-        if os.path.exists(fn):
-            return not os.path.isdir(fn) and os.access(fn, os.X_OK)
-
-
 def get_method(method_name):
     module = importlib.import_module("sshuttle.methods.%s" % method_name)
     return module.Method(method_name)
 
 
 def get_auto_method():
-    if _program_exists('iptables'):
+    if which('iptables'):
         method_name = "nat"
-    elif _program_exists('nft'):
+    elif which('nft'):
         method_name = "nft"
-    elif _program_exists('pfctl'):
+    elif which('pfctl'):
         method_name = "pf"
-    elif _program_exists('ipfw'):
+    elif which('ipfw'):
         method_name = "ipfw"
     else:
         raise Fatal(

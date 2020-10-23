@@ -7,24 +7,6 @@ import sys
 import os
 import platform
 
-if sys.version_info >= (3, 0):
-    from shutil import which
-else:
-    # python2 compat: shutil.which is not available so we provide our
-    # own which command
-    def which(file, mode=os.F_OK | os.X_OK, path=None):
-        if path is not None:
-            search_paths = [path]
-        elif "PATH" in os.environ:
-            search_paths = os.environ["PATH"].split(os.pathsep)
-        else:
-            search_paths = os.defpath.split(os.pathsep)
-
-        for p in search_paths:
-            filepath = os.path.join(p, file)
-            if os.path.exists(filepath) and os.access(filepath, mode):
-                return filepath
-        return None
 
 import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
@@ -32,7 +14,7 @@ import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
-    resolvconf_random_nameserver
+    resolvconf_random_nameserver, which, get_env
 
 
 def _ipmatch(ipstr):
@@ -100,11 +82,7 @@ def _route_iproute(line):
 
 def _list_routes(argv, extract_route):
     # FIXME: IPv4 only
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
-    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=env)
+    p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=get_env())
     routes = []
     for line in p.stdout:
         if not line.strip():
