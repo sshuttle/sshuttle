@@ -20,6 +20,18 @@ Requires:
 
 * iptables DNAT, REDIRECT, and ttl modules.
 
+Linux with nft method
+~~~~~~~~~~~~~~~~~~~~~
+Supports
+
+* IPv4 TCP
+* IPv4 DNS
+* IPv6 TCP
+* IPv6 DNS
+
+Requires:
+
+* nftables
 
 Linux with TPROXY method
 ~~~~~~~~~~~~~~~~~~~~~~~~

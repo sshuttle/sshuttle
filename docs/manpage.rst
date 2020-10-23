@@ -37,14 +37,18 @@ Options
     netmask), and 0/0 ('just route everything through the
     VPN'). Any of the previous examples are also valid if you append
     a port or a port range, so 1.2.3.4:8000 will only tunnel traffic
-    that has as the destination port 8000 of 1.2.3.4 and 
+    that has as the destination port 8000 of 1.2.3.4 and
     1.2.3.0/24:8000-9000 will tunnel traffic going to any port between
     8000 and 9000 (inclusive) for all IPs in the 1.2.3.0/24 subnet.
-    It is also possible to use a name in which case the first IP it resolves
-    to during startup will be routed over the VPN. Valid examples are
-    example.com, example.com:8000 and example.com:8000-9000.
+    A hostname can be provided instead of an IP address. If the
+    hostname resolves to multiple IPs, all of the IPs are included.
+    If a width is provided with a hostname that the width is applied
+    to all of the hostnames IPs (if they are all either IPv4 or IPv6).
+    Widths cannot be supplied to hostnames that resolve to both IPv4
+    and IPv6. Valid examples are example.com, example.com:8000,
+    example.com/24, example.com/24:8000 and example.com:8000-9000.
 
-.. option:: --method <auto|nat|nft|tproxy|pf>
+.. option:: --method <auto|nat|nft|tproxy|pf|ipfw>
 
    Which firewall method should sshuttle use? For auto, sshuttle attempts to
    guess the appropriate method depending on what it can find in PATH. The
@@ -64,9 +68,9 @@ Options
     You can use any name resolving to an IP address of the machine running
     :program:`sshuttle`, e.g. ``--listen localhost``.
 
-    For the tproxy and pf methods this can be an IPv6 address. Use this option 
-    with comma separated values if required, to provide both IPv4 and IPv6
-    addresses, e.g. ``--listen 127.0.0.1:0,[::1]:0``.
+    For the nft, tproxy and pf methods this can be an IPv6 address. Use 
+    this option with comma separated values if required, to provide both 
+    IPv4 and IPv6 addresses, e.g. ``--listen 127.0.0.1:0,[::1]:0``.
 
 .. option:: -H, --auto-hosts
 
@@ -91,6 +95,10 @@ Options
     route, and route those automatically.  The suggestions
     are taken automatically from the server's routing
     table.
+
+    This feature does not detect IPv6 routes. Specify IPv6 subnets
+    manually. For example, specify the ``::/0`` subnet on the command
+    line to route all IPv6 traffic.
 
 .. option:: --dns
 
@@ -122,9 +130,9 @@ Options
 
 .. option:: --python
 
-    Specify the name/path of the remote python interpreter.
-    The default is just ``python``, which means to use the
-    default python interpreter on the remote system's PATH.
+    Specify the name/path of the remote python interpreter. The
+    default is to use ``python3`` (or ``python``, if ``python3``
+    fails) in the remote system's PATH.
 
 .. option:: -r <[username@]sshserver[:port]>, --remote=<[username@]sshserver[:port]>
 
@@ -221,7 +229,8 @@ Options
 
 .. option:: --disable-ipv6
 
-    If using tproxy or pf methods, this will disable IPv6 support.
+    Disable IPv6 support for methods that support it (nft, tproxy, and
+    pf).
 
 .. option:: --firewall
 
