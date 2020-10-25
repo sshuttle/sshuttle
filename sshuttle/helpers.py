@@ -49,12 +49,45 @@ class Fatal(Exception):
 
 
 def resolvconf_nameservers():
-    lines = []
-    for line in open('/etc/resolv.conf'):
-        words = line.lower().split()
-        if len(words) >= 2 and words[0] == 'nameserver':
-            lines.append(family_ip_tuple(words[1]))
-    return lines
+    """Retrieves a list of tuples (address type, address as a string) that
+    the current system uses to resolve hostnames from /etc/resolv.conf
+    and possibly other files.
+    """
+
+    # Historically, we just needed to read /etc/resolv.conf.
+    #
+    # If systemd-resolved is active, /etc/resolv.conf will point to
+    # localhost and the actual DNS servers that systemd-resolved uses
+    # are stored in /run/systemd/resolve/resolv.conf. For programs
+    # that use the localhost DNS server, only reading /etc/resolv.conf
+    # is sufficient. However, resolved provides other ways of
+    # resolving hostnames (such as via dbus) that may not route
+    # requests through localhost. So, we retrieve a list of DNS
+    # servers that resolved uses so we can intercept those as well.
+    #
+    # For more information about systemd-resolved, see:
+    # https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html
+    #
+    # On machines without systemd-resolved, we expect opening the
+    # second file will fail.
+    files = ['/etc/resolv.conf', '/run/systemd/resolve/resolv.conf']
+
+    nsservers = []
+    for f in files:
+        this_file_nsservers = []
+        try:
+            for line in open(f):
+                words = line.lower().split()
+                if len(words) >= 2 and words[0] == 'nameserver':
+                    this_file_nsservers.append(family_ip_tuple(words[1]))
+            debug2("Found DNS servers in %s: %s\n" %
+                   (f, [n[1] for n in this_file_nsservers]))
+            nsservers += this_file_nsservers
+        except OSError as e:
+            debug3("Failed to read %s when looking for DNS servers: %s\n" %
+                   (f, e.strerror))
+
+    return nsservers
 
 
 def resolvconf_random_nameserver():

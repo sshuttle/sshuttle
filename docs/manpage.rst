@@ -104,10 +104,12 @@ Options
 
     Capture local DNS requests and forward to the remote DNS
     server. All queries to any of the local system's DNS
-    servers (/etc/resolv.conf) will be intercepted and
+    servers (/etc/resolv.conf and, if it exists, 
+    /run/systemd/resolve/resolv.conf) will be intercepted and
     resolved on the remote side of the tunnel instead, there
     using the DNS specified via the :option:`--to-ns` option,
-    if specified.
+    if specified. Only plain DNS traffic sent to these servers
+    on port 53 are captured.
 
 .. option:: --ns-hosts=<server1[,server2[,server3[...]]]>
 
