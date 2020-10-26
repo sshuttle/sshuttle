@@ -419,7 +419,12 @@ def ondns(listener, method, mux, handlers):
     if t is None:
         return
     srcip, dstip, data = t
-    debug1('DNS request from %r to %r: %d bytes\n' % (srcip, dstip, len(data)))
+    # dstip is None if we are using a method where we can't determine
+    # the destination IP of the DNS request that we captured from the client.
+    if dstip is None:
+        debug1('DNS request from %r: %d bytes\n' % (srcip, len(data)))
+    else:
+        debug1('DNS request from %r to %r: %d bytes\n' % (srcip, dstip, len(data)))
     chan = mux.next_channel()
     dnsreqs[chan] = now + 30
     mux.send(chan, ssnet.CMD_DNS_REQ, data)
