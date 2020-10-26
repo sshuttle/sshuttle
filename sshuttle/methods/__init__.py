@@ -2,24 +2,34 @@ import importlib
 import socket
 import struct
 import errno
+import ipaddress
 from sshuttle.helpers import Fatal, debug3, which
 
 
 def original_dst(sock):
+    ip = "0.0.0.0"
+    port = -1
     try:
+        family = sock.family
         SO_ORIGINAL_DST = 80
-        SOCKADDR_MIN = 16
-        sockaddr_in = sock.getsockopt(socket.SOL_IP,
-                                      SO_ORIGINAL_DST, SOCKADDR_MIN)
-        (proto, port, a, b, c, d) = struct.unpack('!HHBBBB', sockaddr_in[:8])
-        # FIXME: decoding is IPv4 only.
-        assert(socket.htons(proto) == socket.AF_INET)
-        ip = '%d.%d.%d.%d' % (a, b, c, d)
-        return (ip, port)
+
+        if family == socket.AF_INET:
+            SOCKADDR_MIN = 16
+            sockaddr_in = sock.getsockopt(socket.SOL_IP,
+                                          SO_ORIGINAL_DST, SOCKADDR_MIN)
+            port, raw_ip = struct.unpack_from('!2xH4s', sockaddr_in[:8])
+            ip = str(ipaddress.IPv4Address(raw_ip))
+        elif family == socket.AF_INET6:
+            sockaddr_in = sock.getsockopt(41, SO_ORIGINAL_DST, 64)
+            port, raw_ip = struct.unpack_from("!2xH4x16s", sockaddr_in)
+            ip = str(ipaddress.IPv6Address(raw_ip))
+        else:
+            raise Fatal("fw: Unknown family type.")
     except socket.error as e:
         if e.args[0] == errno.ENOPROTOOPT:
             return sock.getsockname()
         raise
+    return (ip, port)
 
 
 class Features(object):
