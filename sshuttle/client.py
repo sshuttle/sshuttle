@@ -15,7 +15,7 @@ import sshuttle.ssyslog as ssyslog
 import sshuttle.sdnotify as sdnotify
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-    resolvconf_nameservers
+    resolvconf_nameservers, which
 from sshuttle.methods import get_method, Features
 from sshuttle import __version__
 try:
@@ -196,11 +196,19 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
-        # Default to sudo unless on OpenBSD in which case use built in `doas`
+
+        # Determine how to prefix the command in order to elevate privileges.
         if platform.platform().startswith('OpenBSD'):
-            elev_prefix = ['doas']
+            elev_prefix = ['doas']  # OpenBSD uses built in `doas`
         else:
             elev_prefix = ['sudo', '-p', '[local sudo] Password: ']
+
+        # Look for binary and switch to absolute path if we can find
+        # it.
+        path = which(elev_prefix[0])
+        if path:
+            elev_prefix[0] = path
+
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
                             'PYTHONPATH=%s' % python_path]

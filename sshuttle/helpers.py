@@ -1,6 +1,7 @@
 import sys
 import socket
 import errno
+import os
 
 logprefix = ''
 verbose = 0
@@ -99,3 +100,75 @@ def family_to_string(family):
         return "AF_INET"
     else:
         return str(family)
+
+
+def get_env():
+    """An environment for sshuttle subprocesses. See get_path()."""
+    env = {
+        'PATH': get_path(),
+        'LC_ALL': "C",
+    }
+    return env
+
+
+def get_path():
+    """Returns a string of paths separated by os.pathsep.
+
+    Users might not have all of the programs sshuttle needs in their
+    PATH variable (i.e., some programs might be in /sbin). Use PATH
+    and a hardcoded set of paths to search through. This function is
+    used by our which() and get_env() functions. If which() and the
+    subprocess environments differ, programs that which() finds might
+    not be found at run time (or vice versa).
+    """
+    path = []
+    if "PATH" in os.environ:
+        path += os.environ["PATH"].split(os.pathsep)
+    # Python default paths.
+    path += os.defpath.split(os.pathsep)
+    # /sbin, etc are not in os.defpath and may not be in PATH either.
+    # /bin/ and /usr/bin below are probably redundant.
+    path += ['/bin', '/usr/bin', '/sbin', '/usr/sbin']
+
+    # Remove duplicates. Not strictly necessary.
+    path_dedup = []
+    for i in path:
+        if i not in path_dedup:
+            path_dedup.append(i)
+
+    return os.pathsep.join(path_dedup)
+
+
+if sys.version_info >= (3, 3):
+    from shutil import which as _which
+else:
+    # Although sshuttle does not officially support older versions of
+    # Python, some still run the sshuttle server on remote machines
+    # with old versions of python.
+    def _which(file, mode=os.F_OK | os.X_OK, path=None):
+        if path is not None:
+            search_paths = path.split(os.pathsep)
+        elif "PATH" in os.environ:
+            search_paths = os.environ["PATH"].split(os.pathsep)
+        else:
+            search_paths = os.defpath.split(os.pathsep)
+
+        for p in search_paths:
+            filepath = os.path.join(p, file)
+            if os.path.exists(filepath) and os.access(filepath, mode):
+                return filepath
+        return None
+
+
+def which(file, mode=os.F_OK | os.X_OK):
+    """A wrapper around shutil.which() that searches a predictable set of
+    paths and is more verbose about what is happening. See get_path()
+    for more information.
+    """
+    path = get_path()
+    rv = _which(file, mode, path)
+    if rv:
+        debug2("which() found '%s' at %s\n" % (file, rv))
+    else:
+        debug2("which() could not find '%s' in %s\n" % (file, path))
+    return rv

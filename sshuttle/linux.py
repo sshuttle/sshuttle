@@ -1,7 +1,6 @@
-import os
 import socket
 import subprocess as ssubprocess
-from sshuttle.helpers import log, debug1, Fatal, family_to_string
+from sshuttle.helpers import log, debug1, Fatal, family_to_string, get_env
 
 
 def nonfatal(func, *args):
@@ -19,12 +18,8 @@ def ipt_chain_exists(family, table, name):
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     argv = [cmd, '-t', table, '-nL']
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
     try:
-        output = ssubprocess.check_output(argv, env=env)
+        output = ssubprocess.check_output(argv, env=get_env())
         for line in output.decode('ASCII').split('\n'):
             if line.startswith('Chain %s ' % name):
                 return True
@@ -40,11 +35,7 @@ def ipt(family, table, *args):
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('%s\n' % ' '.join(argv))
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
-    rv = ssubprocess.call(argv, env=env)
+    rv = ssubprocess.call(argv, env=get_env())
     if rv:
         raise Fatal('fw: %r returned %d' % (argv, rv))
 
@@ -55,11 +46,7 @@ def nft(family, table, action, *args):
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('%s\n' % ' '.join(argv))
-    env = {
-        'PATH': os.environ['PATH'],
-        'LC_ALL': "C",
-    }
-    rv = ssubprocess.call(argv, env=env)
+    rv = ssubprocess.call(argv, env=get_env())
     if rv:
         raise Fatal('fw: %r returned %d' % (argv, rv))
 
