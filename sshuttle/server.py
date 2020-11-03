@@ -97,7 +97,6 @@ def _list_routes(argv, extract_route):
     rv = p.wait()
     if rv != 0:
         log('WARNING: %r returned %d\n' % (argv, rv))
-        log('WARNING: That prevents --auto-nets from working.\n')
 
     return routes
 
@@ -108,7 +107,8 @@ def list_routes():
     elif which('netstat'):
         routes = _list_routes(['netstat', '-rn'], _route_netstat)
     else:
-        log('WARNING: Neither ip nor netstat were found on the server.\n')
+        log('WARNING: Neither "ip" nor "netstat" were found on the server. '
+            '--auto-nets feature will not work.\n')
         routes = []
 
     for (family, ip, width) in routes:
