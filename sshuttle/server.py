@@ -205,7 +205,7 @@ class DnsProxy(Handler):
         self.tries += 1
 
         if self.to_nameserver is None:
-            _, peer = resolvconf_random_nameserver()
+            _, peer = resolvconf_random_nameserver(False)
             port = 53
         else:
             peer = self.to_ns_peer
