@@ -49,17 +49,64 @@ class Fatal(Exception):
     pass
 
 
-def resolvconf_nameservers():
-    lines = []
-    for line in open('/etc/resolv.conf'):
-        words = line.lower().split()
-        if len(words) >= 2 and words[0] == 'nameserver':
-            lines.append(family_ip_tuple(words[1]))
-    return lines
+def resolvconf_nameservers(systemd_resolved):
+    """Retrieves a list of tuples (address type, address as a string) of
+    the DNS servers used by the system to resolve hostnames.
+
+    If parameter is False, DNS servers are retrieved from only
+    /etc/resolv.conf. This behavior makes sense for the sshuttle
+    server.
+
+    If parameter is True, we retrieve information from both
+    /etc/resolv.conf and /run/systemd/resolve/resolv.conf (if it
+    exists). This behavior makes sense for the sshuttle client.
+
+    """
+
+    # Historically, we just needed to read /etc/resolv.conf.
+    #
+    # If systemd-resolved is active, /etc/resolv.conf will point to
+    # localhost and the actual DNS servers that systemd-resolved uses
+    # are stored in /run/systemd/resolve/resolv.conf. For programs
+    # that use the localhost DNS server, having sshuttle read
+    # /etc/resolv.conf is sufficient. However, resolved provides other
+    # ways of resolving hostnames (such as via dbus) that may not
+    # route requests through localhost. So, we retrieve a list of DNS
+    # servers that resolved uses so we can intercept those as well.
+    #
+    # For more information about systemd-resolved, see:
+    # https://www.freedesktop.org/software/systemd/man/systemd-resolved.service.html
+    #
+    # On machines without systemd-resolved, we expect opening the
+    # second file will fail.
+    files = ['/etc/resolv.conf']
+    if systemd_resolved:
+        files += ['/run/systemd/resolve/resolv.conf']
+
+    nsservers = []
+    for f in files:
+        this_file_nsservers = []
+        try:
+            for line in open(f):
+                words = line.lower().split()
+                if len(words) >= 2 and words[0] == 'nameserver':
+                    this_file_nsservers.append(family_ip_tuple(words[1]))
+            debug2("Found DNS servers in %s: %s\n" %
+                   (f, [n[1] for n in this_file_nsservers]))
+            nsservers += this_file_nsservers
+        except OSError as e:
+            debug3("Failed to read %s when looking for DNS servers: %s\n" %
+                   (f, e.strerror))
+
+    return nsservers
 
 
-def resolvconf_random_nameserver():
-    lines = resolvconf_nameservers()
+def resolvconf_random_nameserver(systemd_resolved):
+    """Return a random nameserver selected from servers produced by
+    resolvconf_nameservers(). See documentation for
+    resolvconf_nameservers() for a description of the parameter.
+    """
+    lines = resolvconf_nameservers(systemd_resolved)
     if lines:
         if len(lines) > 1:
             # don't import this unless we really need it

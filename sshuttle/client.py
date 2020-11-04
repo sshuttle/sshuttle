@@ -597,7 +597,7 @@ def main(listenip_v6, listenip_v4,
     # redirect packets outgoing to this server to the remote host
     # instead.
     if dns:
-        nslist += resolvconf_nameservers()
+        nslist += resolvconf_nameservers(True)
         if to_nameserver is not None:
             to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
     else:

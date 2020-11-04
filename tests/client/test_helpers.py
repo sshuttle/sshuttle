@@ -131,7 +131,7 @@ nameserver 2404:6800:4004:80c::3
 nameserver 2404:6800:4004:80c::4
 """)
 
-    ns = sshuttle.helpers.resolvconf_nameservers()
+    ns = sshuttle.helpers.resolvconf_nameservers(False)
     assert ns == [
         (AF_INET, u'192.168.1.1'), (AF_INET, u'192.168.2.1'),
         (AF_INET, u'192.168.3.1'), (AF_INET, u'192.168.4.1'),
@@ -156,7 +156,7 @@ nameserver 2404:6800:4004:80c::2
 nameserver 2404:6800:4004:80c::3
 nameserver 2404:6800:4004:80c::4
 """)
-    ns = sshuttle.helpers.resolvconf_random_nameserver()
+    ns = sshuttle.helpers.resolvconf_random_nameserver(False)
     assert ns in [
         (AF_INET, u'192.168.1.1'), (AF_INET, u'192.168.2.1'),
         (AF_INET, u'192.168.3.1'), (AF_INET, u'192.168.4.1'),
