@@ -424,7 +424,8 @@ def ondns(listener, method, mux, handlers):
     if dstip is None:
         debug1('DNS request from %r: %d bytes\n' % (srcip, len(data)))
     else:
-        debug1('DNS request from %r to %r: %d bytes\n' % (srcip, dstip, len(data)))
+        debug1('DNS request from %r to %r: %d bytes\n' %
+               (srcip, dstip, len(data)))
     chan = mux.next_channel()
     dnsreqs[chan] = now + 30
     mux.send(chan, ssnet.CMD_DNS_REQ, data)
