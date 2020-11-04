@@ -37,6 +37,13 @@ class Method(BaseMethod):
         _nft('add rule', 'output jump %s' % chain)
         _nft('add rule', 'prerouting jump %s' % chain)
 
+        # setup_firewall() gets called separately for ipv4 and ipv6. Make sure
+        # we only handle the version that we expect to.
+        if family == socket.AF_INET:
+            _nft('add rule', chain, 'meta', 'nfproto', '!=', 'ipv4', 'return')
+        else:
+            _nft('add rule', chain, 'meta', 'nfproto', '!=', 'ipv6', 'return')
+
         # This TTL hack allows the client and server to run on the
         # same host. The connections the sshuttle server makes will
         # have TTL set to 63.
@@ -45,17 +52,20 @@ class Method(BaseMethod):
         elif family == socket.AF_INET6:
             _nft('add rule', chain, 'ip6 hoplimit == 63 return')
 
+        # Strings to use below to simplify our code
+        if family == socket.AF_INET:
+            ip_version_l = 'ipv4'
+            ip_version = 'ip'
+        elif family == socket.AF_INET6:
+            ip_version_l = 'ipv6'
+            ip_version = 'ip6'
+
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.
         for _, ip in [i for i in nslist if i[0] == family]:
-            if family == socket.AF_INET:
-                _nft('add rule', chain, 'ip protocol udp ip daddr %s' % ip,
-                     'udp dport { 53 }',
-                     ('redirect to :' + str(dnsport)))
-            elif family == socket.AF_INET6:
-                _nft('add rule', chain, 'ip6 protocol udp ip6 daddr %s' % ip,
-                     'udp dport { 53 }',
-                     ('redirect to :' + str(dnsport)))
+            _nft('add rule', chain, ip_version,
+                 'daddr %s' % ip, 'udp dport 53',
+                 ('redirect to :' + str(dnsport)))
 
         # Don't route any remaining local traffic through sshuttle
         _nft('add rule', chain, 'fib daddr type local return')
@@ -63,34 +73,26 @@ class Method(BaseMethod):
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
-            if family == socket.AF_INET:
-                tcp_ports = ('ip', 'protocol', 'tcp')
-            elif family == socket.AF_INET6:
-                tcp_ports = ('ip6', 'nexthdr', 'tcp')
 
+            # match using nfproto as described at
+            # https://superuser.com/questions/1560376/match-ipv6-protocol-using-nftables
             if fport and fport != lport:
-                tcp_ports = \
-                    tcp_ports + \
-                    ('tcp', 'dport', '{ %d-%d }' % (fport, lport))
+                tcp_ports = ('meta', 'nfproto', ip_version_l, 'tcp',
+                             'dport', '{ %d-%d }' % (fport, lport))
             elif fport and fport == lport:
-                tcp_ports = tcp_ports + ('tcp', 'dport', '%d' % (fport))
+                tcp_ports = ('meta', 'nfproto', ip_version_l, 'tcp',
+                             'dport', '%d' % (fport))
+            else:
+                tcp_ports = ('meta', 'nfproto', ip_version_l,
+                             'meta', 'l4proto', 'tcp')
 
             if sexclude:
-                if family == socket.AF_INET:
-                    _nft('add rule', chain, *(tcp_ports + (
-                        'ip daddr %s/%s' % (snet, swidth), 'return')))
-                elif family == socket.AF_INET6:
-                    _nft('add rule', chain, *(tcp_ports + (
-                        'ip6 daddr %s/%s' % (snet, swidth), 'return')))
+                _nft('add rule', chain, *(tcp_ports + (
+                     ip_version, 'daddr %s/%s' % (snet, swidth), 'return')))
             else:
-                if family == socket.AF_INET:
-                    _nft('add rule', chain, *(tcp_ports + (
-                        'ip daddr %s/%s' % (snet, swidth),
-                        ('redirect to :' + str(port)))))
-                elif family == socket.AF_INET6:
-                    _nft('add rule', chain, *(tcp_ports + (
-                        'ip6 daddr %s/%s' % (snet, swidth),
-                        ('redirect to :' + str(port)))))
+                _nft('add rule', chain, *(tcp_ports + (
+                    ip_version, 'daddr %s/%s' % (snet, swidth),
+                    ('redirect to :' + str(port)))))
 
     def restore_firewall(self, port, family, udp, user):
         if udp:
