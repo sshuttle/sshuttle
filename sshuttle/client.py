@@ -223,7 +223,6 @@ class FirewallClient:
         def setup():
             # run in the child process
             s2.close()
-        e = None
         if os.getuid() == 0:
             argv_tries = argv_tries[-1:]  # last entry only
         for argv in argv_tries:
@@ -232,16 +231,13 @@ class FirewallClient:
                     sys.stderr.write('[local su] ')
                 self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
-                e = None
                 break
-            except OSError:
-                pass
+            except OSError as e:
+                log('Spawning firewall manager: %r\n' % argv)
+                raise Fatal(e)
         self.argv = argv
         s1.close()
         self.pfile = s2.makefile('rwb')
-        if e:
-            log('Spawning firewall manager: %r\n' % self.argv)
-            raise Fatal(e)
         line = self.pfile.readline()
         self.check()
         if line[0:5] != b'READY':
