@@ -40,6 +40,38 @@ sudo and ssh set up to not require passwords, in which case you won't be
 prompted at all.)
 
 
+Storing configuration
+---------------------
+
+At the moment, sshuttle does not use a configuration file. This can become a
+nuisance if you have several remote addresses to connect to: The command will
+be quite long. In addition, it's hard to remember which IP range is for which
+server group.
+
+As a workaround, consider storing the command in a way that makes it more
+readable. One way to do this is a shell alias, which will work on MacOS and
+Linux::
+
+  # ~/.bash_aliases
+  alias sshuttle_all="sshuttle -r username@sshserver \
+    10.0.0.0/8     `# Description of server group 1` \
+    172.16.0.0/12  `# Description of server group 2` \
+    192.168.0.0/16 `# Description of server group 3` \
+    ...
+    -v"
+
+Note that ``# Description of server group`` (including the enclosing backticks)
+is optional: It's just there to help you remember which server group is for
+which customer, or which environment.
+
+Now, after logging in to a new shell, you can type `sshuttle_all` to start
+sshuttle for all configured IP ranges. It's also a lot shorter, and easier to
+remember.
+
+Note that in this example, we focused on the `bash` shell, but similar methods
+are available for other shells. A shell script is also an option.
+
+
 Usage Notes
 -----------
 That's it!  Now your local machine can access the remote network as if you
@@ -47,7 +79,7 @@ were right there.  And if your "client" machine is a router, everyone on
 your local network can make connections to your remote network.
 
 You don't need to install sshuttle on the remote server;
-the remote server just needs to have python available. 
+the remote server just needs to have python available.
 sshuttle will automatically upload and run its source code
 to the remote python interpreter.
 
@@ -67,7 +99,7 @@ admin access on the server.
 
 Sudoers File
 ------------
-sshuttle can auto-generate the proper sudoers.d file using the current user 
+sshuttle can auto-generate the proper sudoers.d file using the current user
 for Linux and OSX. Doing this will allow sshuttle to run without asking for
 the local sudo password and to give users who do not have sudo access
 ability to run sshuttle::
@@ -79,7 +111,7 @@ it is needed.
 
 A costume user or group can be set with the :
 option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
-values for this vary based on how your system is configured. Values such as 
+values for this vary based on how your system is configured. Values such as
 usernames, groups pre-pended with `%` and sudoers user aliases will work. See
 the sudoers manual for more information on valid user specif actions.
 The options must be used with `--sudoers`::
