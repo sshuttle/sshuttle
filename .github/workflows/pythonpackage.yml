@@ -8,6 +8,8 @@ on:
     branches: [ master, tproxy_mark_param ]
   pull_request:
     branches: [ master, tproxy_mark_param ]
+  workflow_dispatch:
+    branches: [ tproxy_mark_param ]
 
 jobs:
   build:
