@@ -152,6 +152,11 @@ class Method(BaseMethod):
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
+        self.setup_firewall_tproxy(port, dnsport, nslist, family, subnets, udp,
+                       user, self.firewall.tmark)
+
+    def setup_firewall_tproxy(self, port, dnsport, nslist, family, subnets, udp,
+                       user, tmark):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
@@ -182,9 +187,9 @@ class Method(BaseMethod):
         _ipt('-F', divert_chain)
         _ipt('-N', tproxy_chain)
         _ipt('-F', tproxy_chain)
-        _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
-        _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
-        _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', '1')
+        _ipt('-I', 'OUTPUT', tmark, '-j', mark_chain)
+        _ipt('-I', 'PREROUTING', tmark, '-j', tproxy_chain)
+        _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', tmark)
         _ipt('-A', divert_chain, '-j', 'ACCEPT')
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
              '-m', 'tcp', '-p', 'tcp')
@@ -194,11 +199,11 @@ class Method(BaseMethod):
                  '-m', 'udp', '-p', 'udp')
 
         for _, ip in [i for i in nslist if i[0] == family]:
-            _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+            _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
                  '--dest', '%s/32' % ip,
                  '-m', 'udp', '-p', 'udp', '--dport', '53')
             _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                 '--tproxy-mark', '0x1/0x1',
+                 '--tproxy-mark', '0x'+tmark+'/0x'+tmark,
                  '--dest', '%s/32' % ip,
                  '-m', 'udp', '-p', 'udp', '--dport', '53',
                  '--on-port', str(dnsport))
@@ -218,12 +223,12 @@ class Method(BaseMethod):
                      '-m', 'tcp',
                      *tcp_ports)
             else:
-                _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
                      '--dest', '%s/%s' % (snet, swidth),
                      '-m', 'tcp',
                      *tcp_ports)
                 _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                     '--tproxy-mark', '0x1/0x1',
+                     '--tproxy-mark', '0x'+tmark+'/0x'+tmark,
                      '--dest', '%s/%s' % (snet, swidth),
                      '-m', 'tcp',
                      *(tcp_ports + ('--on-port', str(port))))
@@ -242,12 +247,12 @@ class Method(BaseMethod):
                          '-m', 'udp',
                          *udp_ports)
                 else:
-                    _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', '1',
+                    _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp',
                          *udp_ports)
                     _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                         '--tproxy-mark', '0x1/0x1',
+                         '--tproxy-mark', '0x'+tmark+'/0x'+tmark,
                          '--dest', '%s/%s' % (snet, swidth),
                          '-m', 'udp',
                          *(udp_ports + ('--on-port', str(port))))

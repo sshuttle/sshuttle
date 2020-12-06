@@ -8,9 +8,11 @@ There are some things you need to consider for TPROXY to work:
   done once after booting up::
 
       ip route add local default dev lo table 100
-      ip rule add fwmark 1 lookup 100
+      ip rule add fwmark {TMARK} lookup 100
       ip -6 route add local default dev lo table 100
-      ip -6 rule add fwmark 1 lookup 100
+      ip -6 rule add fwmark {TMARK} lookup 100
+  
+  where {TMARK} is the identifier mark passed with -t or --tmark flag (default value is 1).
 
 - The ``--auto-nets`` feature does not detect IPv6 routes automatically. Add IPv6
   routes manually. e.g. by adding ``'::/0'`` to the end of the command line.

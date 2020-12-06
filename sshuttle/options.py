@@ -409,3 +409,11 @@ parser.add_argument(
     do not set PYTHONPATH when invoking sudo
     """
 )
+parser.add_argument(
+    "-t", "--tmark",
+    metavar="[MARK]",
+    deafult="1",
+    help="""
+    transproxy optional traffic mark with provided MARK value
+    """
+)
