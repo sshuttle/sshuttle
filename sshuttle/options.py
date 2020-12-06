@@ -412,7 +412,7 @@ parser.add_argument(
 parser.add_argument(
     "-t", "--tmark",
     metavar="[MARK]",
-    deafult="1",
+    default="1",
     help="""
     transproxy optional traffic mark with provided MARK value
     """
