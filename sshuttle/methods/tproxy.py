@@ -153,10 +153,10 @@ class Method(BaseMethod):
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
         self.setup_firewall_tproxy(port, dnsport, nslist, family, subnets, udp,
-                       user, self.firewall.tmark)
+                                   user, self.firewall.tmark)
 
-    def setup_firewall_tproxy(self, port, dnsport, nslist, family, subnets, udp,
-                       user, tmark):
+    def setup_firewall_tproxy(self, port, dnsport, nslist, family, subnets,
+                              udp, user, tmark):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
