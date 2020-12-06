@@ -274,6 +274,10 @@ Options
     Set the file name for the sudoers.d file to be added. Default is
     "sshuttle_auto". Only works with --sudoers.
 
+.. option:: -t, --tmark
+
+    Transproxy optional traffic mark with provided MARK value.
+
 .. option:: --version
 
     Print program version.

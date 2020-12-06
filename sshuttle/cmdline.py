@@ -107,7 +107,8 @@ def main():
                                       opt.to_ns,
                                       opt.pidfile,
                                       opt.user,
-                                      opt.sudo_pythonpath)
+                                      opt.sudo_pythonpath,
+                                      opt.tmark)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')
