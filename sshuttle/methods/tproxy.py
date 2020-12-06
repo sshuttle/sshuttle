@@ -152,7 +152,7 @@ class Method(BaseMethod):
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
-        if self.firewall.tmark is None:
+        if self.firewall is None:
             tmark = '1'
         else:
             tmark = self.firewall.tmark
