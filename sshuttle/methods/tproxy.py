@@ -152,8 +152,13 @@ class Method(BaseMethod):
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user):
+        if self.firewall.tmark is None:
+            tmark = '1'
+        else:
+            tmark = self.firewall.tmark
+
         self.setup_firewall_tproxy(port, dnsport, nslist, family, subnets, udp,
-                                   user, self.firewall.tmark)
+                                   user, tmark)
 
     def setup_firewall_tproxy(self, port, dnsport, nslist, family, subnets,
                               udp, user, tmark):
