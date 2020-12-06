@@ -5,9 +5,9 @@ name: Python package
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, tproxy_mark_param ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, tproxy_mark_param ]
 
 jobs:
   build:
