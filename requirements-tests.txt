@@ -2,6 +2,6 @@
 attrs==20.3.0
 pytest==6.2.0
 pytest-cov==2.10.1
-mock==2.0.0
+mock==4.0.3
 flake8==3.8.4
 pyflakes==2.2.0
