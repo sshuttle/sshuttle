@@ -6,7 +6,7 @@ Client side Requirements
 
 - sudo, or root access on your client machine.
   (The server doesn't need admin access.)
-- Python 3.5 or greater.
+- Python 3.6 or greater.
 
 
 Linux with NAT method
@@ -70,7 +70,7 @@ cmd.exe with Administrator access. See :doc:`windows` for more information.
 Server side Requirements
 ------------------------
 
-- Python 3.5 or greater.
+- Python 3.6 or greater.
 
 
 Additional Suggested Software

@@ -11,7 +11,7 @@ Description
 -----------
 :program:`sshuttle` allows you to create a VPN connection from your
 machine to any remote server that you can connect to via
-ssh, as long as that server has python 3.5 or higher.
+ssh, as long as that server has python 3.6 or higher.
 
 To work, you must have root access on the local machine,
 but you can have a normal account on the server.
