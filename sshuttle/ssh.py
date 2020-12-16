@@ -1,3 +1,7 @@
+"""
+Run sshuttle via remove ssh session
+"""
+
 import sys
 import os
 import re
@@ -16,23 +20,27 @@ from sshuttle.helpers import debug2, which, get_path, Fatal
 
 
 def get_module_source(name):
+    """ Get source code for module """
     spec = importlib.util.find_spec(name)
     with open(spec.origin, "rt") as f:
         return f.read().encode("utf-8")
 
 
-def empackage(z, name, data=None):
+def empackage(zobj, name, data=None):
+    """ Compress and package module source code """
     if not data:
         data = get_module_source(name)
-    content = z.compress(data)
-    content += z.flush(zlib.Z_SYNC_FLUSH)
+    content = zobj.compress(data)
+    content += zobj.flush(zlib.Z_SYNC_FLUSH)
 
     return b'%s\n%d\n%s' % (name.encode("ASCII"), len(content), content)
 
 
 def parse_hostport(rhostport):
     """
-    parses the given rhostport variable, looking like this:
+    Parses the given rhostport variable
+
+    rhostport looks like this:
 
             [username[:password]@]host[:port]
 
@@ -85,6 +93,7 @@ def parse_hostport(rhostport):
 
 
 def connect(ssh_cmd, rhostport, python, stderr, options):
+    """ Connect to a remote server via ssh and run sshuttle """
     username, password, port, host = parse_hostport(rhostport)
     if username:
         rhost = "{}@{}".format(username, host)

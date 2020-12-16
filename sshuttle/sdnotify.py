@@ -35,7 +35,7 @@ def _notify(message):
     assert isinstance(message, bytes)
 
     try:
-        return (sock.sendto(message, addr) > 0)
+        return sock.sendto(message, addr) > 0
     except (OSError, IOError) as e:
         debug1("Error notifying systemd: %s\n" % e)
         return False

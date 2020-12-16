@@ -197,7 +197,7 @@ def _check_smb(hostname):
         check_workgroup(workgroup)
 
     if lines:
-        assert(0)
+        assert 0
 
 
 def _check_nmb(hostname, is_workgroup, is_master):
