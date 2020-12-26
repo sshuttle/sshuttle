@@ -2,6 +2,7 @@ import socket
 from sshuttle.firewall import subnet_weight
 from sshuttle.linux import nft, nonfatal
 from sshuttle.methods import BaseMethod
+from sshuttle.helpers import debug2, which
 
 
 class Method(BaseMethod):
@@ -113,3 +114,9 @@ class Method(BaseMethod):
         result = super(Method, self).get_supported_features()
         result.ipv6 = True
         return result
+
+    def is_supported(self):
+        if which("nft"):
+            return True
+        debug2("nft method not supported because 'nft' command is missing.\n")
+        return False

@@ -12,7 +12,7 @@ from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string, \
-    get_env
+    get_env, which
 from sshuttle.methods import BaseMethod
 
 
@@ -491,3 +491,9 @@ class Method(BaseMethod):
             return True
         else:
             return False
+
+    def is_supported(self):
+        if which("pfctl"):
+            return True
+        debug2("pf method not supported because 'pfctl' command is missing.\n")
+        return False

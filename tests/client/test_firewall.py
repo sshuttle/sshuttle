@@ -116,6 +116,8 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
     assert mock_setup_daemon.mock_calls == [call()]
     assert mock_get_method.mock_calls == [
         call('not_auto'),
+        call().is_supported(),
+        call().is_supported().__bool__(),
         call().setup_firewall(
             1024, 1026,
             [(AF_INET6, u'2404:6800:4004:80c::33')],

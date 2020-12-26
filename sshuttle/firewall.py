@@ -114,6 +114,11 @@ def main(method_name, syslog):
         ssyslog.start_syslog()
         ssyslog.stderr_to_syslog()
 
+    if not method.is_supported():
+        raise Fatal("The %s method is not supported on this machine. "
+                    "Check that the appropriate programs are in your "
+                    "PATH." % method_name)
+
     debug1('ready method name %s.\n' % method.name)
     stdout.write('READY %s\n' % method.name)
     stdout.flush()
