@@ -1,6 +1,6 @@
 import socket
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import family_to_string
+from sshuttle.helpers import family_to_string, which, debug2
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
 
@@ -124,3 +124,10 @@ class Method(BaseMethod):
         result = super(Method, self).get_supported_features()
         result.user = True
         return result
+
+    def is_supported(self):
+        if which("iptables"):
+            return True
+        debug2("nat method not supported because 'iptables' command "
+               "is missing.\n")
+        return False

@@ -3,7 +3,7 @@ from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import debug1, debug3, Fatal
+from sshuttle.helpers import debug1, debug2, debug3, Fatal, which
 
 recvmsg = None
 try:
@@ -294,3 +294,10 @@ class Method(BaseMethod):
         if ipt_chain_exists(family, table, divert_chain):
             _ipt('-F', divert_chain)
             _ipt('-X', divert_chain)
+
+    def is_supported(self):
+        if which("iptables") and which("ip6tables"):
+            return True
+        debug2("tproxy method not supported because 'iptables' "
+               "or 'ip6tables' commands are missing.\n")
+        return False

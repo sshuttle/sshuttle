@@ -1,8 +1,8 @@
 import os
 import subprocess as ssubprocess
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import log, debug1, debug3, \
-    Fatal, family_to_string, get_env
+from sshuttle.helpers import log, debug1, debug2, debug3, \
+    Fatal, family_to_string, get_env, which
 
 recvmsg = None
 try:
@@ -253,3 +253,10 @@ class Method(BaseMethod):
         ipfw_noexit('table', '124', 'flush')
         ipfw_noexit('table', '125', 'flush')
         ipfw_noexit('table', '126', 'flush')
+
+    def is_supported(self):
+        if which("ipfw"):
+            return True
+        debug2("ipfw method not supported because 'ipfw' command is "
+               "missing.\n")
+        return False

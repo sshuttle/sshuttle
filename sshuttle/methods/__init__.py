@@ -3,7 +3,7 @@ import socket
 import struct
 import errno
 import ipaddress
-from sshuttle.helpers import Fatal, debug3, which
+from sshuttle.helpers import Fatal, debug3
 
 
 def original_dst(sock):
@@ -55,6 +55,12 @@ class BaseMethod(object):
         return result
 
     @staticmethod
+    def is_supported():
+        """Returns true if it appears that this method will work on this
+        machine."""
+        return False
+
+    @staticmethod
     def get_tcp_dstip(sock):
         return original_dst(sock)
 
@@ -102,16 +108,15 @@ def get_method(method_name):
 
 
 def get_auto_method():
-    if which('iptables'):
-        method_name = "nat"
-    elif which('nft'):
-        method_name = "nft"
-    elif which('pfctl'):
-        method_name = "pf"
-    elif which('ipfw'):
-        method_name = "ipfw"
-    else:
-        raise Fatal(
-            "can't find either iptables, nft or pfctl; check your PATH")
+    debug3("Selecting a method automatically...\n")
+    # Try these methods, in order:
+    methods_to_try = ["nat", "nft", "pf", "ipfw"]
+    for m in methods_to_try:
+        method = get_method(m)
+        if method.is_supported():
+            debug3("Method '%s' was automatically selected.\n" % m)
+            return method
 
-    return get_method(method_name)
+    raise Fatal("Unable to automatically find a supported method. Check that "
+                "the appropriate programs are in your PATH. We tried "
+                "methods: %s" % str(methods_to_try))
