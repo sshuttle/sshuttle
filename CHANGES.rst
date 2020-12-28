@@ -17,7 +17,8 @@ Added
 * IPv6 support in nft method.
 * Intercept DNS requests sent by systemd-resolved.
 * Set default tmark.
-* Fix python2 server compatibility
+* Fix python2 server compatibility.
+* Python 3.9 support.
 
 Fixed
 ~~~~~
