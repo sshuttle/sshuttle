@@ -248,7 +248,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user):
+              user, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -258,6 +258,7 @@ class FirewallClient:
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
         self.user = user
+        self.tmark = tmark
 
     def check(self):
         rv = self.p.poll()
@@ -576,7 +577,7 @@ def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath):
+         user, sudo_pythonpath, tmark):
 
     if not remotename:
         print("WARNING: You must specify -r/--remote to securely route "
@@ -902,7 +903,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user)
+             required.udp, user, tmark)
 
     # start the client process
     try:

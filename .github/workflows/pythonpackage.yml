@@ -5,9 +5,11 @@ name: Python package
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, tproxy_mark_param ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, tproxy_mark_param ]
+  workflow_dispatch:
+    branches: [ tproxy_mark_param ]
 
 jobs:
   build:
@@ -15,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v2

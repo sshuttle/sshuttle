@@ -15,3 +15,4 @@
 /.redo
 /.pytest_cache/
 /.python-version
+.vscode/

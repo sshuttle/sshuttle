@@ -9,6 +9,38 @@ adheres to `Semantic Versioning`_.
 .. _`Semantic Versioning`: http://semver.org/
 
 
+UNRELEASED
+----------
+
+Added
+~~~~~
+* IPv6 support in nft method.
+* Intercept DNS requests sent by systemd-resolved.
+* Set default tmark.
+* Fix python2 server compatibility.
+* Python 3.9 support.
+
+Fixed
+~~~~~
+* Change license text to LGPL-2.1
+* Fix #494 sshuttle caught in infinite select() loop.
+* Include sshuttle version in verbose output.
+* Add psutil as dependency in setup.py
+* When subnets and excludes are specified with hostnames, use all IPs.
+* Update/document client's handling of IPv4 and IPv6.
+* Update sdnotify.py documentation.
+* Allow no remote to work.
+* Make prefixes in verbose output more consistent.
+* Make nat and nft rules consistent; improve rule ordering.
+* Make server and client handle resolv.conf differently.
+* Fix handling OSError in FirewallClient#__init__
+* Refactor automatic method selection.
+
+Removed
+~~~~~~~
+* Drop testing of Python 3.5
+
+
 1.0.4 - 2020-08-24
 ------------------
 
