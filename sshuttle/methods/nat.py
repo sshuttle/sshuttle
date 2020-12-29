@@ -129,5 +129,5 @@ class Method(BaseMethod):
         if which("iptables"):
             return True
         debug2("nat method not supported because 'iptables' command "
-               "is missing.\n")
+               "is missing.")
         return False

@@ -28,7 +28,7 @@ IPV6_RECVDSTADDR = 74
 
 if recvmsg == "python":
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP python using recvmsg.\n')
+        debug3('Accept UDP python using recvmsg.')
         data, ancdata, _, srcip = listener.recvmsg(4096,
                                                    socket.CMSG_SPACE(4))
         dstip = None
@@ -41,7 +41,7 @@ if recvmsg == "python":
         return (srcip, dstip, data)
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP using socket_ext recvmsg.\n')
+        debug3('Accept UDP using socket_ext recvmsg.')
         srcip, data, adata, _ = listener.recvmsg((bufsize,),
                                                  socket.CMSG_SPACE(4))
         dstip = None
@@ -54,7 +54,7 @@ elif recvmsg == "socket_ext":
         return (srcip, dstip, data[0])
 else:
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP using recvfrom.\n')
+        debug3('Accept UDP using recvfrom.')
         data, srcip = listener.recvfrom(bufsize)
         return (srcip, None, data)
 
@@ -67,7 +67,7 @@ def ipfw_rule_exists(n):
     for line in p.stdout:
         if line.startswith(b'%05d ' % n):
             if not ('ipttl 63' in line or 'check-state' in line):
-                log('non-sshuttle ipfw rule: %r\n' % line.strip())
+                log('non-sshuttle ipfw rule: %r' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
             found = True
     rv = p.wait()
@@ -96,7 +96,7 @@ def _fill_oldctls(prefix):
 
 def _sysctl_set(name, val):
     argv = ['sysctl', '-w', '%s=%s' % (name, val)]
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('>> %s' % ' '.join(argv))
     return ssubprocess.call(argv, stdout=open(os.devnull, 'w'), env=get_env())
     # No env: No output. (Or error that won't be parsed.)
 
@@ -111,13 +111,13 @@ def sysctl_set(name, val, permanent=False):
     if not _oldctls:
         _fill_oldctls(PREFIX)
     if not (name in _oldctls):
-        debug1('>> No such sysctl: %r\n' % name)
+        debug1('>> No such sysctl: %r' % name)
         return False
     oldval = _oldctls[name]
     if val != oldval:
         rv = _sysctl_set(name, val)
         if rv == 0 and permanent:
-            debug1('>>   ...saving permanently in /etc/sysctl.conf\n')
+            debug1('>>   ...saving permanently in /etc/sysctl.conf')
             f = open('/etc/sysctl.conf', 'a')
             f.write('\n'
                     '# Added by sshuttle\n'
@@ -130,7 +130,7 @@ def sysctl_set(name, val, permanent=False):
 
 def ipfw(*args):
     argv = ['ipfw', '-q'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('>> %s' % ' '.join(argv))
     rv = ssubprocess.call(argv, env=get_env())
     # No env: No output. (Or error that won't be parsed.)
     if rv:
@@ -139,7 +139,7 @@ def ipfw(*args):
 
 def ipfw_noexit(*args):
     argv = ['ipfw', '-q'] + list(args)
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('>> %s' % ' '.join(argv))
     ssubprocess.call(argv, env=get_env())
     # No env: No output. (Or error that won't be parsed.)
 
@@ -161,7 +161,7 @@ class Method(BaseMethod):
         if not dstip:
             debug1(
                    "-- ignored UDP from %r: "
-                   "couldn't determine destination IP address\n" % (srcip,))
+                   "couldn't determine destination IP address" % (srcip,))
             return None
         return srcip, dstip, data
 
@@ -169,10 +169,10 @@ class Method(BaseMethod):
         if not srcip:
             debug1(
                "-- ignored UDP to %r: "
-               "couldn't determine source IP address\n" % (dstip,))
+               "couldn't determine source IP address" % (dstip,))
             return
 
-        # debug3('Sending SRC: %r DST: %r\n' % (srcip, dstip))
+        # debug3('Sending SRC: %r DST: %r' % (srcip, dstip))
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_IP, IP_BINDANY, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -258,5 +258,5 @@ class Method(BaseMethod):
         if which("ipfw"):
             return True
         debug2("ipfw method not supported because 'ipfw' command is "
-               "missing.\n")
+               "missing.")
         return False
