@@ -67,6 +67,11 @@ Obtaining sshuttle
       # pkg
       pkg install py36-sshuttle
 
+- macOS, via MacPorts::
+
+      sudo port selfupdate
+      sudo port install sshuttle
+
 It is also possible to install into a virtualenv as a non-root user.
 
 - From PyPI::
