@@ -83,7 +83,7 @@ def _nb_clean(func, *args):
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
         else:
-            debug3('%s: err was: %s\n' % (func.__name__, e))
+            debug3('%s: err was: %s' % (func.__name__, e))
             return None
 
 
@@ -111,7 +111,7 @@ class SockWrapper:
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
         global _swcount
         _swcount += 1
-        debug3('creating new SockWrapper (%d now exist)\n' % _swcount)
+        debug3('creating new SockWrapper (%d now exist)' % _swcount)
         self.exc = None
         self.rsock = rsock
         self.wsock = wsock
@@ -124,9 +124,9 @@ class SockWrapper:
     def __del__(self):
         global _swcount
         _swcount -= 1
-        debug1('%r: deleting (%d remain)\n' % (self, _swcount))
+        debug1('%r: deleting (%d remain)' % (self, _swcount))
         if self.exc:
-            debug1('%r: error was: %s\n' % (self, self.exc))
+            debug1('%r: error was: %s' % (self, self.exc))
 
     def __repr__(self):
         if self.rsock == self.wsock:
@@ -148,14 +148,14 @@ class SockWrapper:
         if not self.connect_to:
             return  # already connected
         self.rsock.setblocking(False)
-        debug3('%r: trying connect to %r\n' % (self, self.connect_to))
+        debug3('%r: trying connect to %r' % (self, self.connect_to))
         try:
             self.rsock.connect(self.connect_to)
             # connected successfully (Linux)
             self.connect_to = None
         except socket.error:
             _, e = sys.exc_info()[:2]
-            debug3('%r: connect result: %s\n' % (self, e))
+            debug3('%r: connect result: %s' % (self, e))
             if e.args[0] == errno.EINVAL:
                 # this is what happens when you call connect() on a socket
                 # that is now connected but returned EINPROGRESS last time,
@@ -165,7 +165,7 @@ class SockWrapper:
                 realerr = self.rsock.getsockopt(socket.SOL_SOCKET,
                                                 socket.SO_ERROR)
                 e = socket.error(realerr, os.strerror(realerr))
-                debug3('%r: fixed connect result: %s\n' % (self, e))
+                debug3('%r: fixed connect result: %s' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
             elif e.args[0] == 0:
@@ -191,13 +191,13 @@ class SockWrapper:
 
     def noread(self):
         if not self.shut_read:
-            debug2('%r: done reading\n' % self)
+            debug2('%r: done reading' % self)
             self.shut_read = True
             # self.rsock.shutdown(SHUT_RD)  # doesn't do anything anyway
 
     def nowrite(self):
         if not self.shut_write:
-            debug2('%r: done writing\n' % self)
+            debug2('%r: done writing' % self)
             self.shut_write = True
             try:
                 self.wsock.shutdown(SHUT_WR)
@@ -218,7 +218,7 @@ class SockWrapper:
         except OSError:
             _, e = sys.exc_info()[:2]
             if e.errno == errno.EPIPE:
-                debug1('%r: uwrite: got EPIPE\n' % self)
+                debug1('%r: uwrite: got EPIPE' % self)
                 self.nowrite()
                 return 0
             else:
@@ -275,12 +275,12 @@ class Handler:
             _add(r, i)
 
     def callback(self, sock):
-        log('--no callback defined-- %r\n' % self)
+        log('--no callback defined-- %r' % self)
         (r, _, _) = select.select(self.socks, [], [], 0)
         for s in r:
             v = s.recv(4096)
             if not v:
-                log('--closed-- %r\n' % self)
+                log('--closed-- %r' % self)
                 self.socks = []
                 self.ok = False
 
@@ -377,7 +377,7 @@ class Mux(Handler):
         # for b in self.outbuf:
         #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
         #    ob.append(c)
-        # log('outbuf: %d %r\n' % (self.amount_queued(), ob))
+        # log('outbuf: %d %r' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -385,18 +385,18 @@ class Mux(Handler):
         p = struct.pack('!ccHHH', b('S'), b('S'), channel, cmd, len(data)) \
             + data
         self.outbuf.append(p)
-        debug2(' > channel=%d cmd=%s len=%d (fullness=%d)\n'
+        debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
                % (channel, cmd_to_name.get(cmd, hex(cmd)),
                   len(data), self.fullness))
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
-        debug2('<  channel=%d cmd=%s len=%d\n'
+        debug2('<  channel=%d cmd=%s len=%d'
                % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
-            debug2('received PING response\n')
+            debug2('received PING response')
             self.too_full = False
             self.fullness = 0
         elif cmd == CMD_EXIT:
@@ -431,7 +431,7 @@ class Mux(Handler):
         else:
             callback = self.channels.get(channel)
             if not callback:
-                log('warning: closed channel %d got cmd=%s len=%d\n'
+                log('warning: closed channel %d got cmd=%s len=%d'
                     % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
             else:
                 callback(cmd, data)
@@ -446,7 +446,7 @@ class Mux(Handler):
             flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
-            debug2('mux wrote: %r/%d\n' % (wrote, len(self.outbuf[0])))
+            debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
         while self.outbuf and not self.outbuf[0]:
@@ -465,7 +465,7 @@ class Mux(Handler):
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
-        # log('<<< %r\n' % b)
+        # log('<<< %r' % b)
         if read == b(''):  # EOF
             self.ok = False
         if read:
@@ -473,7 +473,7 @@ class Mux(Handler):
 
     def handle(self):
         self.fill()
-        # log('inbuf is: (%d,%d) %r\n'
+        # log('inbuf is: (%d,%d) %r'
         #     % (self.want, len(self.inbuf), self.inbuf))
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
@@ -511,7 +511,7 @@ class MuxWrapper(SockWrapper):
         self.channel = channel
         self.mux.channels[channel] = self.got_packet
         self.socks = []
-        debug2('new channel: %d\n' % channel)
+        debug2('new channel: %d' % channel)
 
     def __del__(self):
         self.nowrite()
@@ -527,7 +527,7 @@ class MuxWrapper(SockWrapper):
 
     def setnoread(self):
         if not self.shut_read:
-            debug2('%r: done reading\n' % self)
+            debug2('%r: done reading' % self)
             self.shut_read = True
             self.maybe_close()
 
@@ -538,13 +538,13 @@ class MuxWrapper(SockWrapper):
 
     def setnowrite(self):
         if not self.shut_write:
-            debug2('%r: done writing\n' % self)
+            debug2('%r: done writing' % self)
             self.shut_write = True
             self.maybe_close()
 
     def maybe_close(self):
         if self.shut_read and self.shut_write:
-            debug2('%r: closing connection\n' % self)
+            debug2('%r: closing connection' % self)
             # remove the mux's reference to us.  The python garbage collector
             # will then be able to reap our object.
             self.mux.channels[self.channel] = None
@@ -581,7 +581,7 @@ class MuxWrapper(SockWrapper):
 
 
 def connect_dst(family, ip, port):
-    debug2('Connecting to %s:%d\n' % (ip, port))
+    debug2('Connecting to %s:%d' % (ip, port))
     outsock = socket.socket(family)
     outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
     return SockWrapper(outsock, outsock,
@@ -599,11 +599,11 @@ def runonce(handlers, mux):
 
     for s in handlers:
         s.pre_select(r, w, x)
-    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)\n'
+    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
            % (len(handlers), _fds(r), _fds(w), _fds(x),
                mux.fullness, mux.too_full))
     (r, w, x) = select.select(r, w, x)
-    debug2('  Ready: %d r=%r w=%r x=%r\n'
+    debug2('  Ready: %d r=%r w=%r x=%r'
            % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r + w + x
     did = {}

@@ -24,7 +24,7 @@ try:
     null = open(os.devnull, 'wb')
 except IOError:
     _, e = sys.exc_info()[:2]
-    log('warning: %s\n' % e)
+    log('warning: %s' % e)
     null = os.popen("sh -c 'while read x; do :; done'", 'wb', 4096)
 
 
@@ -80,13 +80,13 @@ def found_host(name, ip):
     oldip = hostnames.get(name)
     if oldip != ip:
         hostnames[name] = ip
-        debug1('Found: %s: %s\n' % (name, ip))
+        debug1('Found: %s: %s' % (name, ip))
         sys.stdout.write('%s,%s\n' % (name, ip))
         write_host_cache()
 
 
 def _check_etc_hosts():
-    debug2(' > hosts\n')
+    debug2(' > hosts')
     for line in open('/etc/hosts'):
         line = re.sub(r'#.*', '', line)
         words = line.strip().split()
@@ -95,17 +95,17 @@ def _check_etc_hosts():
         ip = words[0]
         names = words[1:]
         if _is_ip(ip):
-            debug3('<    %s %r\n' % (ip, names))
+            debug3('<    %s %r' % (ip, names))
             for n in names:
                 check_host(n)
                 found_host(n, ip)
 
 
 def _check_revdns(ip):
-    debug2(' > rev: %s\n' % ip)
+    debug2(' > rev: %s' % ip)
     try:
         r = socket.gethostbyaddr(ip)
-        debug3('<    %s\n' % r[0])
+        debug3('<    %s' % r[0])
         check_host(r[0])
         found_host(r[0], ip)
     except (socket.herror, UnicodeError):
@@ -113,10 +113,10 @@ def _check_revdns(ip):
 
 
 def _check_dns(hostname):
-    debug2(' > dns: %s\n' % hostname)
+    debug2(' > dns: %s' % hostname)
     try:
         ip = socket.gethostbyname(hostname)
-        debug3('<    %s\n' % ip)
+        debug3('<    %s' % ip)
         check_host(ip)
         found_host(hostname, ip)
     except (socket.gaierror, UnicodeError):
@@ -124,7 +124,7 @@ def _check_dns(hostname):
 
 
 def _check_netstat():
-    debug2(' > netstat\n')
+    debug2(' > netstat')
     argv = ['netstat', '-n']
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
@@ -133,11 +133,11 @@ def _check_netstat():
         p.wait()
     except OSError:
         _, e = sys.exc_info()[:2]
-        log('%r failed: %r\n' % (argv, e))
+        log('%r failed: %r' % (argv, e))
         return
 
     for ip in re.findall(r'\d+\.\d+\.\d+\.\d+', content):
-        debug3('<    %s\n' % ip)
+        debug3('<    %s' % ip)
         check_host(ip)
 
 
@@ -146,7 +146,7 @@ def _check_smb(hostname):
     global _smb_ok
     if not _smb_ok:
         return
-    debug2(' > smb: %s\n' % hostname)
+    debug2(' > smb: %s' % hostname)
     argv = ['smbclient', '-U', '%', '-L', hostname]
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
@@ -155,7 +155,7 @@ def _check_smb(hostname):
         p.wait()
     except OSError:
         _, e = sys.exc_info()[:2]
-        log('%r failed: %r\n' % (argv, e))
+        log('%r failed: %r' % (argv, e))
         _smb_ok = False
         return
 
@@ -178,7 +178,7 @@ def _check_smb(hostname):
             break
         words = line.split()
         hostname = words[0].lower()
-        debug3('<    %s\n' % hostname)
+        debug3('<    %s' % hostname)
         check_host(hostname)
 
     # workgroup list section:
@@ -192,7 +192,7 @@ def _check_smb(hostname):
             break
         words = line.split()
         (workgroup, hostname) = (words[0].lower(), words[1].lower())
-        debug3('<    group(%s) -> %s\n' % (workgroup, hostname))
+        debug3('<    group(%s) -> %s' % (workgroup, hostname))
         check_host(hostname)
         check_workgroup(workgroup)
 
@@ -205,7 +205,7 @@ def _check_nmb(hostname, is_workgroup, is_master):
     global _nmb_ok
     if not _nmb_ok:
         return
-    debug2(' > n%d%d: %s\n' % (is_workgroup, is_master, hostname))
+    debug2(' > n%d%d: %s' % (is_workgroup, is_master, hostname))
     argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
@@ -214,18 +214,18 @@ def _check_nmb(hostname, is_workgroup, is_master):
         rv = p.wait()
     except OSError:
         _, e = sys.exc_info()[:2]
-        log('%r failed: %r\n' % (argv, e))
+        log('%r failed: %r' % (argv, e))
         _nmb_ok = False
         return
     if rv:
-        log('%r returned %d\n' % (argv, rv))
+        log('%r returned %d' % (argv, rv))
         return
     for line in lines:
         m = re.match(r'(\d+\.\d+\.\d+\.\d+) (\w+)<\w\w>\n', line)
         if m:
             g = m.groups()
             (ip, name) = (g[0], g[1].lower())
-            debug3('<    %s -> %s\n' % (name, ip))
+            debug3('<    %s -> %s' % (name, ip))
             if is_workgroup:
                 _enqueue(_check_smb, ip)
             else:
@@ -263,12 +263,9 @@ def _stdin_still_ok(timeout):
 
 
 def hw_main(seed_hosts, auto_hosts):
-    if helpers.verbose >= 2:
-        helpers.logprefix = 'HH: '
-    else:
-        helpers.logprefix = 'hostwatch: '
+    helpers.logprefix = 'HH: '
 
-    debug1('Starting hostwatch with Python version %s\n'
+    debug1('Starting hostwatch with Python version %s'
            % platform.python_version())
 
     for h in seed_hosts:

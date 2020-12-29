@@ -32,7 +32,7 @@ IPV6_RECVORIGDSTADDR = IPV6_ORIGDSTADDR
 
 if recvmsg == "python":
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP python using recvmsg.\n')
+        debug3('Accept UDP python using recvmsg.')
         data, ancdata, _, srcip = listener.recvmsg(
             4096, socket.CMSG_SPACE(24))
         dstip = None
@@ -63,7 +63,7 @@ if recvmsg == "python":
         return (srcip, dstip, data)
 elif recvmsg == "socket_ext":
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP using socket_ext recvmsg.\n')
+        debug3('Accept UDP using socket_ext recvmsg.')
         srcip, data, adata, _ = listener.recvmsg(
             (bufsize,), socket.CMSG_SPACE(24))
         dstip = None
@@ -96,7 +96,7 @@ elif recvmsg == "socket_ext":
         return (srcip, dstip, data[0])
 else:
     def recv_udp(listener, bufsize):
-        debug3('Accept UDP using recvfrom.\n')
+        debug3('Accept UDP using recvfrom.')
         data, srcip = listener.recvfrom(bufsize)
         return (srcip, None, data)
 

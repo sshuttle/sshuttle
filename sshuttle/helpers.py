@@ -15,12 +15,16 @@ def log(s):
     global logprefix
     try:
         sys.stdout.flush()
+        # Put newline at end of string if line doesn't have one.
+        if not s.endswith("\n"):
+            s = s+"\n"
+        # Allow multi-line messages
         if s.find("\n") != -1:
             prefix = logprefix
             s = s.rstrip("\n")
             for line in s.split("\n"):
                 sys.stderr.write(prefix + line + "\n")
-                prefix = "---> "
+                prefix = "    "
         else:
             sys.stderr.write(logprefix + s)
         sys.stderr.flush()
@@ -91,11 +95,11 @@ def resolvconf_nameservers(systemd_resolved):
                 words = line.lower().split()
                 if len(words) >= 2 and words[0] == 'nameserver':
                     this_file_nsservers.append(family_ip_tuple(words[1]))
-            debug2("Found DNS servers in %s: %s\n" %
+            debug2("Found DNS servers in %s: %s" %
                    (f, [n[1] for n in this_file_nsservers]))
             nsservers += this_file_nsservers
         except OSError as e:
-            debug3("Failed to read %s when looking for DNS servers: %s\n" %
+            debug3("Failed to read %s when looking for DNS servers: %s" %
                    (f, e.strerror))
 
     return nsservers
@@ -215,7 +219,7 @@ def which(file, mode=os.F_OK | os.X_OK):
     path = get_path()
     rv = _which(file, mode, path)
     if rv:
-        debug2("which() found '%s' at %s\n" % (file, rv))
+        debug2("which() found '%s' at %s" % (file, rv))
     else:
-        debug2("which() could not find '%s' in %s\n" % (file, path))
+        debug2("which() could not find '%s' in %s" % (file, path))
     return rv

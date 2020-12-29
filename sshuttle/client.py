@@ -41,7 +41,7 @@ _extra_fd = os.open(os.devnull, os.O_RDONLY)
 
 
 def got_signal(signum, frame):
-    log('exiting on signal %d\n' % signum)
+    log('exiting on signal %d' % signum)
     sys.exit(1)
 
 
@@ -57,7 +57,7 @@ def check_daemon(pidfile):
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
         else:
-            raise Fatal("c : can't read %s: %s" % (_pidname, e))
+            raise Fatal("can't read %s: %s" % (_pidname, e))
     if not oldpid:
         os.unlink(_pidname)
         return  # invalid pidfile, ok
@@ -177,12 +177,12 @@ class MultiListener:
         assert(self.bind_called)
         if self.v6:
             listenip = self.v6.getsockname()
-            debug1('%s listening on %r.\n' % (what, listenip))
-            debug2('%s listening with %r.\n' % (what, self.v6))
+            debug1('%s listening on %r.' % (what, listenip))
+            debug2('%s listening with %r.' % (what, self.v6))
         if self.v4:
             listenip = self.v4.getsockname()
-            debug1('%s listening on %r.\n' % (what, listenip))
-            debug2('%s listening with %r.\n' % (what, self.v4))
+            debug1('%s listening on %r.' % (what, listenip))
+            debug2('%s listening with %r.' % (what, self.v4))
 
 
 class FirewallClient:
@@ -233,7 +233,7 @@ class FirewallClient:
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
                 break
             except OSError as e:
-                log('Spawning firewall manager: %r\n' % argv)
+                log('Spawning firewall manager: %r' % argv)
                 raise Fatal(e)
         self.argv = argv
         s1.close()
@@ -326,23 +326,23 @@ def expire_connections(now, mux):
     remove = []
     for chan, timeout in dnsreqs.items():
         if timeout < now:
-            debug3('expiring dnsreqs channel=%d\n' % chan)
+            debug3('expiring dnsreqs channel=%d' % chan)
             remove.append(chan)
             del mux.channels[chan]
     for chan in remove:
         del dnsreqs[chan]
-    debug3('Remaining DNS requests: %d\n' % len(dnsreqs))
+    debug3('Remaining DNS requests: %d' % len(dnsreqs))
 
     remove = []
     for peer, (chan, timeout) in udp_by_src.items():
         if timeout < now:
-            debug3('expiring UDP channel channel=%d peer=%r\n' % (chan, peer))
+            debug3('expiring UDP channel channel=%d peer=%r' % (chan, peer))
             mux.send(chan, ssnet.CMD_UDP_CLOSE, b'')
             remove.append(peer)
             del mux.channels[chan]
     for peer in remove:
         del udp_by_src[peer]
-    debug3('Remaining UDP channels: %d\n' % len(udp_by_src))
+    debug3('Remaining UDP channels: %d' % len(udp_by_src))
 
 
 def onaccept_tcp(listener, method, mux, handlers):
@@ -351,7 +351,7 @@ def onaccept_tcp(listener, method, mux, handlers):
         sock, srcip = listener.accept()
     except socket.error as e:
         if e.args[0] in [errno.EMFILE, errno.ENFILE]:
-            debug1('Rejected incoming connection: too many open files!\n')
+            debug1('Rejected incoming connection: too many open files!')
             # free up an fd so we can eat the connection
             os.close(_extra_fd)
             try:
@@ -364,15 +364,15 @@ def onaccept_tcp(listener, method, mux, handlers):
             raise
 
     dstip = method.get_tcp_dstip(sock)
-    debug1('Accept TCP: %s:%r -> %s:%r.\n' % (srcip[0], srcip[1],
-                                              dstip[0], dstip[1]))
+    debug1('Accept TCP: %s:%r -> %s:%r.' % (srcip[0], srcip[1],
+                                            dstip[0], dstip[1]))
     if dstip[1] == sock.getsockname()[1] and islocal(dstip[0], sock.family):
-        debug1("-- ignored: that's my address!\n")
+        debug1("-- ignored: that's my address!")
         sock.close()
         return
     chan = mux.next_channel()
     if not chan:
-        log('warning: too many open channels.  Discarded connection.\n')
+        log('warning: too many open channels.  Discarded connection.')
         sock.close()
         return
     mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
@@ -385,7 +385,7 @@ def onaccept_tcp(listener, method, mux, handlers):
 def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
-    debug3('doing send from %r to %r\n' % (srcip, dstip,))
+    debug3('doing send from %r to %r' % (srcip, dstip,))
     method.send_udp(sock, srcip, dstip, data)
 
 
@@ -395,7 +395,7 @@ def onaccept_udp(listener, method, mux, handlers):
     if t is None:
         return
     srcip, dstip, data = t
-    debug1('Accept UDP: %r -> %r.\n' % (srcip, dstip,))
+    debug1('Accept UDP: %r -> %r.' % (srcip, dstip,))
     if srcip in udp_by_src:
         chan, _ = udp_by_src[srcip]
     else:
@@ -412,7 +412,7 @@ def onaccept_udp(listener, method, mux, handlers):
 
 
 def dns_done(chan, data, method, sock, srcip, dstip, mux):
-    debug3('dns_done: channel=%d src=%r dst=%r\n' % (chan, srcip, dstip))
+    debug3('dns_done: channel=%d src=%r dst=%r' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
     method.send_udp(sock, srcip, dstip, data)
@@ -427,9 +427,9 @@ def ondns(listener, method, mux, handlers):
     # dstip is None if we are using a method where we can't determine
     # the destination IP of the DNS request that we captured from the client.
     if dstip is None:
-        debug1('DNS request from %r: %d bytes\n' % (srcip, len(data)))
+        debug1('DNS request from %r: %d bytes' % (srcip, len(data)))
     else:
-        debug1('DNS request from %r to %r: %d bytes\n' %
+        debug1('DNS request from %r to %r: %d bytes' %
                (srcip, dstip, len(data)))
     chan = mux.next_channel()
     dnsreqs[chan] = now + 30
@@ -445,13 +445,13 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           to_nameserver):
 
     helpers.logprefix = 'c : '
-    debug1('Starting client with Python version %s\n'
+    debug1('Starting client with Python version %s'
            % platform.python_version())
 
     method = fw.method
 
     handlers = []
-    debug1('Connecting to server...\n')
+    debug1('Connecting to server...')
 
     try:
         (serverproc, serversock) = ssh.connect(
@@ -463,7 +463,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
-            raise Fatal("c : failed to establish ssh session (1)")
+            raise Fatal("failed to establish ssh session (1)")
         else:
             raise
     mux = Mux(serversock.makefile("rb"), serversock.makefile("wb"))
@@ -481,22 +481,22 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         initstring = serversock.recv(len(expected))
     except socket.error as e:
         if e.args[0] == errno.ECONNRESET:
-            raise Fatal("c : failed to establish ssh session (2)")
+            raise Fatal("failed to establish ssh session (2)")
         else:
             raise
 
     rv = serverproc.poll()
     if rv:
-        raise Fatal('c : server died with error code %d' % rv)
+        raise Fatal('server died with error code %d' % rv)
 
     if initstring != expected:
-        raise Fatal('c : expected server init string %r; got %r'
+        raise Fatal('expected server init string %r; got %r'
                     % (expected, initstring))
-    log('Connected to server.\n')
+    log('Connected to server.')
     sys.stdout.flush()
     if daemon:
         daemonize()
-        log('daemonizing (%s).\n' % _pidname)
+        log('daemonizing (%s).' % _pidname)
 
     def onroutes(routestr):
         if auto_nets:
@@ -508,11 +508,11 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                 width = int(width)
                 ip = ip.decode("ASCII")
                 if family == socket.AF_INET6 and tcp_listener.v6 is None:
-                    debug2("Ignored auto net %d/%s/%d\n" % (family, ip, width))
+                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
                 if family == socket.AF_INET and tcp_listener.v4 is None:
-                    debug2("Ignored auto net %d/%s/%d\n" % (family, ip, width))
+                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
                 else:
-                    debug2("Adding auto net %d/%s/%d\n" % (family, ip, width))
+                    debug2("Adding auto net %d/%s/%d" % (family, ip, width))
                     fw.auto_nets.append((family, ip, width, 0, 0))
 
         # we definitely want to do this *after* starting ssh, or we might end
@@ -532,7 +532,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         sdnotify.send(sdnotify.ready(), sdnotify.status('Connected'))
 
     def onhostlist(hostlist):
-        debug2('got host list: %r\n' % hostlist)
+        debug2('got host list: %r' % hostlist)
         for line in hostlist.strip().split():
             if line:
                 name, ip = line.split(b',', 1)
@@ -548,7 +548,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         dns_listener.add_handler(handlers, ondns, method, mux)
 
     if seed_hosts is not None:
-        debug1('seed_hosts: %r\n' % seed_hosts)
+        debug1('seed_hosts: %r' % seed_hosts)
         mux.send(0, ssnet.CMD_HOST_REQ, str.encode('\n'.join(seed_hosts)))
 
     def check_ssh_alive():
@@ -588,9 +588,9 @@ def main(listenip_v6, listenip_v4,
         try:
             check_daemon(pidfile)
         except Fatal as e:
-            log("%s\n" % e)
+            log("%s" % e)
             return 5
-    debug1('Starting sshuttle proxy (version %s).\n' % __version__)
+    debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
     fw = FirewallClient(method_name, sudo_pythonpath)
@@ -643,14 +643,14 @@ def main(listenip_v6, listenip_v4,
     #    "auto" when listen address is unspecified.
     #    The user specified address if provided by user
     if listenip_v6 is None:
-        debug1("IPv6 disabled by --disable-ipv6\n")
+        debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
         if avail.ipv6:
-            debug1("IPv6 enabled: Using default IPv6 listen address ::1\n")
+            debug1("IPv6 enabled: Using default IPv6 listen address ::1")
             listenip_v6 = ('::1', 0)
         else:
             debug1("IPv6 disabled since it isn't supported by method "
-                   "%s.\n" % fw.method.name)
+                   "%s." % fw.method.name)
             listenip_v6 = None
 
     # Make final decision about enabling IPv6:
@@ -722,9 +722,9 @@ def main(listenip_v6, listenip_v4,
                 msg += "(available)"
             else:
                 msg += "(not available with %s method)" % fw.method.name
-        debug1(msg + "\n")
+        debug1(msg)
 
-    debug1("Method: %s\n" % fw.method.name)
+    debug1("Method: %s" % fw.method.name)
     feature_status("IPv4", required.ipv4, avail.ipv4)
     feature_status("IPv6", required.ipv6, avail.ipv6)
     feature_status("UDP ", required.udp, avail.udp)
@@ -744,20 +744,20 @@ def main(listenip_v6, listenip_v4,
     # because we do that below when we have identified the ports to
     # listen on.
     debug1("Subnets to forward through remote host (type, IP, cidr mask "
-           "width, startPort, endPort):\n")
+           "width, startPort, endPort):")
     for i in subnets_include:
-        debug1("  "+str(i)+"\n")
+        debug1("  "+str(i))
     if auto_nets:
         debug1("NOTE: Additional subnets to forward may be added below by "
-               "--auto-nets.\n")
-    debug1("Subnets to exclude from forwarding:\n")
+               "--auto-nets.")
+    debug1("Subnets to exclude from forwarding:")
     for i in subnets_exclude:
-        debug1("  "+str(i)+"\n")
+        debug1("  "+str(i))
     if required.dns:
         debug1("DNS requests normally directed at these servers will be "
-               "redirected to remote:\n")
+               "redirected to remote:")
         for i in nslist:
-            debug1("  "+str(i)+"\n")
+            debug1("  "+str(i))
 
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
@@ -775,7 +775,7 @@ def main(listenip_v6, listenip_v4,
     redirectport_v4 = 0
     bound = False
     for port in ports:
-        debug2('Trying to bind redirector on port %d\n' % port)
+        debug2('Trying to bind redirector on port %d' % port)
         tcp_listener = MultiListener()
 
         if required.udp:
@@ -830,7 +830,7 @@ def main(listenip_v6, listenip_v4,
         # search for spare port for DNS
         ports = range(12300, 9000, -1)
         for port in ports:
-            debug2('Trying to bind DNS redirector on port %d\n' % port)
+            debug2('Trying to bind DNS redirector on port %d' % port)
             if port in used_ports:
                 continue
 
