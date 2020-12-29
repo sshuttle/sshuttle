@@ -25,11 +25,6 @@ There are some things you need to consider for TPROXY to work:
   Otherwise sshuttle may attempt to intercept the ssh packets, which will not
   work. Use the ``--exclude`` parameter for this.
 
-- Similarly, UDP return packets (including DNS) could get intercepted and
-  bounced back. This is the case if you have a broad subnet such as
-  ``0.0.0.0/0`` or ``::/0`` that includes the IP address of the client. Use the
-  ``--exclude`` parameter for this.
-
 - You need the ``--method=tproxy`` parameter, as above.
 
 - The routes for the outgoing packets must already exist. For example, if your
