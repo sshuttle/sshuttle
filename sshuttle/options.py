@@ -146,7 +146,27 @@ class Concat(Action):
         setattr(namespace, self.dest, curr_value + values)
 
 
-parser = ArgumentParser(
+# Override one function in the ArgumentParser so that we can have
+# better control for how we parse files containing arguments. We
+# expect one argument per line, but strip whitespace/quotes from the
+# beginning/end of the lines.
+class MyArgumentParser(ArgumentParser):
+    def convert_arg_line_to_args(self, arg_line):
+        # strip whitespace at beginning and end of line
+        arg_line = arg_line.strip()
+
+        # When copying parameters from the command line to a file,
+        # some users might copy the quotes they used on the command
+        # line into the config file. We ignore these if the line
+        # starts and ends with the same quote.
+        if arg_line.startswith("'") and arg_line.endswith("'") or \
+           arg_line.startswith('"') and arg_line.endswith('"'):
+            arg_line = arg_line[1:-1]
+
+        return [arg_line]
+
+
+parser = MyArgumentParser(
     prog="sshuttle",
     usage="%(prog)s [-l [ip:]port] [-r [user@]sshserver[:port]] <subnets...>",
     fromfile_prefix_chars="@"
