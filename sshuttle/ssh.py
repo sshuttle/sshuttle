@@ -103,11 +103,21 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
                 empackage(z, 'sshuttle.server') +
                 b"\n")
 
+    # If the exec() program calls sys.exit(), it should exit python
+    # and the sys.exit(98) call won't be reached (so we try to only
+    # exit that way in the server). However, if the code that we
+    # exec() simply returns from main, then we will return from
+    # exec(). If the server's python process dies, it should stop
+    # executing and also won't reach sys.exit(98).
+    #
+    # So, we shouldn't reach sys.exit(98) and we certainly shouldn't
+    # reach it immediately after trying to start the server.
     pyscript = r"""
                 import sys, os;
                 verbosity=%d;
                 sys.stdin = os.fdopen(0, "rb");
-                exec(compile(sys.stdin.read(%d), "assembler.py", "exec"))
+                exec(compile(sys.stdin.read(%d), "assembler.py", "exec"));
+                sys.exit(98);
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
 
@@ -127,8 +137,47 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         if python:
             pycmd = "'%s' -c '%s'" % (python, pyscript)
         else:
+            # By default, we run the following code in a shell.
+            # However, with restricted shells and other unusual
+            # situations, there can be trouble. See the RESTRICTED
+            # SHELL section in "man bash" for more information. The
+            # code makes many assumptions:
+            #
+            # (1) That /bin/sh exists and that we can call it.
+            # Restricted shells often do *not* allow you to run
+            # programs specified with an absolute path like /bin/sh.
+            # Either way, if there is trouble with this, it should
+            # return error code 127.
+            #
+            # (2) python3 or python exists in the PATH and is
+            # executable. If they aren't, then exec wont work (see (4)
+            # below).
+            #
+            # (3) In /bin/sh, that we can redirect stderr in order to
+            # hide the version that "python3 -V" might print (some
+            # restricted shells don't allow redirection, see
+            # RESTRICTED SHELL section in 'man bash'). However, if we
+            # are in a restricted shell, we'd likely have trouble with
+            # assumption (1) above.
+            #
+            # (4) The 'exec' command should work except if we failed
+            # to exec python because it doesn't exist or isn't
+            # executable OR if exec isn't allowed (some restricted
+            # shells don't allow exec). If the exec succeeded, it will
+            # not return and not get to the "exit 97" command. If exec
+            # does return, we exit with code 97.
+            #
+            # Specifying the exact python program to run with --python
+            # avoids many of the issues above. However, if
+            # you have a restricted shell on remote, you may only be
+            # able to run python if it is in your PATH (and you can't
+            # run programs specified with an absolute path). In that
+            # case, sshuttle might not work at all since it is not
+            # possible to run python on the remote machine---even if
+            # it is present.
             pycmd = ("P=python3; $P -V 2>%s || P=python; "
-                     "exec \"$P\" -c %s") % (os.devnull, quote(pyscript))
+                     "exec \"$P\" -c %s; exit 97") % \
+                     (os.devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
         if password is not None:

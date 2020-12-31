@@ -485,9 +485,59 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         else:
             raise
 
+    # Returns None if process is still running (or returns exit code)
     rv = serverproc.poll()
-    if rv:
-        raise Fatal('c : server died with error code %d' % rv)
+    if rv is not None:
+        errmsg = "server died with error code %d\n" % rv
+
+        # Our fatal exceptions return exit code 99
+        if rv == 99:
+            errmsg += "This error code likely means that python started and " \
+                "the sshuttle server started. However, the sshuttle server " \
+                "may have raised a 'Fatal' exception after it started."
+        elif rv == 98:
+            errmsg += "This error code likely means that we were able to " \
+                "run python on the server, but that the program continued " \
+                "to the line after we call python's exec() to execute " \
+                "sshuttle's server code. Try specifying the python " \
+                "executable to user on the server by passing --python " \
+                "to sshuttle."
+
+        # This error should only be possible when --python is not specified.
+        elif rv == 97 and not python:
+            errmsg += "This error code likely means that either we " \
+                "couldn't find python3 or python in the PATH on the " \
+                "server or that we do not have permission to run 'exec' in " \
+                "the /bin/sh shell on the server. Try specifying the " \
+                "python executable to use on the server by passing " \
+                "--python to sshuttle."
+
+        # POSIX sh standards says error code 127 is used when you try
+        # to execute a program that does not exist. See section 2.8.2
+        # of
+        # https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_08
+        elif rv == 127:
+            if python:
+                errmsg += "This error code likely means that we were not " \
+                    "able to execute the python executable that specified " \
+                    "with --python. You specified '%s'.\n" % python
+                if python.startswith("/"):
+                    errmsg += "\nTip for users in a restricted shell on the " \
+                        "server: The server may refuse to run programs " \
+                        "specified with an absolute path. Try specifying " \
+                        "just the name of the python executable. However, " \
+                        "if python is not in your PATH and you cannot " \
+                        "run programs specified with an absolute path, " \
+                        "it is possible that sshuttle will not work."
+            else:
+                errmsg += "This error code likely means that we were unable " \
+                    "to execute /bin/sh on the remote server. This can " \
+                    "happen if /bin/sh does not exist on the server or if " \
+                    "you are in a restricted shell that does not allow you " \
+                    "to run programs specified with an absolute path. " \
+                    "Try rerunning sshuttle with the --python parameter."
+
+        raise Fatal(errmsg)
 
     if initstring != expected:
         raise Fatal('c : expected server init string %r; got %r'
