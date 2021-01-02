@@ -386,7 +386,7 @@ else:
 
 def pfctl(args, stdin=None):
     argv = ['pfctl'] + shlex.split(args)
-    debug1('>> %s\n' % ' '.join(argv))
+    debug1('>> %s' % ' '.join(argv))
     p = ssubprocess.Popen(argv, stdin=ssubprocess.PIPE,
                           stdout=ssubprocess.PIPE,
                           stderr=ssubprocess.PIPE,
@@ -495,5 +495,5 @@ class Method(BaseMethod):
     def is_supported(self):
         if which("pfctl"):
             return True
-        debug2("pf method not supported because 'pfctl' command is missing.\n")
+        debug2("pf method not supported because 'pfctl' command is missing.")
         return False

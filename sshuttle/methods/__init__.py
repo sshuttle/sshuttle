@@ -66,7 +66,7 @@ class BaseMethod(object):
 
     @staticmethod
     def recv_udp(udp_listener, bufsize):
-        debug3('Accept UDP using recvfrom.\n')
+        debug3('Accept UDP using recvfrom.')
         data, srcip = udp_listener.recvfrom(bufsize)
         return (srcip, None, data)
 
@@ -87,7 +87,7 @@ class BaseMethod(object):
         for key in ["udp", "dns", "ipv6", "ipv4", "user"]:
             if getattr(features, key) and not getattr(avail, key):
                 raise Fatal(
-                    "Feature %s not supported with method %s.\n" %
+                    "Feature %s not supported with method %s." %
                     (key, self.name))
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
@@ -108,13 +108,13 @@ def get_method(method_name):
 
 
 def get_auto_method():
-    debug3("Selecting a method automatically...\n")
+    debug3("Selecting a method automatically...")
     # Try these methods, in order:
     methods_to_try = ["nat", "nft", "pf", "ipfw"]
     for m in methods_to_try:
         method = get_method(m)
         if method.is_supported():
-            debug3("Method '%s' was automatically selected.\n" % m)
+            debug3("Method '%s' was automatically selected." % m)
             return method
 
     raise Fatal("Unable to automatically find a supported method. Check that "

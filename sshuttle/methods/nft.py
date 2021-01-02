@@ -118,5 +118,5 @@ class Method(BaseMethod):
     def is_supported(self):
         if which("nft"):
             return True
-        debug2("nft method not supported because 'nft' command is missing.\n")
+        debug2("nft method not supported because 'nft' command is missing.")
         return False

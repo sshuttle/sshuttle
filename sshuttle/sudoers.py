@@ -45,11 +45,11 @@ def save_config(content, file_name):
     returncode = process.returncode
 
     if returncode:
-        log('Failed updating sudoers file.\n')
+        log('Failed updating sudoers file.')
         debug1(streamdata)
         exit(returncode)
     else:
-        log('Success, sudoers file update.\n')
+        log('Success, sudoers file update.')
         exit(0)
 
 

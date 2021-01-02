@@ -117,9 +117,9 @@ def main():
             return return_code
 
     except Fatal as e:
-        log('fatal: %s\n' % e)
+        log('fatal: %s' % e)
         return 99
     except KeyboardInterrupt:
         log('\n')
-        log('Keyboard interrupt: exiting.\n')
+        log('Keyboard interrupt: exiting.')
         return 1

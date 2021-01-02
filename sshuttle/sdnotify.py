@@ -26,7 +26,7 @@ def _notify(message):
     try:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     except (OSError, IOError) as e:
-        debug1("Error creating socket to notify systemd: %s\n" % e)
+        debug1("Error creating socket to notify systemd: %s" % e)
         return False
 
     if not message:
@@ -37,7 +37,7 @@ def _notify(message):
     try:
         return (sock.sendto(message, addr) > 0)
     except (OSError, IOError) as e:
-        debug1("Error notifying systemd: %s\n" % e)
+        debug1("Error notifying systemd: %s" % e)
         return False
 
 

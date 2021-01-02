@@ -209,7 +209,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
     s1a, s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
     s1.close()
 
-    debug2('executing: %r\n' % argv)
+    debug2('executing: %r' % argv)
     p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
                           close_fds=True, stderr=stderr)
     os.close(s1a)
