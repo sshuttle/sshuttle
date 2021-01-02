@@ -537,6 +537,32 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                     "to run programs specified with an absolute path. " \
                     "Try rerunning sshuttle with the --python parameter."
 
+        # When the redirected subnet includes the remote ssh host, the
+        # firewall rules can interrupt the ssh connection to the
+        # remote machine. This issue impacts some Linux machines. The
+        # user sees that the server dies with a broken pipe error and
+        # code 255.
+        #
+        # The solution to this problem is to exclude the remote
+        # server.
+        #
+        # There are many github issues from users encountering this
+        # problem. Most of the discussion on the topic is here:
+        # https://github.com/sshuttle/sshuttle/issues/191
+        elif rv == 255:
+            errmsg += "It might be possible to resolve this error by " \
+                "excluding the server that you are ssh'ing to. For example, " \
+                "if you are running 'sshuttle -v -r example.com 0/0' to " \
+                "redirect all traffic through example.com, then try " \
+                "'sshuttle -v -r example.com -x example.com 0/0' to " \
+                "exclude redirecting the connection to example.com itself " \
+                "(i.e., sshuttle's firewall rules may be breaking the " \
+                "ssh connection that it previously established). " \
+                "Alternatively, you may be able to use 'sshuttle -v -r " \
+                "example.com -x example.com:22 0/0' to redirect " \
+                "everything except ssh connections between your machine " \
+                "and example.com."
+
         raise Fatal(errmsg)
 
     if initstring != expected:
