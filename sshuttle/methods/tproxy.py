@@ -194,6 +194,22 @@ class Method(BaseMethod):
         _ipt('-F', tproxy_chain)
         _ipt('-I', 'OUTPUT', tmark, '-j', mark_chain)
         _ipt('-I', 'PREROUTING', tmark, '-j', tproxy_chain)
+
+        # Don't have packets sent to any of our local IP addresses go
+        # through the tproxy or mark chains.
+        #
+        # Without this fix, if a large subnet is redirected through
+        # sshuttle (i.e., 0/0), then the user may be unable to receive
+        # UDP responses or connect to their own machine using an IP
+        # besides (127.0.0.1). Prior to including these lines, the
+        # documentation reminded the user to use -x to exclude their
+        # own IP addresses to receive UDP responses if they are
+        # redirecting a large subnet through sshuttle (i.e., 0/0).
+        _ipt('-A', tproxy_chain, '-j', 'RETURN', '-m', 'addrtype',
+             '--dst-type', 'LOCAL')
+        _ipt('-A', mark_chain, '-j', 'RETURN', '-m', 'addrtype',
+             '--dst-type', 'LOCAL')
+
         _ipt('-A', divert_chain, '-j', 'MARK', '--set-mark', tmark)
         _ipt('-A', divert_chain, '-j', 'ACCEPT')
         _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
