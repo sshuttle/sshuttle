@@ -1,6 +1,6 @@
 import socket
 
-from mock import Mock, patch, call
+from unittest.mock import Mock, patch, call
 
 import sshuttle.sdnotify
 

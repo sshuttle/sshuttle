@@ -1,7 +1,7 @@
 import io
 from socket import AF_INET, AF_INET6
 
-from mock import Mock, patch, call
+from unittest.mock import Mock, patch, call
 import sshuttle.firewall
 
 
