@@ -1,7 +1,7 @@
 import io
 import socket
 
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 
 import sshuttle.server
 

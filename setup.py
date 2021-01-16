@@ -69,7 +69,6 @@ setup(
         'pytest',
         'pytest-cov',
         'pytest-runner',
-        'mock',
         'flake8',
     ],
     keywords="ssh vpn",

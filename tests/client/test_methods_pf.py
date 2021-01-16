@@ -2,7 +2,7 @@ import socket
 from socket import AF_INET, AF_INET6
 
 import pytest
-from mock import Mock, patch, call, ANY
+from unittest.mock import Mock, patch, call, ANY
 from sshuttle.methods import get_method
 from sshuttle.helpers import Fatal, get_env
 from sshuttle.methods.pf import FreeBsd, Darwin, OpenBsd
