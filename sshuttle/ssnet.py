@@ -461,7 +461,10 @@ class Mux(Handler):
             flags |= os.O_NONBLOCK
             flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
         try:
-            read = _nb_clean(os.read, self.rfile.fileno(), LATENCY_BUFFER_SIZE)
+            # If LATENCY_BUFFER_SIZE is inappropriately large, we will
+            # get a MemoryError here. Read no more than 1MiB.
+            read = _nb_clean(os.read, self.rfile.fileno(),
+                             min(1048576, LATENCY_BUFFER_SIZE))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)

@@ -95,6 +95,7 @@ def main():
                                       remotename,
                                       opt.python,
                                       opt.latency_control,
+                                      opt.latency_buffer_size,
                                       opt.dns,
                                       nslist,
                                       opt.method,

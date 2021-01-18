@@ -40,5 +40,6 @@ sshuttle.helpers.verbose = verbosity
 
 import sshuttle.cmdline_options as options  # noqa: E402
 from sshuttle.server import main  # noqa: E402
-main(options.latency_control, options.auto_hosts, options.to_nameserver,
+main(options.latency_control, options.latency_buffer_size,
+     options.auto_hosts, options.to_nameserver,
      options.auto_nets)
