@@ -187,13 +187,14 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath):
+    def __init__(self, method_name, sudo_pythonpath, ttl):
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))
         argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
-                    ['--firewall'])
+                    ['--firewall'] +
+                    ['--ttl', ttl])
         if ssyslog._p:
             argvbase += ['--syslog']
 
@@ -248,7 +249,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark):
+              user, tmark, ttl):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -259,6 +260,7 @@ class FirewallClient:
         self.udp = udp
         self.user = user
         self.tmark = tmark
+        self.ttl = ttl
 
     def check(self):
         rv = self.p.poll()
@@ -442,7 +444,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver):
+          to_nameserver, ttl):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -461,7 +463,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
-                         auto_nets=auto_nets))
+                         auto_nets=auto_nets,
+                         ttl=ttl))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -655,7 +658,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark):
+         user, sudo_pythonpath, tmark, ttl):
 
     if not remotename:
         print("WARNING: You must specify -r/--remote to securely route "
@@ -671,7 +674,7 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath)
+    fw = FirewallClient(method_name, sudo_pythonpath, ttl)
 
     # If --dns is used, store the IP addresses that the client
     # normally uses for DNS lookups in nslist. The firewall needs to
@@ -981,14 +984,14 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark)
+             required.udp, user, tmark, ttl)
 
     # start the client process
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver)
+                     daemon, to_nameserver, ttl)
     finally:
         try:
             if daemon:

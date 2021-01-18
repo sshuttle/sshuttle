@@ -97,7 +97,7 @@ def subnet_weight(s):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(method_name, syslog):
+def main(method_name, syslog, ttl):
     helpers.logprefix = 'fw: '
     stdin, stdout = setup_daemon()
     hostmap = {}
@@ -218,14 +218,14 @@ def main(method_name, syslog):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user)
+                user, ttl)
 
         if subnets_v4 or nslist_v4:
             debug2('setting up IPv4.')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user)
+                user, ttl)
 
         stdout.write('STARTED\n')
 

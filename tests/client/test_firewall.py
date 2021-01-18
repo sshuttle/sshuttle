@@ -100,7 +100,7 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
     mock_get_method("not_auto").name = "test"
     mock_get_method.reset_mock()
 
-    sshuttle.firewall.main("not_auto", False)
+    sshuttle.firewall.main("not_auto", False, 63)
 
     assert mock_rewrite_etc_hosts.mock_calls == [
         call({'1.2.3.3': 'existing'}, 1024),
@@ -125,7 +125,8 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
             [(AF_INET6, 64, False, u'2404:6800:4004:80c::', 0, 0),
                 (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
             True,
-            None),
+            None,
+            63),
         call().setup_firewall(
             1025, 1027,
             [(AF_INET, u'1.2.3.33')],
@@ -133,7 +134,8 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
             [(AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
                 (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
-            None),
+            None,
+            63),
         call().restore_firewall(1024, AF_INET6, True, None),
         call().restore_firewall(1025, AF_INET, True, None),
     ]
