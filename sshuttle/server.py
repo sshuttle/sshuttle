@@ -271,13 +271,17 @@ class UdpProxy(Handler):
         self.mux.send(self.chan, ssnet.CMD_UDP_DATA, hdr + data)
 
 
-def main(latency_control, auto_hosts, to_nameserver, auto_nets):
+def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
+         auto_nets):
     try:
         helpers.logprefix = ' s: '
         debug1('Starting server with Python version %s'
                % platform.python_version())
 
         debug1('latency control setting = %r' % latency_control)
+        if latency_buffer_size:
+            import sshuttle.ssnet as ssnet
+            ssnet.LATENCY_BUFFER_SIZE = latency_buffer_size
 
         # synchronization header
         sys.stdout.write('\0\0SSHUTTLE0001')

@@ -440,7 +440,7 @@ def ondns(listener, method, mux, handlers):
 
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
-          python, latency_control,
+          python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
           to_nameserver):
 
@@ -458,6 +458,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             options=dict(latency_control=latency_control,
+                         latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
                          auto_nets=auto_nets))
@@ -650,7 +651,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
 
 def main(listenip_v6, listenip_v4,
-         ssh_cmd, remotename, python, latency_control, dns, nslist,
+         ssh_cmd, remotename, python, latency_control,
+         latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
          user, sudo_pythonpath, tmark):
@@ -984,8 +986,9 @@ def main(listenip_v6, listenip_v4,
     # start the client process
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
-                     python, latency_control, dns_listener,
-                     seed_hosts, auto_hosts, auto_nets, daemon, to_nameserver)
+                     python, latency_control, latency_buffer_size,
+                     dns_listener, seed_hosts, auto_hosts, auto_nets,
+                     daemon, to_nameserver)
     finally:
         try:
             if daemon:
