@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, ttl):
         # only ipv4 supported with NAT
         if family != socket.AF_INET:
             raise Exception(
@@ -53,7 +53,7 @@ class Method(BaseMethod):
         # This TTL hack allows the client and server to run on the
         # same host. The connections the sshuttle server makes will
         # have TTL set to 63.
-        _ipt_ttl('-A', chain, '-j', 'RETURN',  '-m', 'ttl', '--ttl', '63')
+        _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'ttl', '--ttl', '%s' % ttl)
 
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.

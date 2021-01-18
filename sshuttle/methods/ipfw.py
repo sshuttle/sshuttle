@@ -189,7 +189,7 @@ class Method(BaseMethod):
         #     udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, ttl):
         # IPv6 not supported
         if family not in [socket.AF_INET]:
             raise Exception(
@@ -216,7 +216,7 @@ class Method(BaseMethod):
         ipfw('add', '1', 'fwd', '127.0.0.1,%d' % port,
              'tcp',
              'from', 'any', 'to', 'table(126)',
-             'not', 'ipttl', '63', 'keep-state', 'setup')
+             'not', 'ipttl', ttl, 'keep-state', 'setup')
 
         ipfw_noexit('table', '124', 'flush')
         dnscount = 0
@@ -227,11 +227,11 @@ class Method(BaseMethod):
             ipfw('add', '1', 'fwd', '127.0.0.1,%d' % dnsport,
                  'udp',
                  'from', 'any', 'to', 'table(124)',
-                 'not', 'ipttl', '63')
+                 'not', 'ipttl', ttl)
         ipfw('add', '1', 'allow',
              'udp',
              'from', 'any', 'to', 'any',
-             'ipttl', '63')
+             'ipttl', ttl)
 
         if subnets:
             # create new subnet entries

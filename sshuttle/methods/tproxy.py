@@ -151,7 +151,7 @@ class Method(BaseMethod):
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user):
+                       user, ttl):
         if self.firewall is None:
             tmark = '1'
         else:

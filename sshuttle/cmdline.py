@@ -43,7 +43,7 @@ def main():
         if opt.firewall:
             if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
-            return firewall.main(opt.method, opt.syslog)
+            return firewall.main(opt.method, opt.syslog, opt.ttl)
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
         else:
@@ -109,7 +109,8 @@ def main():
                                       opt.pidfile,
                                       opt.user,
                                       opt.sudo_pythonpath,
-                                      opt.tmark)
+                                      opt.tmark,
+                                      opt.ttl)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')
