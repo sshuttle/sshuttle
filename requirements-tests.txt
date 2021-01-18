@@ -1,5 +1,4 @@
 -r requirements.txt
-attrs==20.3.0
 pytest==6.2.1
 pytest-cov==2.10.1
 flake8==3.8.4
