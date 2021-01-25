@@ -66,8 +66,8 @@ def ipfw_rule_exists(n):
     found = False
     for line in p.stdout:
         if line.startswith(b'%05d ' % n):
-            if not ('ipttl 63' in line or 'check-state' in line):
-                log('non-sshuttle ipfw rule: %r' % line.strip())
+            if not ('ipttl %s' % ssnet.TUNNEL_TTL in line or 'check-state' in line):
+                log('non-sshuttle ipfw rule: %r\n' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
             found = True
     rv = p.wait()
@@ -177,7 +177,7 @@ class Method(BaseMethod):
         sender.setsockopt(socket.SOL_IP, IP_BINDANY, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        sender.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
+        sender.setsockopt(socket.SOL_IP, socket.IP_TTL, ssnet.TUNNEL_TTL)
         sender.bind(srcip)
         sender.sendto(data, dstip)
         sender.close()
@@ -216,7 +216,7 @@ class Method(BaseMethod):
         ipfw('add', '1', 'fwd', '127.0.0.1,%d' % port,
              'tcp',
              'from', 'any', 'to', 'table(126)',
-             'not', 'ipttl', '63', 'keep-state', 'setup')
+             'not', 'ipttl', ssnet.TUNNEL_TTL, 'keep-state', 'setup')
 
         ipfw_noexit('table', '124', 'flush')
         dnscount = 0
@@ -227,11 +227,11 @@ class Method(BaseMethod):
             ipfw('add', '1', 'fwd', '127.0.0.1,%d' % dnsport,
                  'udp',
                  'from', 'any', 'to', 'table(124)',
-                 'not', 'ipttl', '63')
+                 'not', 'ipttl', ssnet.TUNNEL_TTL)
         ipfw('add', '1', 'allow',
              'udp',
              'from', 'any', 'to', 'any',
-             'ipttl', '63')
+             'ipttl', ssnet.TUNNEL_TTL)
 
         if subnets:
             # create new subnet entries

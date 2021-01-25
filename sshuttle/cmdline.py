@@ -37,6 +37,13 @@ def main():
     if opt.latency_buffer_size:
         import sshuttle.ssnet as ssnet
         ssnet.LATENCY_BUFFER_SIZE = opt.latency_buffer_size
+    if opt.no_ttl_hack:
+        import sshuttle.ssnet as ssnet
+        ssnet.NO_TTL_HACK = True
+    if opt.tunnel_ttl:
+        import sshuttle.ssnet as ssnet
+        ssnet.TUNNEL_TTL = opt.tunnel_ttl
+
     helpers.verbose = opt.verbose
 
     try:

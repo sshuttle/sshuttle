@@ -47,11 +47,11 @@ class Method(BaseMethod):
 
         # This TTL hack allows the client and server to run on the
         # same host. The connections the sshuttle server makes will
-        # have TTL set to 63.
+        # have TTL set to ssnet.TUNNEL_TTL.
         if family == socket.AF_INET:
-            _nft('add rule', chain, 'ip ttl == 63 return')
+            _nft('add rule', chain, 'ip ttl == %s return' % ssnet.TUNNEL_TTL)
         elif family == socket.AF_INET6:
-            _nft('add rule', chain, 'ip6 hoplimit == 63 return')
+            _nft('add rule', chain, 'ip6 hoplimit == %s return', ssnet.TUNNEL_TTL)
 
         # Strings to use below to simplify our code
         if family == socket.AF_INET:

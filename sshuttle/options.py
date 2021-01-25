@@ -323,6 +323,23 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-ttl-hack",
+    action="store_true",
+    dest="no_ttl_hack",
+    help="""
+    disable using the tunnel packet ttl for loop detection.
+    """
+)
+parser.add_argument(
+    "--tunnel-ttl",
+    type=int,
+    default=63,
+    dest="tunnel_ttl",
+    help="""
+    IP TTL used to detect loops when client and are server are on the same host.
+    """
+)
+parser.add_argument(
     "--wrap",
     metavar="NUM",
     type=int,

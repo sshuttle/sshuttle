@@ -58,7 +58,7 @@ def ipt_ttl(family, *args):
     global _no_ttl_module
     if not _no_ttl_module:
         # we avoid infinite loops by generating server-side connections
-        # with ttl 63.  This makes the client side not recapture those
+        # with ttl set in ssnet.TUNNEL_TTL.  This makes the client side not recapture those
         # connections, in case client == server.
         try:
             argsplus = list(args)

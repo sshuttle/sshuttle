@@ -16,7 +16,6 @@ from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver, which, get_env
 
-
 def _ipmatch(ipstr):
     # FIXME: IPv4 only
     if ipstr == 'default':
@@ -191,7 +190,7 @@ class DnsProxy(Handler):
 
         family, sockaddr = self._addrinfo(peer, port)
         sock = socket.socket(family, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
+        sock.setsockopt(socket.SOL_IP, socket.IP_TTL, ssnet.TUNNEL_TTL)
         sock.connect(sockaddr)
 
         self.peers[sock] = peer
@@ -248,7 +247,7 @@ class UdpProxy(Handler):
         self.chan = chan
         self.sock = sock
         if family == socket.AF_INET:
-            self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
+            self.sock.setsockopt(socket.SOL_IP, socket.IP_TTL, ssnet.TUNNEL_TTL)
 
     def send(self, dstip, data):
         debug2('UDP: sending to %r port %d' % dstip)

@@ -52,8 +52,8 @@ class Method(BaseMethod):
 
         # This TTL hack allows the client and server to run on the
         # same host. The connections the sshuttle server makes will
-        # have TTL set to 63.
-        _ipt_ttl('-A', chain, '-j', 'RETURN',  '-m', 'ttl', '--ttl', '63')
+        # have TTL set to ssnet.TUNNEL_TTL.
+        _ipt_ttl('-A', chain, '-j', 'RETURN',  '-m', 'ttl', '--ttl', ssnet.TUNNEL_TTL)
 
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.

@@ -11,6 +11,12 @@ from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
 MAX_CHANNEL = 65535
 LATENCY_BUFFER_SIZE = 32768
 
+# packet TTL to use for loop detection.
+TUNNEL_TTL = 63
+
+# Disable TTL hack entirely.
+NO_TTL_HACK = False
+
 SHUT_RD = 0
 SHUT_WR = 1
 SHUT_RDWR = 2
@@ -586,7 +592,7 @@ class MuxWrapper(SockWrapper):
 def connect_dst(family, ip, port):
     debug2('Connecting to %s:%d' % (ip, port))
     outsock = socket.socket(family)
-    outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
+    outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, TUNNEL_TTL)
     return SockWrapper(outsock, outsock,
                        connect_to=(ip, port),
                        peername='%s:%d' % (ip, port))
