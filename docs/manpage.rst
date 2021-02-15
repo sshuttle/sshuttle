@@ -68,8 +68,8 @@ Options
     You can use any name resolving to an IP address of the machine running
     :program:`sshuttle`, e.g. ``--listen localhost``.
 
-    For the nft, tproxy and pf methods this can be an IPv6 address. Use 
-    this option with comma separated values if required, to provide both 
+    For the nft, tproxy and pf methods this can be an IPv6 address. Use
+    this option with comma separated values if required, to provide both
     IPv4 and IPv6 addresses, e.g. ``--listen 127.0.0.1:0,[::1]:0``.
 
 .. option:: -H, --auto-hosts
@@ -104,7 +104,7 @@ Options
 
     Capture local DNS requests and forward to the remote DNS
     server. All queries to any of the local system's DNS
-    servers (/etc/resolv.conf and, if it exists, 
+    servers (/etc/resolv.conf and, if it exists,
     /run/systemd/resolve/resolv.conf) will be intercepted and
     resolved on the remote side of the tunnel instead, there
     using the DNS specified via the :option:`--to-ns` option,
