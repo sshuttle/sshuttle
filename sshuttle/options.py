@@ -152,6 +152,10 @@ class Concat(Action):
 # beginning/end of the lines.
 class MyArgumentParser(ArgumentParser):
     def convert_arg_line_to_args(self, arg_line):
+        # Ignore comments
+        if arg_line.startswith("#"):
+            return []
+
         # strip whitespace at beginning and end of line
         arg_line = arg_line.strip()
 

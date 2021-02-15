@@ -305,6 +305,17 @@ Arguments read from a file must be one per line, as shown below::
     --option2
     value2
 
+Comments in config file
+.......................
+
+It's possible to add comments in the configuration file. This allows annotating the
+various subnets with human-readable descriptions, like::
+
+    # company-internal API
+    8.8.8.8/32
+    # home IoT
+    192.168.63.0/24
+
 
 Examples
 --------
