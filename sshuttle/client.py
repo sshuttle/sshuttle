@@ -666,7 +666,7 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
     if check_sources:
         # allow any IP from the two Microservice subnets
         if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
-            debug3("TCP-Source request is from the microservice subnet\n")
+            debug3("TCP source %r is from the microservices subnet\n" % srcip)
             return True
         
         ctime = time.time()
@@ -704,7 +704,7 @@ def tcp_connection_is_allowed(dstip, dstport, srcip):
 def udp_connection_is_allowed(dstip, dstport, srcip):
     # allow any IP from the two Microservice subnets
     if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
-        debug3("UDP-Source request is from the microservice subnet\n")
+        debug3("UDP source %r is from the microservices subnet\n" % srcip)
         return True
     
     ctime = time.time()
