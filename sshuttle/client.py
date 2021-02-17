@@ -95,11 +95,19 @@ sshuttleAclEventsChannel = "aclEvents"
 
 REDIS_HOST = None
 REDIS_PORT = None
+MS1_CIDR = None
+MS2_CIDR = None
 try:
     REDIS_HOST = os.environ['REDIS_HOST']
     REDIS_PORT = os.environ['REDIS_PORT']
 except KeyError:
     log('Error: Could not read environment variables for REDIS_HOST and/or REDIS_PORT\n')
+
+try:
+    MS1_CIDR = os.environ['MS1_CIDR']
+    MS2_CIDR = os.environ['MS2_CIDR']
+except KeyError:
+    log('Error: Could not read environment variables for MS1_CIDR and/or MS2_CIDR\n')
 
 def check_daemon(pidfile):
     global _pidname
@@ -643,9 +651,24 @@ def matches_acl(dstip, dstport, store_to_check):
 
     return False
 
+def ipInNetwork(ip, cidrBlock):
+    try:
+        network = ipaddress.ip_network(cidrBlock, False)
+        reqIp = ipaddress.ip_address(ip)
+        if reqIp in network:
+            return True
+    except:
+        log('Failed to parse CIDR block %s' % cidrBlock)
+    return False
+
 def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, check_sources):
 
     if check_sources:
+        # allow any IP from the two Microservice subnets
+        if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
+            debug3("TCP source %r is from the microservices subnet\n" % srcip)
+            return True
+        
         ctime = time.time()
         if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
             debug3("Connection from a source excluded from the ACL\n")
@@ -679,7 +702,11 @@ def tcp_connection_is_allowed(dstip, dstport, srcip):
     return tcp_connection_is_allowed_conditional(dstip, dstport, srcip, True, True)
 
 def udp_connection_is_allowed(dstip, dstport, srcip):
-
+    # allow any IP from the two Microservice subnets
+    if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
+        debug3("UDP source %r is from the microservices subnet\n" % srcip)
+        return True
+    
     ctime = time.time()
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
         debug1("Connection from a source excluded from the ACL\n")
