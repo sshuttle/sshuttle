@@ -22,6 +22,8 @@ import time
 from websocket import create_connection
 import requests
 from statsd import StatsClient
+from dns import resolver
+
 try:
     from pwd import getpwnam
 except ImportError:
@@ -97,6 +99,10 @@ REDIS_HOST = None
 REDIS_PORT = None
 MS1_CIDR = None
 MS2_CIDR = None
+TRUSTED_DC1 = None
+TRUSTED_DC2 = None
+TRUSTED_DOMAIN_FQDN = None
+SSHUTTLE_NS_HOSTS = None
 try:
     REDIS_HOST = os.environ['REDIS_HOST']
     REDIS_PORT = os.environ['REDIS_PORT']
@@ -108,6 +114,26 @@ try:
     MS2_CIDR = os.environ['MS2_CIDR']
 except KeyError:
     log('Error: Could not read environment variables for MS1_CIDR and/or MS2_CIDR\n')
+
+try:
+    SSHUTTLE_NS_HOSTS = os.environ['SSHUTTLE_NS_HOSTS']
+except KeyError:
+    log('Error: Could not read environment variables for SSHUTTLE_NS_HOSTS')
+
+try:
+    TRUSTED_DOMAIN_FQDN = os.environ['TRUSTED_DOMAIN_FQDN']
+except KeyError:
+    log('Error: Could not read environment variables for TRUSTED_DOMAIN_FQDN')
+
+try:
+    if TRUSTED_DOMAIN_FQDN is not None:
+        dns_resolver = resolver.Resolver()
+        dns_resolver.nameservers = [SSHUTTLE_NS_HOSTS]
+        resolver_response = dns_resolver.resolve(TRUSTED_DOMAIN_FQDN)
+        TRUSTED_DC1 = resolver_response[0].address
+        TRUSTED_DC2 = resolver_response[1].address
+except KeyError:
+    log('Error: Could not resolve Trusted DCs')
 
 def check_daemon(pidfile):
     global _pidname
@@ -668,7 +694,12 @@ def tcp_connection_is_allowed_conditional(dstip, dstport, srcip, check_acl, chec
         if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
             debug3("TCP source %r is from the microservices subnet\n" % srcip)
             return True
-        
+
+        # allow connection to trusted (onprem) DCs
+        if (dstip == TRUSTED_DC1) or (dstip == TRUSTED_DC2):
+            debug3("TCP target %r is for trusted DC\n" % dstip)
+            return True
+
         ctime = time.time()
         if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
             debug3("Connection from a source excluded from the ACL\n")
@@ -706,7 +737,12 @@ def udp_connection_is_allowed(dstip, dstport, srcip):
     if ipInNetwork(srcip, MS1_CIDR) or ipInNetwork(srcip, MS2_CIDR):
         debug3("UDP source %r is from the microservices subnet\n" % srcip)
         return True
-    
+
+    # allow connection to trusted (onprem) DCs
+    if (dstip == TRUSTED_DC1) or (dstip == TRUSTED_DC2):
+        debug3("UDP target %r is for trusted DC\n" % dstip)
+        return True
+
     ctime = time.time()
     if _excluded_sources and srcip in _excluded_sources and (_excluded_sources[srcip] / 1000.0) >= ctime:
         debug1("Connection from a source excluded from the ACL\n")
