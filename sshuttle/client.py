@@ -80,13 +80,25 @@ def check_daemon(pidfile):
 
 
 def daemonize():
+    # Try to open the pidfile prior to forking. If there is a problem,
+    # the client can then exit with a proper exit status code and
+    # message.
+    try:
+        outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+    except PermissionError:
+        # User will have to look in syslog for error message since
+        # --daemon implies --syslog, all output gets redirected to
+        # syslog.
+        raise Fatal("failed to create/write pidfile %s" % _pidname)
+
+    # Create a daemon process with a new session id.
     if os.fork():
         os._exit(0)
     os.setsid()
     if os.fork():
         os._exit(0)
 
-    outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+    # Write pid to the pidfile.
     try:
         os.write(outfd, b'%d\n' % os.getpid())
     finally:
