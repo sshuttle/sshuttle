@@ -16,6 +16,8 @@ from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     resolvconf_random_nameserver, which, get_env
 
+_client_server_samehost = False
+
 
 def _ipmatch(ipstr):
     # FIXME: IPv4 only
@@ -273,7 +275,7 @@ class UdpProxy(Handler):
 
 
 def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
-         auto_nets, ttl):
+         auto_nets, ttl, localhost_detector):
     try:
         helpers.logprefix = ' s: '
         debug1('Starting server with Python version %s'
@@ -283,6 +285,16 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         if latency_buffer_size:
             import sshuttle.ssnet as ssnet
             ssnet.LATENCY_BUFFER_SIZE = latency_buffer_size
+
+        # The client writes this file to the local machine. If we can see
+        # it, we delete it prior to send the synchronization header. The
+        # client can then determine if the server and client are running
+        # on the same machine by checking for the presence of the file.
+        global _client_server_samehost
+        if os.path.exists(localhost_detector):
+            debug3("Deleted the localhost_detector created by the client.\n")
+            os.remove(localhost_detector)
+            _client_server_samehost = True
 
         # synchronization header
         sys.stdout.write('\0\0SSHUTTLE0001')
