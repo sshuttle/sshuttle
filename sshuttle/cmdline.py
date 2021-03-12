@@ -15,8 +15,8 @@ def main():
     opt = parser.parse_args()
 
     if opt.sudoers or opt.sudoers_no_modify:
-        if platform.platform().startswith('OpenBSD'):
-            log('Automatic sudoers does not work on BSD')
+        if opt.doas or platform.platform().startswith('OpenBSD'):
+            log('Automatic sudoers does not work with doas')
             return 1
 
         if not opt.sudoers_filename:
@@ -110,7 +110,8 @@ def main():
                                       opt.user,
                                       opt.sudo_pythonpath,
                                       opt.tmark,
-                                      opt.ttl)
+                                      opt.ttl,
+                                      opt.doas)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

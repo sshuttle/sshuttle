@@ -199,7 +199,7 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath, ttl):
+    def __init__(self, method_name, sudo_pythonpath, ttl, force_doas):
         self.auto_nets = []
         python_path = os.path.dirname(os.path.dirname(__file__))
         argvbase = ([sys.executable, sys.argv[0]] +
@@ -211,7 +211,7 @@ class FirewallClient:
             argvbase += ['--syslog']
 
         # Determine how to prefix the command in order to elevate privileges.
-        if platform.platform().startswith('OpenBSD'):
+        if force_doas or platform.platform().startswith('OpenBSD'):
             elev_prefix = ['doas']  # OpenBSD uses built in `doas`
         else:
             elev_prefix = ['sudo', '-p', '[local sudo] Password: ']
@@ -670,7 +670,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark, ttl):
+         user, sudo_pythonpath, tmark, ttl, force_doas):
 
     if not remotename:
         print("WARNING: You must specify -r/--remote to securely route "
@@ -686,7 +686,7 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath, ttl)
+    fw = FirewallClient(method_name, sudo_pythonpath, ttl, force_doas)
 
     # If --dns is used, store the IP addresses that the client
     # normally uses for DNS lookups in nslist. The firewall needs to

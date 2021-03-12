@@ -348,6 +348,7 @@ parser.add_argument(
     run in the background as a daemon
     """
 )
+
 parser.add_argument(
     "-s", "--subnets",
     metavar="PATH",
@@ -447,5 +448,12 @@ parser.add_argument(
     default="1",
     help="""
     transproxy optional traffic mark with provided MARK value
+    """
+)
+parser.add_argument(
+    "-d", "--doas",
+    action="store_true",
+    help="""
+    force using doas instead of sudo on linux systems
     """
 )
