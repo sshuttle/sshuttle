@@ -5,11 +5,11 @@ name: Python package
 
 on:
   push:
-    branches: [ master, tproxy_mark_param ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, tproxy_mark_param ]
+    branches: [ master ]
   workflow_dispatch:
-    branches: [ tproxy_mark_param ]
+    branches: [ master ]
 
 jobs:
   build:
