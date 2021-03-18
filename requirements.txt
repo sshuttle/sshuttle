@@ -1,2 +1,2 @@
-setuptools-scm==5.0.2
+setuptools-scm==6.0.1
 psutil
