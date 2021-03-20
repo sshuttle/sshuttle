@@ -389,7 +389,8 @@ parser.add_argument(
 )
 parser.add_argument(
     "--ttl",
-    default="63",
+    type=int,
+    default=63,
     help="""
     Override the TTL for the connections made by the sshuttle server.
     Default is 63.

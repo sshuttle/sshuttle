@@ -206,7 +206,7 @@ class FirewallClient:
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
                     ['--firewall'] +
-                    ['--ttl', ttl])
+                    ['--ttl', str(ttl)])
         if ssyslog._p:
             argvbase += ['--syslog']
 
