@@ -17,7 +17,7 @@ def ipt_chain_exists(family, table, name):
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    argv = [cmd, '-t', table, '-nL']
+    argv = [cmd, '-w', '-t', table, '-nL']
     try:
         output = ssubprocess.check_output(argv, env=get_env())
         for line in output.decode('ASCII').split('\n'):
@@ -29,9 +29,9 @@ def ipt_chain_exists(family, table, name):
 
 def ipt(family, table, *args):
     if family == socket.AF_INET6:
-        argv = ['ip6tables', '-t', table] + list(args)
+        argv = ['ip6tables', '-w', '-t', table] + list(args)
     elif family == socket.AF_INET:
-        argv = ['iptables', '-t', table] + list(args)
+        argv = ['iptables', '-w', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('%s' % ' '.join(argv))
