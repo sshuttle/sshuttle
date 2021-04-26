@@ -46,8 +46,9 @@ Obtaining sshuttle
 
       dnf install sshuttle
       
- - Gentoo ::
-      emerge -av [net-proxy/sshuttle] (https://packages.gentoo.org/packages/net-proxy/sshuttle)
+ - Gentoo::
+ 
+      emerge -av net-proxy/sshuttle
 
 - NixOS::
 
