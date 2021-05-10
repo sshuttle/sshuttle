@@ -1,5 +1,5 @@
 -r requirements.txt
 pytest==6.2.4
 pytest-cov==2.11.1
-flake8==3.9.1
+flake8==3.9.2
 pyflakes==2.3.1
