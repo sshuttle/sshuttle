@@ -5,6 +5,7 @@ import sys
 import os
 import platform
 import traceback
+import subprocess as ssubprocess
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
@@ -87,6 +88,29 @@ def setup_daemon():
 # s:(inet, subnet width, exclude flag, subnet, first port, last port)
 def subnet_weight(s):
     return (-s[-1] + (s[-2] or -65535), s[1], s[2])
+
+
+def flush_systemd_dns_cache():
+    # If the user is using systemd-resolve for DNS resolution, it is
+    # possible for the request to go through systemd-resolve before we
+    # see it...and it may use a cached result instead of sending a
+    # request that we can intercept. When sshuttle starts and stops,
+    # this means that we should clear the cache!
+    #
+    # The command to do this was named systemd-resolve, but changed to
+    # resolvectl in systemd 239.
+    # https://github.com/systemd/systemd/blob/f8eb41003df1a4eab59ff9bec67b2787c9368dbd/NEWS#L3816
+
+    if helpers.which("resolvectl"):
+        debug2("Flushing systemd's DNS resolver cache: "
+               "resolvectl flush-caches")
+        ssubprocess.Popen(["resolvectl", "flush-caches"],
+                          stdout=ssubprocess.PIPE, env=helpers.get_env())
+    elif helpers.which("systemd-resolve"):
+        debug2("Flushing systemd's DNS resolver cache: "
+               "systemd-resolve --flush-caches")
+        ssubprocess.Popen(["systemd-resolve", "--flush-caches"],
+                          stdout=ssubprocess.PIPE, env=helpers.get_env())
 
 
 # This is some voodoo for setting up the kernel's transparent
@@ -227,6 +251,7 @@ def main(method_name, syslog, ttl):
                 socket.AF_INET, subnets_v4, udp,
                 user, ttl)
 
+        flush_systemd_dns_cache()
         stdout.write('STARTED\n')
 
         try:
@@ -288,3 +313,12 @@ def main(method_name, syslog, ttl):
                 debug1(traceback.format_exc())
             except BaseException:
                 debug2('An error occurred, ignoring it.')
+
+        try:
+            flush_systemd_dns_cache()
+        except BaseException:
+            try:
+                debug1("Error trying to flush systemd dns cache.")
+                debug1(traceback.format_exc())
+            except BaseException:
+                debug2("An error occurred, ignoring it.")
