@@ -688,19 +688,26 @@ def main(listenip_v6, listenip_v4,
 
     fw = FirewallClient(method_name, sudo_pythonpath, ttl)
 
-    # If --dns is used, store the IP addresses that the client
-    # normally uses for DNS lookups in nslist. The firewall needs to
-    # redirect packets outgoing to this server to the remote host
+    # nslist is the list of name severs to intercept. If --dns is
+    # used, we add all DNS servers in resolv.conf. Otherwise, the list
+    # can be populated with the --ns-hosts option (which is already
+    # stored in nslist). This list is used to setup the firewall so it
+    # can redirect packets outgoing to this server to the remote host
     # instead.
     if dns:
         nslist += resolvconf_nameservers(True)
+
+    # If we are intercepting DNS requests, we tell the remote host
+    # where it should send the DNS requests to with the --to-ns
+    # option.
+    if len(nslist) > 0:
         if to_nameserver is not None:
             to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
-    else:
-        # option doesn't make sense if we aren't proxying dns
+    else:  # if we are not intercepting DNS traffic
+        # ...and the user specified a server to send DNS traffic to.
         if to_nameserver and len(to_nameserver) > 0:
-            print("WARNING: --to-ns option is ignored because --dns was not "
-                  "used.")
+            print("WARNING: --to-ns option is ignored unless "
+                  "--dns or --ns-hosts is used.")
         to_nameserver = None
 
     # Get family specific subnet lists. Also, the user may not specify
