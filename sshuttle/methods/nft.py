@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
+                       user, ttl, tmark):
         if udp:
             raise Exception("UDP not supported by nft")
 

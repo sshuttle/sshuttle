@@ -189,7 +189,7 @@ class Method(BaseMethod):
         #     udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
+                       user, ttl, tmark):
         # IPv6 not supported
         if family not in [socket.AF_INET]:
             raise Exception(

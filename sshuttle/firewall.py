@@ -223,11 +223,13 @@ def main(method_name, syslog, ttl):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
-    udp, user = args.strip().split(" ", 1)
+    udp, user, ttl, tmark = args.strip().split(" ", 3)
     udp = bool(int(udp))
     if user == '-':
         user = None
-    debug2('Got udp: %r, user: %r' % (udp, user))
+    ttl = int(ttl)
+    debug2('Got udp: %r, user: %r, ttl: %s, tmark: %s' %
+           (udp, user, ttl, tmark))
 
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
     nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
@@ -242,14 +244,14 @@ def main(method_name, syslog, ttl):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user, ttl)
+                user, ttl, tmark)
 
         if subnets_v4 or nslist_v4:
             debug2('setting up IPv4.')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user, ttl)
+                user, ttl, tmark)
 
         flush_systemd_dns_cache()
         stdout.write('STARTED\n')

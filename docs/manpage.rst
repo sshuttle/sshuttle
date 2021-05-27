@@ -274,9 +274,10 @@ Options
     Set the file name for the sudoers.d file to be added. Default is
     "sshuttle_auto". Only works with --sudoers.
 
-.. option:: -t, --tmark
+.. option:: -t <mark>, --tmark=<mark>
 
-    Transproxy optional traffic mark with provided MARK value.
+    An option used by the tproxy method: Use the specified traffic
+    mark. The mark must be a hexadecimal value. Defaults to 0x01.
 
 .. option:: --version
 

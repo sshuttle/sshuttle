@@ -205,8 +205,7 @@ class FirewallClient:
         argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
-                    ['--firewall'] +
-                    ['--ttl', str(ttl)])
+                    ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
 
@@ -261,7 +260,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark, ttl):
+              user, ttl, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -311,7 +310,9 @@ class FirewallClient:
         else:
             user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d %s\n' % (udp, user))
+        self.pfile.write(b'GO %d %s %d %s\n' %
+                         (udp, user, self.ttl,
+                          bytes(self.tmark, 'ascii')))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -1003,7 +1004,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark, ttl)
+             required.udp, user, ttl, tmark)
 
     # start the client process
     try:
