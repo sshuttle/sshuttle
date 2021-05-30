@@ -50,6 +50,14 @@ if [ "$FILE_NAME" == "" ]; then
 	exit 1
 fi
 
+# Verify that the resulting file name begins with /etc/sudoers.d
+FILE_NAME="$(realpath "/etc/sudoers.d/$FILE_NAME")"
+if [[ "$FILE_NAME" != "/etc/sudoers.d/"* ]] ; then
+	echo -n "Invalid sudoers filename: Final sudoers file "
+	echo "location ($FILE_NAME) does not begin with /etc/sudoers.d"
+	exit 1
+fi
+
 # Make a temp file to hold the sudoers config
 umask 077
 TEMP_FILE=$(mktemp)
@@ -62,9 +70,9 @@ visudo_code=$?
 rm "$TEMP_FILE"
 
 if [ $visudo_code -eq 0 ]; then
-	echo "$CONTENT" > "/etc/sudoers.d/$FILE_NAME"
-	chmod 0440 "/etc/sudoers.d/$FILE_NAME"
-	echo "The sudoers file /etc/sudoers.d/$FILE_NAME has been successfully created!"
+	echo "$CONTENT" > "$FILE_NAME"
+	chmod 0440 "$FILE_NAME"
+	echo "The sudoers file $FILE_NAME has been successfully created!"
 
 	exit 0
 else
