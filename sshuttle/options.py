@@ -445,8 +445,9 @@ parser.add_argument(
 parser.add_argument(
     "-t", "--tmark",
     metavar="[MARK]",
-    default="1",
+    default="0x01",
     help="""
-    transproxy optional traffic mark with provided MARK value
+    tproxy optional traffic mark with provided MARK value in
+    hexadecimal (default '0x01')
     """
 )
