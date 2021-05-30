@@ -10,8 +10,8 @@ Synopsis
 Description
 -----------
 :program:`sshuttle` allows you to create a VPN connection from your
-machine to any remote server that you can connect to via
-ssh, as long as that server has python 3.6 or higher.
+machine to any remote server that you can connect to via ssh, as long
+as that server has a sufficiently new Python installation.
 
 To work, you must have root access on the local machine,
 but you can have a normal account on the server.
@@ -31,22 +31,23 @@ Options
 .. option:: <subnets>
 
     A list of subnets to route over the VPN, in the form
-    ``a.b.c.d[/width][port[-port]]``.  Valid examples are 1.2.3.4 (a
-    single IP address), 1.2.3.4/32 (equivalent to 1.2.3.4),
-    1.2.3.0/24 (a 24-bit subnet, ie. with a 255.255.255.0
-    netmask), and 0/0 ('just route everything through the
-    VPN'). Any of the previous examples are also valid if you append
-    a port or a port range, so 1.2.3.4:8000 will only tunnel traffic
-    that has as the destination port 8000 of 1.2.3.4 and
-    1.2.3.0/24:8000-9000 will tunnel traffic going to any port between
-    8000 and 9000 (inclusive) for all IPs in the 1.2.3.0/24 subnet.
-    A hostname can be provided instead of an IP address. If the
-    hostname resolves to multiple IPs, all of the IPs are included.
-    If a width is provided with a hostname that the width is applied
-    to all of the hostnames IPs (if they are all either IPv4 or IPv6).
-    Widths cannot be supplied to hostnames that resolve to both IPv4
-    and IPv6. Valid examples are example.com, example.com:8000,
-    example.com/24, example.com/24:8000 and example.com:8000-9000.
+    ``a.b.c.d[/width][port[-port]]``. Valid examples are 1.2.3.4 (a
+    single IP address) and 1.2.3.4/32 (equivalent to 1.2.3.4),
+    1.2.3.0/24 (a 24-bit subnet, ie. with a 255.255.255.0 netmask).
+    Specify subnets 0/0 to match all IPv4 addresses and ::/0 to match
+    all IPv6 addresses. Any of the previous examples are also valid if
+    you append a port or a port range, so 1.2.3.4:8000 will only
+    tunnel traffic that has as the destination port 8000 of 1.2.3.4
+    and 1.2.3.0/24:8000-9000 will tunnel traffic going to any port
+    between 8000 and 9000 (inclusive) for all IPs in the 1.2.3.0/24
+    subnet. A hostname can be provided instead of an IP address. If
+    the hostname resolves to multiple IPs, all of the IPs are
+    included. If a width is provided with a hostname, the width is
+    applied to all of the hostnames IPs (if they are all either IPv4
+    or IPv6). Widths cannot be supplied to hostnames that resolve to
+    both IPv4 and IPv6. Valid examples are example.com,
+    example.com:8000, example.com/24, example.com/24:8000 and
+    example.com:8000-9000.
 
 .. option:: --method <auto|nat|nft|tproxy|pf|ipfw>
 
@@ -141,7 +142,10 @@ Options
     The remote hostname and optional username and ssh
     port number to use for connecting to the remote server.
     For example, example.com, testuser@example.com,
-    testuser@example.com:2222, or example.com:2244.
+    testuser@example.com:2222, or example.com:2244. This
+    hostname is passed to ssh, so it will recognize any
+    aliases and settings you may have configured in
+    ~/.ssh/config.
 
 .. option:: -x <subnet>, --exclude=<subnet>
 
@@ -306,11 +310,8 @@ Arguments read from a file must be one per line, as shown below::
     --option2
     value2
 
-Comments in config file
-.......................
-
-It's possible to add comments in the configuration file. This allows annotating the
-various subnets with human-readable descriptions, like::
+The configuration file supports comments for human-readable
+annotations. For example::
 
     # company-internal API
     8.8.8.8/32
@@ -320,51 +321,96 @@ various subnets with human-readable descriptions, like::
 
 Examples
 --------
-Test locally by proxying all local connections, without using ssh::
 
-    $ sshuttle -v 0/0
+Use the following command to route all IPv4 TCP traffic through remote
+(-r) host example.com (and possibly other traffic too, depending on
+the selected --method). The 0/0 subnet, short for 0.0.0.0/0, matches
+all IPv4 addresses. The ::/0 subnet, matching all IPv6 addresses could
+be added to the example. We also exclude (-x) example.com:22 so that
+we can establish ssh connections from our local machine to the remote
+host without them being routed through sshuttle. Excluding the remote
+host may be necessary on some machines for sshuttle to work properly.
+Press Ctrl+C to exit. To also route DNS queries through sshuttle, try
+adding --dns. Add or remove -v options to see more or less
+information::
 
-    Starting sshuttle proxy.
-    Listening on ('0.0.0.0', 12300).
-    [local sudo] Password:
-    firewall manager ready.
-    c : connecting to server...
-     s: available routes:
-     s:   192.168.42.0/24
-    c : connected.
-    firewall manager: starting transproxy.
-    c : Accept: 192.168.42.106:50035 -> 192.168.42.121:139.
-    c : Accept: 192.168.42.121:47523 -> 77.141.99.22:443.
-        ...etc...
+    $ sshuttle -r example.com -x example.com:22 0/0
+
+    Starting sshuttle proxy (version ...).
+    [local sudo] Password: 
+    fw: Starting firewall with Python version 3.9.5
+    fw: ready method name nat.
+    c : IPv6 disabled since it isn't supported by method nat.
+    c : Method: nat
+    c : IPv4: on
+    c : IPv6: off (not available with nat method)
+    c : UDP : off (not available with nat method)
+    c : DNS : off (available)
+    c : User: off (available)
+    c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
+    c :   (<AddressFamily.AF_INET: 2>, '0.0.0.0', 0, 0, 0)
+    c : Subnets to exclude from forwarding:
+    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 22, 22)
+    c :   (<AddressFamily.AF_INET: 2>, '127.0.0.1', 32, 0, 0)
+    c : TCP redirector listening on ('127.0.0.1', 12299).
+    c : Starting client with Python version 3.9.5
+    c : Connecting to server...
+    user@example.com's password: 
+     s: Starting server with Python version 3.6.8
+     s: latency control setting = True
+     s: auto-nets:False
+    c : Connected to server.
+    fw: setting up.
+    fw: iptables -w -t nat -N sshuttle-12299
+    fw: iptables -w -t nat -F sshuttle-12299
+    ...
+    Accept: 192.168.42.121:60554 -> 77.141.99.22:22.
     ^C
-    firewall manager: undoing changes.
-    KeyboardInterrupt
     c : Keyboard interrupt: exiting.
-    c : SW#8:192.168.42.121:47523: deleting
-    c : SW#6:192.168.42.106:50035: deleting
+    c : SW'unknown':Mux#1: deleting (1 remain)
+    c : SW#7:192.168.42.121:60554: deleting (0 remain)
 
-Test connection to a remote server, with automatic hostname
+
+Connect to a remote server, with automatic hostname
 and subnet guessing::
 
-    $ sshuttle -vNHr example.org
-
-    Starting sshuttle proxy.
-    Listening on ('0.0.0.0', 12300).
-    firewall manager ready.
-    c : connecting to server...
+    $ sshuttle -vNHr example.com -x example.com:22
+    Starting sshuttle proxy (version ...).
+    [local sudo] Password: 
+    fw: Starting firewall with Python version 3.9.5
+    fw: ready method name nat.
+    c : IPv6 disabled since it isn't supported by method nat.
+    c : Method: nat
+    c : IPv4: on
+    c : IPv6: off (not available with nat method)
+    c : UDP : off (not available with nat method)
+    c : DNS : off (available)
+    c : User: off (available)
+    c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
+    c : NOTE: Additional subnets to forward may be added below by --auto-nets.
+    c : Subnets to exclude from forwarding:
+    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 22, 22)
+    c :   (<AddressFamily.AF_INET: 2>, '127.0.0.1', 32, 0, 0)
+    c : TCP redirector listening on ('127.0.0.1', 12300).
+    c : Starting client with Python version 3.9.5
+    c : Connecting to server...
+    user@example.com's password: 
+     s: Starting server with Python version 3.6.8
+     s: latency control setting = True
+     s: auto-nets:True
+    c : Connected to server.
+    c : seed_hosts: []
      s: available routes:
      s:   77.141.99.0/24
-    c : connected.
-    c : seed_hosts: []
-    firewall manager: starting transproxy.
-    hostwatch: Found: testbox1: 1.2.3.4
-    hostwatch: Found: mytest2: 5.6.7.8
-    hostwatch: Found: domaincontroller: 99.1.2.3
+    fw: setting up.
+    fw: iptables -w -t nat -N sshuttle-12300
+    fw: iptables -w -t nat -F sshuttle-12300
+    ...
     c : Accept: 192.168.42.121:60554 -> 77.141.99.22:22.
     ^C
-    firewall manager: undoing changes.
     c : Keyboard interrupt: exiting.
-    c : SW#6:192.168.42.121:60554: deleting
+    c : SW'unknown':Mux#1: deleting (1 remain)
+    c : SW#7:192.168.42.121:60554: deleting (0 remain)
 
 Run :program:`sshuttle` with a `/etc/sshuttle.conf` configuration file::
 
