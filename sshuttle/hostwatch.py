@@ -16,8 +16,6 @@ NETSTAT_POLL_TIME = 30
 CACHEFILE = os.path.expanduser('~/.sshuttle.hosts')
 
 
-_nmb_ok = True
-_smb_ok = True
 hostnames = {}
 queue = {}
 try:
@@ -141,110 +139,11 @@ def _check_netstat():
         check_host(ip)
 
 
-def _check_smb(hostname):
-    return
-    global _smb_ok
-    if not _smb_ok:
-        return
-    debug2(' > smb: %s' % hostname)
-    argv = ['smbclient', '-U', '%', '-L', hostname]
-    try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=get_env())
-        lines = p.stdout.readlines()
-        p.wait()
-    except OSError:
-        _, e = sys.exc_info()[:2]
-        log('%r failed: %r' % (argv, e))
-        _smb_ok = False
-        return
-
-    lines.reverse()
-
-    # junk at top
-    while lines:
-        line = lines.pop().strip()
-        if re.match(r'Server\s+', line):
-            break
-
-    # server list section:
-    #    Server   Comment
-    #    ------   -------
-    while lines:
-        line = lines.pop().strip()
-        if not line or re.match(r'-+\s+-+', line):
-            continue
-        if re.match(r'Workgroup\s+Master', line):
-            break
-        words = line.split()
-        hostname = words[0].lower()
-        debug3('<    %s' % hostname)
-        check_host(hostname)
-
-    # workgroup list section:
-    #   Workgroup  Master
-    #   ---------  ------
-    while lines:
-        line = lines.pop().strip()
-        if re.match(r'-+\s+', line):
-            continue
-        if not line:
-            break
-        words = line.split()
-        (workgroup, hostname) = (words[0].lower(), words[1].lower())
-        debug3('<    group(%s) -> %s' % (workgroup, hostname))
-        check_host(hostname)
-        check_workgroup(workgroup)
-
-    if lines:
-        assert(0)
-
-
-def _check_nmb(hostname, is_workgroup, is_master):
-    return
-    global _nmb_ok
-    if not _nmb_ok:
-        return
-    debug2(' > n%d%d: %s' % (is_workgroup, is_master, hostname))
-    argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
-    try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=get_env)
-        lines = p.stdout.readlines()
-        rv = p.wait()
-    except OSError:
-        _, e = sys.exc_info()[:2]
-        log('%r failed: %r' % (argv, e))
-        _nmb_ok = False
-        return
-    if rv:
-        log('%r returned %d' % (argv, rv))
-        return
-    for line in lines:
-        m = re.match(r'(\d+\.\d+\.\d+\.\d+) (\w+)<\w\w>\n', line)
-        if m:
-            g = m.groups()
-            (ip, name) = (g[0], g[1].lower())
-            debug3('<    %s -> %s' % (name, ip))
-            if is_workgroup:
-                _enqueue(_check_smb, ip)
-            else:
-                found_host(name, ip)
-                check_host(name)
-
-
 def check_host(hostname):
     if _is_ip(hostname):
         _enqueue(_check_revdns, hostname)
     else:
         _enqueue(_check_dns, hostname)
-    _enqueue(_check_smb, hostname)
-    _enqueue(_check_nmb, hostname, False, False)
-
-
-def check_workgroup(hostname):
-    _enqueue(_check_nmb, hostname, True, False)
-    _enqueue(_check_nmb, hostname, True, True)
 
 
 def _enqueue(op, *args):
@@ -277,8 +176,6 @@ def hw_main(seed_hosts, auto_hosts):
         _enqueue(_check_netstat)
         check_host('localhost')
         check_host(socket.gethostname())
-        check_workgroup('workgroup')
-        check_workgroup('-')
 
     while 1:
         now = time.time()
