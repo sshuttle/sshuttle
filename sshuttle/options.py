@@ -220,7 +220,8 @@ parser.add_argument(
     default=[],
     type=parse_list,
     help="""
-    capture and forward DNS requests made to the following servers (comma separated)
+    capture and forward DNS requests made to the following servers
+    (comma separated)
     """
 )
 parser.add_argument(
