@@ -444,7 +444,7 @@ class Method(BaseMethod):
         return sock.getsockname()
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
+                       user, ttl, tmark):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by pf method_name'

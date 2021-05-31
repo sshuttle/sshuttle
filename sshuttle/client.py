@@ -201,12 +201,11 @@ class FirewallClient:
 
     def __init__(self, method_name, sudo_pythonpath, ttl):
         self.auto_nets = []
-        python_path = os.path.dirname(os.path.dirname(__file__))
+
         argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
-                    ['--firewall'] +
-                    ['--ttl', str(ttl)])
+                    ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
 
@@ -224,7 +223,8 @@ class FirewallClient:
 
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
-                            'PYTHONPATH=%s' % python_path]
+                            'PYTHONPATH=%s' %
+                            os.path.dirname(os.path.dirname(__file__))]
         argv_tries = [elev_prefix + argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
@@ -261,7 +261,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark, ttl):
+              user, ttl, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -311,7 +311,9 @@ class FirewallClient:
         else:
             user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d %s\n' % (udp, user))
+        self.pfile.write(b'GO %d %s %d %s\n' %
+                         (udp, user, self.ttl,
+                          bytes(self.tmark, 'ascii')))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -1003,7 +1005,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark, ttl)
+             required.udp, user, ttl, tmark)
 
     # start the client process
     try:

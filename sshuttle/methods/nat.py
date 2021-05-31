@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
+                       user, ttl, tmark):
         if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'

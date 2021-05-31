@@ -132,6 +132,7 @@ def parse_ipport(s):
 
 
 def parse_list(lst):
+    """Parse a comma separated string into a list."""
     return re.split(r'[\s,]+', lst.strip()) if lst else []
 
 
@@ -220,6 +221,7 @@ parser.add_argument(
     type=parse_list,
     help="""
     capture and forward DNS requests made to the following servers
+    (comma separated)
     """
 )
 parser.add_argument(
@@ -280,7 +282,7 @@ parser.add_argument(
     action="count",
     default=0,
     help="""
-    increase debug message verbosity
+    increase debug message verbosity (can be used more than once)
     """
 )
 parser.add_argument(
@@ -445,8 +447,9 @@ parser.add_argument(
 parser.add_argument(
     "-t", "--tmark",
     metavar="[MARK]",
-    default="1",
+    default="0x01",
     help="""
-    transproxy optional traffic mark with provided MARK value
+    tproxy optional traffic mark with provided MARK value in
+    hexadecimal (default '0x01')
     """
 )
