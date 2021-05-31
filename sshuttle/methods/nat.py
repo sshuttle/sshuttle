@@ -14,14 +14,12 @@ class Method(BaseMethod):
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user, ttl, tmark):
-        # only ipv4 supported with NAT
-        if family != socket.AF_INET:
+        if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
                 % family_to_string(family))
         if udp:
             raise Exception("UDP not supported by nat method_name")
-
         table = "nat"
 
         def _ipt(*args):
@@ -53,13 +51,18 @@ class Method(BaseMethod):
         # This TTL hack allows the client and server to run on the
         # same host. The connections the sshuttle server makes will
         # have TTL set to 63.
-        _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'ttl', '--ttl', '%s' % ttl)
+        if family == socket.AF_INET:
+            _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'ttl', '--ttl',
+                     '%s' % ttl)
+        else:  # ipv6, ttl is renamed to 'hop limit'
+            _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'hl', '--hl-eq',
+                     '%s' % ttl)
 
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.
         for _, ip in [i for i in nslist if i[0] == family]:
             _ipt('-A', chain, '-j', 'REDIRECT',
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s' % ip,
                  '-p', 'udp',
                  '--dport', '53',
                  '--to-ports', str(dnsport))
@@ -87,7 +90,7 @@ class Method(BaseMethod):
 
     def restore_firewall(self, port, family, udp, user):
         # only ipv4 supported with NAT
-        if family != socket.AF_INET:
+        if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
                 % family_to_string(family))
@@ -123,6 +126,7 @@ class Method(BaseMethod):
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.user = True
+        result.ipv6 = True
         return result
 
     def is_supported(self):
