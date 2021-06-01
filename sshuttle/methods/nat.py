@@ -1,7 +1,7 @@
 import socket
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string, which, debug2
-from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
+from sshuttle.linux import ipt, ipt_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
 
 
@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl, tmark):
+                       user, tmark):
         if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
@@ -24,9 +24,6 @@ class Method(BaseMethod):
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         def _ipm(*args):
             return ipt(family, "mangle", *args)
@@ -47,16 +44,6 @@ class Method(BaseMethod):
 
         _ipt('-I', 'OUTPUT', '1', *args)
         _ipt('-I', 'PREROUTING', '1', *args)
-
-        # This TTL hack allows the client and server to run on the
-        # same host. The connections the sshuttle server makes will
-        # have TTL set to 63.
-        if family == socket.AF_INET:
-            _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'ttl', '--ttl',
-                     '%s' % ttl)
-        else:  # ipv6, ttl is renamed to 'hop limit'
-            _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'hl', '--hl-eq',
-                     '%s' % ttl)
 
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.
@@ -101,9 +88,6 @@ class Method(BaseMethod):
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         def _ipm(*args):
             return ipt(family, "mangle", *args)

@@ -20,7 +20,7 @@ Supports:
 
 Requires:
 
-* iptables DNAT, REDIRECT, and ttl modules. ip6tables for IPv6.
+* iptables DNAT and REDIRECT modules. ip6tables for IPv6.
 
 Linux with nft method
 ~~~~~~~~~~~~~~~~~~~~~

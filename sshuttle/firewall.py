@@ -121,7 +121,7 @@ def flush_systemd_dns_cache():
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(method_name, syslog, ttl):
+def main(method_name, syslog):
     helpers.logprefix = 'fw: '
     stdin, stdout = setup_daemon()
     hostmap = {}
@@ -223,13 +223,12 @@ def main(method_name, syslog, ttl):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
-    udp, user, ttl, tmark = args.strip().split(" ", 3)
+    udp, user, tmark = args.strip().split(" ", 2)
     udp = bool(int(udp))
     if user == '-':
         user = None
-    ttl = int(ttl)
-    debug2('Got udp: %r, user: %r, ttl: %s, tmark: %s' %
-           (udp, user, ttl, tmark))
+    debug2('Got udp: %r, user: %r, tmark: %s' %
+           (udp, user, tmark))
 
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
     nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
@@ -244,14 +243,14 @@ def main(method_name, syslog, ttl):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user, ttl, tmark)
+                user, tmark)
 
         if subnets_v4 or nslist_v4:
             debug2('setting up IPv4.')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user, ttl, tmark)
+                user, tmark)
 
         flush_systemd_dns_cache()
         stdout.write('STARTED\n')

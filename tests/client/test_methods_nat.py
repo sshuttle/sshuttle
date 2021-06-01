@@ -85,15 +85,13 @@ def test_firewall_command():
 
 
 @patch('sshuttle.methods.nat.ipt')
-@patch('sshuttle.methods.nat.ipt_ttl')
 @patch('sshuttle.methods.nat.ipt_chain_exists')
-def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
+def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
     mock_ipt_chain_exists.return_value = True
     method = get_method('nat')
     assert method.name == 'nat'
 
     assert mock_ipt_chain_exists.mock_calls == []
-    assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == []
     method.setup_firewall(
         1024, 1026,
@@ -103,14 +101,10 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
          (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
         False,
         None,
-        63, '0x01')
+        '0x01')
 
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET6, 'nat', 'sshuttle-1024')
-    ]
-    assert mock_ipt_ttl.mock_calls == [
-        call(AF_INET6, 'nat', '-A', 'sshuttle-1024', '-j', 'RETURN',
-             '-m', 'hl', '--hl-eq', '63')
     ]
     assert mock_ipt.mock_calls == [
         call(AF_INET6, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1024'),
@@ -134,11 +128,9 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
              '--to-ports', '1024')
     ]
     mock_ipt_chain_exists.reset_mock()
-    mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
     assert mock_ipt_chain_exists.mock_calls == []
-    assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == []
 
     with pytest.raises(Exception) as excinfo:
@@ -150,10 +142,9 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
                 (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
             None,
-            63, '0x01')
+            '0x01')
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
     assert mock_ipt_chain_exists.mock_calls == []
-    assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == []
 
     method.setup_firewall(
@@ -164,13 +155,9 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
             (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
         False,
         None,
-        63, '0x01')
+        '0x01')
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET, 'nat', 'sshuttle-1025')
-    ]
-    assert mock_ipt_ttl.mock_calls == [
-        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
-             '-m', 'ttl', '--ttl', '63')
     ]
     assert mock_ipt.mock_calls == [
         call(AF_INET, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
@@ -193,14 +180,12 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
              '--to-ports', '1025')
     ]
     mock_ipt_chain_exists.reset_mock()
-    mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
     method.restore_firewall(1025, AF_INET, False, None)
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET, 'nat', 'sshuttle-1025')
     ]
-    assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
         call(AF_INET, 'nat', '-D', 'OUTPUT', '-j',
              'sshuttle-1025'),
@@ -210,14 +195,12 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         call(AF_INET, 'nat', '-X', 'sshuttle-1025')
     ]
     mock_ipt_chain_exists.reset_mock()
-    mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()
 
     method.restore_firewall(1025, AF_INET6, False, None)
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET6, 'nat', 'sshuttle-1025')
     ]
-    assert mock_ipt_ttl.mock_calls == []
     assert mock_ipt.mock_calls == [
         call(AF_INET6, 'nat', '-D', 'OUTPUT', '-j', 'sshuttle-1025'),
         call(AF_INET6, 'nat', '-D', 'PREROUTING', '-j',
@@ -226,5 +209,4 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt_ttl, mock_ipt):
         call(AF_INET6, 'nat', '-X', 'sshuttle-1025')
     ]
     mock_ipt_chain_exists.reset_mock()
-    mock_ipt_ttl.reset_mock()
     mock_ipt.reset_mock()

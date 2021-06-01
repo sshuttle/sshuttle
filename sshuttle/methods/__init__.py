@@ -91,7 +91,7 @@ class BaseMethod(object):
                     (key, self.name))
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl, tmark):
+                       user, tmark):
         raise NotImplementedError()
 
     def restore_firewall(self, port, family, udp, user):

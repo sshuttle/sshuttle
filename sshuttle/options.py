@@ -173,7 +173,7 @@ class MyArgumentParser(ArgumentParser):
 
 parser = MyArgumentParser(
     prog="sshuttle",
-    usage="%(prog)s [-l [ip:]port] [-r [user@]sshserver[:port]] <subnets...>",
+    usage="%(prog)s [-l [ip:]port] -r [user@]sshserver[:port] <subnets...>",
     fromfile_prefix_chars="@"
 )
 parser.add_argument(
@@ -387,15 +387,6 @@ parser.add_argument(
     action="store_true",
     help="""
     (internal use only)
-    """
-)
-parser.add_argument(
-    "--ttl",
-    type=int,
-    default=63,
-    help="""
-    Override the TTL for the connections made by the sshuttle server.
-    Default is 63.
     """
 )
 parser.add_argument(
