@@ -15,6 +15,8 @@ POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30
 CACHEFILE = os.path.expanduser('~/.sshuttle.hosts')
 
+# Have we already failed to write CACHEFILE?
+CACHE_WRITE_FAILED = False
 
 hostnames = {}
 queue = {}
@@ -29,7 +31,7 @@ except IOError:
 def _is_ip(s):
     return re.match(r'\d+\.\d+\.\d+\.\d+$', s)
 
-CACHE_WRITE_FAILED = False
+
 def write_host_cache():
     """If possible, write our hosts file to disk so future connections
        can reuse the hosts that we already found."""
@@ -50,7 +52,7 @@ def write_host_cache():
             log("Failed to write host cache to temporary file "
                 "%s and rename it to %s" % (tmpname, CACHEFILE))
             CACHE_WRITE_FAILED = True
-        
+
         try:
             os.unlink(tmpname)
         except BaseException:
@@ -134,7 +136,7 @@ def _check_revdns(ip):
         found_host(r[0], ip)
     except (OSError, socket.error, UnicodeError):
         # This case is expected to occur regularly.
-        #debug3('<    %s gethostbyaddr failed on remote host' % ip)
+        # debug3('<    %s gethostbyaddr failed on remote host' % ip)
         pass
 
 
