@@ -89,6 +89,13 @@ Options
     few subnets over the VPN, you probably would prefer to
     keep using your local DNS server for everything else.
 
+    :program:`sshuttle` tries to store a cache of the hostnames in
+    ~/.sshuttle.hosts on the remote host. Similarly, it tries to read
+    the file when you later reconnect to the host with --auto-hosts
+    enabled to quickly populate the host list. When troubleshooting
+    this feature, try removing this file on the remote host when
+    sshuttle is not running.
+
 .. option:: -N, --auto-nets
 
     In addition to the subnets provided on the command
@@ -178,7 +185,7 @@ Options
 
     A comma-separated list of hostnames to use to
     initialize the :option:`--auto-hosts` scan algorithm.
-    :option:`--auto-hosts` does things like poll local SMB servers
+    :option:`--auto-hosts` does things like poll netstat output
     for lists of local hostnames, but can speed things up
     if you use this option to give it a few names to start
     from.
