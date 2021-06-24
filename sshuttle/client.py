@@ -6,7 +6,6 @@ import subprocess as ssubprocess
 import os
 import sys
 import platform
-import psutil
 
 import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
@@ -650,7 +649,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             # poll() won't tell us when process exited since the
             # process is no longer our child (it returns 0 all the
             # time).
-            if not psutil.pid_exists(serverproc.pid):
+            try:
+                os.kill(serverproc.pid, 0)
+            except OSError:
                 raise Fatal('ssh connection to server (pid %d) exited.' %
                             serverproc.pid)
         else:
