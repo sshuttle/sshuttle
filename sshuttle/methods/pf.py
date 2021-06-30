@@ -11,8 +11,8 @@ from fcntl import ioctl
 from ctypes import c_char, c_uint8, c_uint16, c_uint32, Union, Structure, \
     sizeof, addressof, memmove
 from sshuttle.firewall import subnet_weight
-from sshuttle.helpers import debug1, debug2, debug3, Fatal, family_to_string, \
-    get_env, which
+from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, \
+     family_to_string, get_env, which
 from sshuttle.methods import BaseMethod
 
 
@@ -393,6 +393,10 @@ def pfctl(args, stdin=None):
                           env=get_env())
     o = p.communicate(stdin)
     if p.returncode:
+        log('%r returned %d, stdout and stderr follows: ' %
+            (argv, p.returncode))
+        log("stdout:\n%s" % o[0].decode("ascii"))
+        log("stderr:\n%s" % o[1].decode("ascii"))
         raise Fatal('%r returned %d' % (argv, p.returncode))
 
     return o
