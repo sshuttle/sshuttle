@@ -586,7 +586,8 @@ class MuxWrapper(SockWrapper):
 def connect_dst(family, ip, port):
     debug2('Connecting to %s:%d' % (ip, port))
     outsock = socket.socket(family)
-    outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
+    if family == socket.AF_INET:
+        outsock.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
     return SockWrapper(outsock, outsock,
                        connect_to=(ip, port),
                        peername='%s:%d' % (ip, port))
