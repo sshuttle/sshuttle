@@ -177,7 +177,6 @@ class Method(BaseMethod):
         sender.setsockopt(socket.SOL_IP, IP_BINDANY, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        sender.setsockopt(socket.SOL_IP, socket.IP_TTL, 63)
         sender.bind(srcip)
         sender.sendto(data, dstip)
         sender.close()
@@ -189,7 +188,12 @@ class Method(BaseMethod):
         #     udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
+                       user, tmark):
+        # TODO: The ttl hack to allow the host and server to run on
+        # the same machine has been removed but this method hasn't
+        # been updated yet.
+        ttl = 63
+
         # IPv6 not supported
         if family not in [socket.AF_INET]:
             raise Exception(

@@ -1,7 +1,7 @@
 import socket
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string, which, debug2
-from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists, nonfatal
+from sshuttle.linux import ipt, ipt_chain_exists, nonfatal
 from sshuttle.methods import BaseMethod
 
 
@@ -13,22 +13,17 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl):
-        # only ipv4 supported with NAT
-        if family != socket.AF_INET:
+                       user, tmark):
+        if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
                 % family_to_string(family))
         if udp:
             raise Exception("UDP not supported by nat method_name")
-
         table = "nat"
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         def _ipm(*args):
             return ipt(family, "mangle", *args)
@@ -50,16 +45,11 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', *args)
         _ipt('-I', 'PREROUTING', '1', *args)
 
-        # This TTL hack allows the client and server to run on the
-        # same host. The connections the sshuttle server makes will
-        # have TTL set to 63.
-        _ipt_ttl('-A', chain, '-j', 'RETURN', '-m', 'ttl', '--ttl', '%s' % ttl)
-
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.
         for _, ip in [i for i in nslist if i[0] == family]:
             _ipt('-A', chain, '-j', 'REDIRECT',
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s' % ip,
                  '-p', 'udp',
                  '--dport', '53',
                  '--to-ports', str(dnsport))
@@ -87,7 +77,7 @@ class Method(BaseMethod):
 
     def restore_firewall(self, port, family, udp, user):
         # only ipv4 supported with NAT
-        if family != socket.AF_INET:
+        if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
                 % family_to_string(family))
@@ -98,9 +88,6 @@ class Method(BaseMethod):
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         def _ipm(*args):
             return ipt(family, "mangle", *args)
@@ -123,6 +110,7 @@ class Method(BaseMethod):
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.user = True
+        result.ipv6 = True
         return result
 
     def is_supported(self):

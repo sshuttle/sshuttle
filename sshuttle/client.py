@@ -7,7 +7,6 @@ import os
 import sys
 import platform
 import tempfile
-import psutil
 
 import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
@@ -46,6 +45,7 @@ def got_signal(signum, frame):
     sys.exit(1)
 
 
+# Filename of the pidfile created by the sshuttle client.
 _pidname = None
 
 # This variable is set to true if the client and the server appear to
@@ -204,14 +204,13 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath, ttl):
+    def __init__(self, method_name, sudo_pythonpath):
         self.auto_nets = []
-        python_path = os.path.dirname(os.path.dirname(__file__))
+
         argvbase = ([sys.executable, sys.argv[0]] +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
-                    ['--firewall'] +
-                    ['--ttl', ttl])
+                    ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
 
@@ -229,7 +228,8 @@ class FirewallClient:
 
         if sudo_pythonpath:
             elev_prefix += ['/usr/bin/env',
-                            'PYTHONPATH=%s' % python_path]
+                            'PYTHONPATH=%s' %
+                            os.path.dirname(os.path.dirname(__file__))]
         argv_tries = [elev_prefix + argvbase, argvbase]
 
         # we can't use stdin/stdout=subprocess.PIPE here, as we normally would,
@@ -266,7 +266,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark, ttl):
+              user, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -277,7 +277,6 @@ class FirewallClient:
         self.udp = udp
         self.user = user
         self.tmark = tmark
-        self.ttl = ttl
 
     def check(self):
         rv = self.p.poll()
@@ -316,7 +315,8 @@ class FirewallClient:
         else:
             user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d %s\n' % (udp, user))
+        self.pfile.write(b'GO %d %s %s\n' %
+                         (udp, user, bytes(self.tmark, 'ascii')))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -461,7 +461,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver, ttl):
+          to_nameserver):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -491,7 +491,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
                          auto_nets=auto_nets,
-                         ttl=ttl,
                          localhost_detector=localhost_detector))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
@@ -676,7 +675,9 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             # poll() won't tell us when process exited since the
             # process is no longer our child (it returns 0 all the
             # time).
-            if not psutil.pid_exists(serverproc.pid):
+            try:
+                os.kill(serverproc.pid, 0)
+            except OSError:
                 raise Fatal('ssh connection to server (pid %d) exited.' %
                             serverproc.pid)
         else:
@@ -698,12 +699,11 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark, ttl):
+         user, sudo_pythonpath, tmark):
 
     if not remotename:
-        print("WARNING: You must specify -r/--remote to securely route "
-              "traffic to a remote machine. Running without -r/--remote "
-              "is only recommended for testing.")
+        raise Fatal("You must use -r/--remote to specify a remote "
+                    "host to route traffic through.")
 
     if daemon:
         try:
@@ -714,21 +714,28 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath, ttl)
+    fw = FirewallClient(method_name, sudo_pythonpath)
 
-    # If --dns is used, store the IP addresses that the client
-    # normally uses for DNS lookups in nslist. The firewall needs to
-    # redirect packets outgoing to this server to the remote host
+    # nslist is the list of name severs to intercept. If --dns is
+    # used, we add all DNS servers in resolv.conf. Otherwise, the list
+    # can be populated with the --ns-hosts option (which is already
+    # stored in nslist). This list is used to setup the firewall so it
+    # can redirect packets outgoing to this server to the remote host
     # instead.
     if dns:
         nslist += resolvconf_nameservers(True)
+
+    # If we are intercepting DNS requests, we tell the remote host
+    # where it should send the DNS requests to with the --to-ns
+    # option.
+    if len(nslist) > 0:
         if to_nameserver is not None:
             to_nameserver = "%s@%s" % tuple(to_nameserver[1:])
-    else:
-        # option doesn't make sense if we aren't proxying dns
+    else:  # if we are not intercepting DNS traffic
+        # ...and the user specified a server to send DNS traffic to.
         if to_nameserver and len(to_nameserver) > 0:
-            print("WARNING: --to-ns option is ignored because --dns was not "
-                  "used.")
+            print("WARNING: --to-ns option is ignored unless "
+                  "--dns or --ns-hosts is used.")
         to_nameserver = None
 
     # Get family specific subnet lists. Also, the user may not specify
@@ -1024,14 +1031,14 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark, ttl)
+             required.udp, user, tmark)
 
     # start the client process
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver, ttl)
+                     daemon, to_nameserver)
     finally:
         try:
             if daemon:

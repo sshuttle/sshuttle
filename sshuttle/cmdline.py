@@ -20,7 +20,7 @@ def main():
             return 1
 
         if not opt.sudoers_filename:
-            log('--sudoers-file must be set or omited.')
+            log('--sudoers-file must be set or omitted.')
             return 1
 
         sudoers(
@@ -43,7 +43,7 @@ def main():
         if opt.firewall:
             if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
-            return firewall.main(opt.method, opt.syslog, opt.ttl)
+            return firewall.main(opt.method, opt.syslog)
         elif opt.hostwatch:
             return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
         else:
@@ -85,6 +85,13 @@ def main():
                 ipport_v4 = "auto"
                 # parse_ipport6('[::1]:0')
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
+            try:
+                int(opt.tmark, 16)
+            except ValueError:
+                parser.error("--tmark must be a hexadecimal value")
+            opt.tmark = opt.tmark.lower()   # make 'x' in 0x lowercase
+            if not opt.tmark.startswith("0x"):  # accept without 0x prefix
+                opt.tmark = "0x%s" % opt.tmark
             if opt.syslog:
                 ssyslog.start_syslog()
                 ssyslog.close_stdin()
@@ -109,8 +116,7 @@ def main():
                                       opt.pidfile,
                                       opt.user,
                                       opt.sudo_pythonpath,
-                                      opt.tmark,
-                                      opt.ttl)
+                                      opt.tmark)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

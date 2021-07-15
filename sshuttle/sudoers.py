@@ -19,9 +19,14 @@ Cmnd_Alias %(ca)s = /usr/bin/env PYTHONPATH=%(dist_packages)s %(py)s %(path)s *
 %(user_name)s ALL=NOPASSWD: %(ca)s
 '''
 
+warning_msg = "# WARNING: When you allow a user to run sshuttle as root,\n" \
+              "# they can then use sshuttle's --ssh-cmd option to run any\n" \
+              "# command as root.\n"
+
 
 def build_config(user_name):
-    content = template % {
+    content = warning_msg
+    content += template % {
         'ca': command_alias,
         'dist_packages': path_to_dist_packages,
         'py': sys.executable,
@@ -42,6 +47,7 @@ def save_config(content, file_name):
     process.stdin.write(content.encode())
 
     streamdata = process.communicate()[0]
+    sys.stdout.write(streamdata.decode("ASCII"))
     returncode = process.returncode
 
     if returncode:
@@ -61,4 +67,5 @@ def sudoers(user_name=None, no_modify=None, file_name=None):
         sys.stdout.write(content)
         exit(0)
     else:
+        sys.stdout.write(warning_msg)
         save_config(content, file_name)

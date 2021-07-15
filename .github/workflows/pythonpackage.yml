@@ -5,11 +5,11 @@ name: Python package
 
 on:
   push:
-    branches: [ master, tproxy_mark_param ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, tproxy_mark_param ]
+    branches: [ master ]
   workflow_dispatch:
-    branches: [ tproxy_mark_param ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -20,9 +20,9 @@ jobs:
         python-version: [3.6, 3.7, 3.8, 3.9]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2.3.4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v2.2.2
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies

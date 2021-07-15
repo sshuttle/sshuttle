@@ -15,9 +15,9 @@ POLL_TIME = 60 * 15
 NETSTAT_POLL_TIME = 30
 CACHEFILE = os.path.expanduser('~/.sshuttle.hosts')
 
+# Have we already failed to write CACHEFILE?
+CACHE_WRITE_FAILED = False
 
-_nmb_ok = True
-_smb_ok = True
 hostnames = {}
 queue = {}
 try:
@@ -33,7 +33,10 @@ def _is_ip(s):
 
 
 def write_host_cache():
+    """If possible, write our hosts file to disk so future connections
+       can reuse the hosts that we already found."""
     tmpname = '%s.%d.tmp' % (CACHEFILE, os.getpid())
+    global CACHE_WRITE_FAILED
     try:
         f = open(tmpname, 'wb')
         for name, ip in sorted(hostnames.items()):
@@ -41,7 +44,15 @@ def write_host_cache():
         f.close()
         os.chmod(tmpname, 384)  # 600 in octal, 'rw-------'
         os.rename(tmpname, CACHEFILE)
-    finally:
+        CACHE_WRITE_FAILED = False
+    except (OSError, IOError):
+        # Write message if we haven't yet or if we get a failure after
+        # a previous success.
+        if not CACHE_WRITE_FAILED:
+            log("Failed to write host cache to temporary file "
+                "%s and rename it to %s" % (tmpname, CACHEFILE))
+            CACHE_WRITE_FAILED = True
+
         try:
             os.unlink(tmpname)
         except BaseException:
@@ -49,25 +60,34 @@ def write_host_cache():
 
 
 def read_host_cache():
+    """If possible, read the cache file from disk to populate hosts that
+       were found in a previous sshuttle run."""
     try:
         f = open(CACHEFILE)
-    except IOError:
+    except (OSError, IOError):
         _, e = sys.exc_info()[:2]
         if e.errno == errno.ENOENT:
             return
         else:
-            raise
+            log("Failed to read existing host cache file %s on remote host"
+                % CACHEFILE)
+            return
     for line in f:
         words = line.strip().split(',')
         if len(words) == 2:
             (name, ip) = words
             name = re.sub(r'[^-\w\.]', '-', name).strip()
+            # Remove characters that shouldn't be in IP
             ip = re.sub(r'[^0-9.]', '', ip).strip()
             if name and ip:
                 found_host(name, ip)
 
 
 def found_host(name, ip):
+    """The provided name maps to the given IP. Add the host to the
+       hostnames list, send the host to the sshuttle client via
+       stdout, and write the host to the cache file.
+    """
     hostname = re.sub(r'\..*', '', name)
     hostname = re.sub(r'[^-\w\.]', '_', hostname)
     if (ip.startswith('127.') or ip.startswith('255.') or
@@ -86,29 +106,37 @@ def found_host(name, ip):
 
 
 def _check_etc_hosts():
-    debug2(' > hosts')
-    for line in open('/etc/hosts'):
-        line = re.sub(r'#.*', '', line)
-        words = line.strip().split()
-        if not words:
-            continue
-        ip = words[0]
-        names = words[1:]
-        if _is_ip(ip):
-            debug3('<    %s %r' % (ip, names))
-            for n in names:
-                check_host(n)
-                found_host(n, ip)
+    """If possible, read /etc/hosts to find hosts."""
+    filename = '/etc/hosts'
+    debug2(' > Reading %s on remote host' % filename)
+    try:
+        for line in open(filename):
+            line = re.sub(r'#.*', '', line)  # remove comments
+            words = line.strip().split()
+            if not words:
+                continue
+            ip = words[0]
+            if _is_ip(ip):
+                names = words[1:]
+                debug3('<    %s %r' % (ip, names))
+                for n in names:
+                    check_host(n)
+                    found_host(n, ip)
+    except (OSError, IOError):
+        debug1("Failed to read %s on remote host" % filename)
 
 
 def _check_revdns(ip):
+    """Use reverse DNS to try to get hostnames from an IP addresses."""
     debug2(' > rev: %s' % ip)
     try:
         r = socket.gethostbyaddr(ip)
         debug3('<    %s' % r[0])
         check_host(r[0])
         found_host(r[0], ip)
-    except (socket.herror, UnicodeError):
+    except (OSError, socket.error, UnicodeError):
+        # This case is expected to occur regularly.
+        # debug3('<    %s gethostbyaddr failed on remote host' % ip)
         pass
 
 
@@ -136,101 +164,16 @@ def _check_netstat():
         log('%r failed: %r' % (argv, e))
         return
 
+    # The same IPs may appear multiple times. Consolidate them so the
+    # debug message doesn't print the same IP repeatedly.
+    ip_list = []
     for ip in re.findall(r'\d+\.\d+\.\d+\.\d+', content):
+        if ip not in ip_list:
+            ip_list.append(ip)
+
+    for ip in sorted(ip_list):
         debug3('<    %s' % ip)
         check_host(ip)
-
-
-def _check_smb(hostname):
-    return
-    global _smb_ok
-    if not _smb_ok:
-        return
-    debug2(' > smb: %s' % hostname)
-    argv = ['smbclient', '-U', '%', '-L', hostname]
-    try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=get_env())
-        lines = p.stdout.readlines()
-        p.wait()
-    except OSError:
-        _, e = sys.exc_info()[:2]
-        log('%r failed: %r' % (argv, e))
-        _smb_ok = False
-        return
-
-    lines.reverse()
-
-    # junk at top
-    while lines:
-        line = lines.pop().strip()
-        if re.match(r'Server\s+', line):
-            break
-
-    # server list section:
-    #    Server   Comment
-    #    ------   -------
-    while lines:
-        line = lines.pop().strip()
-        if not line or re.match(r'-+\s+-+', line):
-            continue
-        if re.match(r'Workgroup\s+Master', line):
-            break
-        words = line.split()
-        hostname = words[0].lower()
-        debug3('<    %s' % hostname)
-        check_host(hostname)
-
-    # workgroup list section:
-    #   Workgroup  Master
-    #   ---------  ------
-    while lines:
-        line = lines.pop().strip()
-        if re.match(r'-+\s+', line):
-            continue
-        if not line:
-            break
-        words = line.split()
-        (workgroup, hostname) = (words[0].lower(), words[1].lower())
-        debug3('<    group(%s) -> %s' % (workgroup, hostname))
-        check_host(hostname)
-        check_workgroup(workgroup)
-
-    if lines:
-        assert(0)
-
-
-def _check_nmb(hostname, is_workgroup, is_master):
-    return
-    global _nmb_ok
-    if not _nmb_ok:
-        return
-    debug2(' > n%d%d: %s' % (is_workgroup, is_master, hostname))
-    argv = ['nmblookup'] + ['-M'] * is_master + ['--', hostname]
-    try:
-        p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
-                              env=get_env)
-        lines = p.stdout.readlines()
-        rv = p.wait()
-    except OSError:
-        _, e = sys.exc_info()[:2]
-        log('%r failed: %r' % (argv, e))
-        _nmb_ok = False
-        return
-    if rv:
-        log('%r returned %d' % (argv, rv))
-        return
-    for line in lines:
-        m = re.match(r'(\d+\.\d+\.\d+\.\d+) (\w+)<\w\w>\n', line)
-        if m:
-            g = m.groups()
-            (ip, name) = (g[0], g[1].lower())
-            debug3('<    %s -> %s' % (name, ip))
-            if is_workgroup:
-                _enqueue(_check_smb, ip)
-            else:
-                found_host(name, ip)
-                check_host(name)
 
 
 def check_host(hostname):
@@ -238,13 +181,6 @@ def check_host(hostname):
         _enqueue(_check_revdns, hostname)
     else:
         _enqueue(_check_dns, hostname)
-    _enqueue(_check_smb, hostname)
-    _enqueue(_check_nmb, hostname, False, False)
-
-
-def check_workgroup(hostname):
-    _enqueue(_check_nmb, hostname, True, False)
-    _enqueue(_check_nmb, hostname, True, True)
 
 
 def _enqueue(op, *args):
@@ -277,18 +213,22 @@ def hw_main(seed_hosts, auto_hosts):
         _enqueue(_check_netstat)
         check_host('localhost')
         check_host(socket.gethostname())
-        check_workgroup('workgroup')
-        check_workgroup('-')
 
     while 1:
         now = time.time()
+        # For each item in the queue
         for t, last_polled in list(queue.items()):
             (op, args) = t
             if not _stdin_still_ok(0):
                 break
+
+            # Determine if we need to run.
             maxtime = POLL_TIME
+            # netstat runs more often than other jobs
             if op == _check_netstat:
                 maxtime = NETSTAT_POLL_TIME
+
+            # Check if this jobs needs to run.
             if now - last_polled > maxtime:
                 queue[t] = time.time()
                 op(*args)
@@ -298,5 +238,5 @@ def hw_main(seed_hosts, auto_hosts):
                 break
 
         # FIXME: use a smarter timeout based on oldest last_polled
-        if not _stdin_still_ok(1):
+        if not _stdin_still_ok(1):  # sleeps for up to 1 second
             break

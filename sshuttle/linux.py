@@ -17,7 +17,7 @@ def ipt_chain_exists(family, table, name):
         cmd = 'iptables'
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
-    argv = [cmd, '-t', table, '-nL']
+    argv = [cmd, '-w', '-t', table, '-nL']
     try:
         output = ssubprocess.check_output(argv, env=get_env())
         for line in output.decode('ASCII').split('\n'):
@@ -29,9 +29,9 @@ def ipt_chain_exists(family, table, name):
 
 def ipt(family, table, *args):
     if family == socket.AF_INET6:
-        argv = ['ip6tables', '-t', table] + list(args)
+        argv = ['ip6tables', '-w', '-t', table] + list(args)
     elif family == socket.AF_INET:
-        argv = ['iptables', '-t', table] + list(args)
+        argv = ['iptables', '-w', '-t', table] + list(args)
     else:
         raise Exception('Unsupported family "%s"' % family_to_string(family))
     debug1('%s' % ' '.join(argv))
@@ -49,25 +49,3 @@ def nft(family, table, action, *args):
     rv = ssubprocess.call(argv, env=get_env())
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
-
-
-_no_ttl_module = False
-
-
-def ipt_ttl(family, *args):
-    global _no_ttl_module
-    if not _no_ttl_module:
-        # we avoid infinite loops by generating server-side connections
-        # with ttl 63.  This makes the client side not recapture those
-        # connections, in case client == server.
-        try:
-            argsplus = list(args)
-            ipt(family, *argsplus)
-        except Fatal:
-            ipt(family, *args)
-            # we only get here if the non-ttl attempt succeeds
-            log('WARNING: your iptables is missing '
-                'the ttl module.')
-            _no_ttl_module = True
-    else:
-        ipt(family, *args)

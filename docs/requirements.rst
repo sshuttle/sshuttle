@@ -15,10 +15,12 @@ Supports:
 
 * IPv4 TCP
 * IPv4 DNS
+* IPv6 TCP
+* IPv6 DNS
 
 Requires:
 
-* iptables DNAT, REDIRECT, and ttl modules.
+* iptables DNAT and REDIRECT modules. ip6tables for IPv6.
 
 Linux with nft method
 ~~~~~~~~~~~~~~~~~~~~~

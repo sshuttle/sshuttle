@@ -5,6 +5,7 @@ import sys
 import os
 import platform
 import traceback
+import subprocess as ssubprocess
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
@@ -89,6 +90,29 @@ def subnet_weight(s):
     return (-s[-1] + (s[-2] or -65535), s[1], s[2])
 
 
+def flush_systemd_dns_cache():
+    # If the user is using systemd-resolve for DNS resolution, it is
+    # possible for the request to go through systemd-resolve before we
+    # see it...and it may use a cached result instead of sending a
+    # request that we can intercept. When sshuttle starts and stops,
+    # this means that we should clear the cache!
+    #
+    # The command to do this was named systemd-resolve, but changed to
+    # resolvectl in systemd 239.
+    # https://github.com/systemd/systemd/blob/f8eb41003df1a4eab59ff9bec67b2787c9368dbd/NEWS#L3816
+
+    if helpers.which("resolvectl"):
+        debug2("Flushing systemd's DNS resolver cache: "
+               "resolvectl flush-caches")
+        ssubprocess.Popen(["resolvectl", "flush-caches"],
+                          stdout=ssubprocess.PIPE, env=helpers.get_env())
+    elif helpers.which("systemd-resolve"):
+        debug2("Flushing systemd's DNS resolver cache: "
+               "systemd-resolve --flush-caches")
+        ssubprocess.Popen(["systemd-resolve", "--flush-caches"],
+                          stdout=ssubprocess.PIPE, env=helpers.get_env())
+
+
 # This is some voodoo for setting up the kernel's transparent
 # proxying stuff.  If subnets is empty, we just delete our sshuttle rules;
 # otherwise we delete it, then make them from scratch.
@@ -97,7 +121,7 @@ def subnet_weight(s):
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supercede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(method_name, syslog, ttl):
+def main(method_name, syslog):
     helpers.logprefix = 'fw: '
     stdin, stdout = setup_daemon()
     hostmap = {}
@@ -199,11 +223,12 @@ def main(method_name, syslog, ttl):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
-    udp, user = args.strip().split(" ", 1)
+    udp, user, tmark = args.strip().split(" ", 2)
     udp = bool(int(udp))
     if user == '-':
         user = None
-    debug2('Got udp: %r, user: %r' % (udp, user))
+    debug2('Got udp: %r, user: %r, tmark: %s' %
+           (udp, user, tmark))
 
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
     nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
@@ -218,15 +243,16 @@ def main(method_name, syslog, ttl):
             method.setup_firewall(
                 port_v6, dnsport_v6, nslist_v6,
                 socket.AF_INET6, subnets_v6, udp,
-                user, ttl)
+                user, tmark)
 
         if subnets_v4 or nslist_v4:
             debug2('setting up IPv4.')
             method.setup_firewall(
                 port_v4, dnsport_v4, nslist_v4,
                 socket.AF_INET, subnets_v4, udp,
-                user, ttl)
+                user, tmark)
 
+        flush_systemd_dns_cache()
         stdout.write('STARTED\n')
 
         try:
@@ -288,3 +314,12 @@ def main(method_name, syslog, ttl):
                 debug1(traceback.format_exc())
             except BaseException:
                 debug2('An error occurred, ignoring it.')
+
+        try:
+            flush_systemd_dns_cache()
+        except BaseException:
+            try:
+                debug1("Error trying to flush systemd dns cache.")
+                debug1(traceback.format_exc())
+            except BaseException:
+                debug2("An error occurred, ignoring it.")

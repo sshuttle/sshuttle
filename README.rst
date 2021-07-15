@@ -45,6 +45,10 @@ Obtaining sshuttle
 - Fedora::
 
       dnf install sshuttle
+      
+ - Gentoo::
+ 
+      emerge -av net-proxy/sshuttle
 
 - NixOS::
 

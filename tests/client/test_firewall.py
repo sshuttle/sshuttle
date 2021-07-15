@@ -15,7 +15,7 @@ NSLIST
 {inet},1.2.3.33
 {inet6},2404:6800:4004:80c::33
 PORTS 1024,1025,1026,1027
-GO 1 -
+GO 1 - 0x01
 HOST 1.2.3.3,existing
 """.format(inet=AF_INET, inet6=AF_INET6))
     stdout = Mock()
@@ -100,7 +100,7 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
     mock_get_method("not_auto").name = "test"
     mock_get_method.reset_mock()
 
-    sshuttle.firewall.main("not_auto", False, 63)
+    sshuttle.firewall.main("not_auto", False)
 
     assert mock_rewrite_etc_hosts.mock_calls == [
         call({'1.2.3.3': 'existing'}, 1024),
@@ -126,7 +126,7 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
                 (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
             True,
             None,
-            63),
+            '0x01'),
         call().setup_firewall(
             1025, 1027,
             [(AF_INET, u'1.2.3.33')],
@@ -135,7 +135,7 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
                 (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
             None,
-            63),
+            '0x01'),
         call().restore_firewall(1024, AF_INET6, True, None),
         call().restore_firewall(1025, AF_INET, True, None),
     ]
