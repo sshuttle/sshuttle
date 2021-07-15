@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl, tmark):
+                       user, tmark):
         if udp:
             raise Exception("UDP not supported by nft")
 
@@ -44,14 +44,6 @@ class Method(BaseMethod):
             _nft('add rule', chain, 'meta', 'nfproto', '!=', 'ipv4', 'return')
         else:
             _nft('add rule', chain, 'meta', 'nfproto', '!=', 'ipv6', 'return')
-
-        # This TTL hack allows the client and server to run on the
-        # same host. The connections the sshuttle server makes will
-        # have TTL set to 63.
-        if family == socket.AF_INET:
-            _nft('add rule', chain, 'ip ttl == 63 return')
-        elif family == socket.AF_INET6:
-            _nft('add rule', chain, 'ip6 hoplimit == 63 return')
 
         # Strings to use below to simplify our code
         if family == socket.AF_INET:

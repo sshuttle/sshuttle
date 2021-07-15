@@ -4,7 +4,7 @@ sshuttle
 
 Synopsis
 --------
-**sshuttle** [*options*] [**-r** *[username@]sshserver[:port]*] \<*subnets* ...\>
+**sshuttle** [*options*] **-r** *[username@]sshserver[:port]* \<*subnets* ...\>
 
 
 Description
@@ -441,9 +441,7 @@ Example configuration file::
 Discussion
 ----------
 When it starts, :program:`sshuttle` creates an ssh session to the
-server specified by the ``-r`` option.  If ``-r`` is omitted,
-it will start both its client and server locally, which is
-sometimes useful for testing.
+server specified by the ``-r`` option.
 
 After connecting to the remote server, :program:`sshuttle` uploads its
 (python) source code to the remote end and executes it

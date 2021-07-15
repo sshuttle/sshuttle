@@ -1,7 +1,7 @@
 import struct
 from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
-from sshuttle.linux import ipt, ipt_ttl, ipt_chain_exists
+from sshuttle.linux import ipt, ipt_chain_exists
 from sshuttle.methods import BaseMethod
 from sshuttle.helpers import debug1, debug2, debug3, Fatal, which
 
@@ -151,7 +151,7 @@ class Method(BaseMethod):
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, ttl, tmark):
+                       user, tmark):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
@@ -161,9 +161,6 @@ class Method(BaseMethod):
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         def _ipt_proto_ports(proto, fport, lport):
             return proto + ('--dport', '%d:%d' % (fport, lport)) \
@@ -278,9 +275,6 @@ class Method(BaseMethod):
 
         def _ipt(*args):
             return ipt(family, table, *args)
-
-        def _ipt_ttl(*args):
-            return ipt_ttl(family, table, *args)
 
         mark_chain = 'sshuttle-m-%s' % port
         tproxy_chain = 'sshuttle-t-%s' % port

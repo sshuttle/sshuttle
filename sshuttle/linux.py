@@ -49,25 +49,3 @@ def nft(family, table, action, *args):
     rv = ssubprocess.call(argv, env=get_env())
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
-
-
-_no_ttl_module = False
-
-
-def ipt_ttl(family, *args):
-    global _no_ttl_module
-    if not _no_ttl_module:
-        # we avoid infinite loops by generating server-side connections
-        # with ttl 63.  This makes the client side not recapture those
-        # connections, in case client == server.
-        try:
-            argsplus = list(args)
-            ipt(family, *argsplus)
-        except Fatal:
-            ipt(family, *args)
-            # we only get here if the non-ttl attempt succeeds
-            log('WARNING: your iptables is missing '
-                'the ttl module.')
-            _no_ttl_module = True
-    else:
-        ipt(family, *args)

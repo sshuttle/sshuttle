@@ -44,6 +44,7 @@ def got_signal(signum, frame):
     sys.exit(1)
 
 
+# Filename of the pidfile created by the sshuttle client.
 _pidname = None
 
 
@@ -198,7 +199,7 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath, ttl):
+    def __init__(self, method_name, sudo_pythonpath):
         self.auto_nets = []
 
         argvbase = ([sys.executable, sys.argv[0]] +
@@ -260,7 +261,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, ttl, tmark):
+              user, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -271,7 +272,6 @@ class FirewallClient:
         self.udp = udp
         self.user = user
         self.tmark = tmark
-        self.ttl = ttl
 
     def check(self):
         rv = self.p.poll()
@@ -310,9 +310,8 @@ class FirewallClient:
         else:
             user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d %s %d %s\n' %
-                         (udp, user, self.ttl,
-                          bytes(self.tmark, 'ascii')))
+        self.pfile.write(b'GO %d %s %s\n' %
+                         (udp, user, bytes(self.tmark, 'ascii')))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -457,7 +456,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver, ttl):
+          to_nameserver):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -476,8 +475,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
-                         auto_nets=auto_nets,
-                         ttl=ttl))
+                         auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             raise Fatal("failed to establish ssh session (1)")
@@ -587,6 +585,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                     % (expected, initstring))
     log('Connected to server.')
     sys.stdout.flush()
+
     if daemon:
         daemonize()
         log('daemonizing (%s).' % _pidname)
@@ -673,12 +672,11 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark, ttl):
+         user, sudo_pythonpath, tmark):
 
     if not remotename:
-        print("WARNING: You must specify -r/--remote to securely route "
-              "traffic to a remote machine. Running without -r/--remote "
-              "is only recommended for testing.")
+        raise Fatal("You must use -r/--remote to specify a remote "
+                    "host to route traffic through.")
 
     if daemon:
         try:
@@ -689,7 +687,7 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath, ttl)
+    fw = FirewallClient(method_name, sudo_pythonpath)
 
     # nslist is the list of name severs to intercept. If --dns is
     # used, we add all DNS servers in resolv.conf. Otherwise, the list
@@ -1006,14 +1004,14 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, ttl, tmark)
+             required.udp, user, tmark)
 
     # start the client process
     try:
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver, ttl)
+                     daemon, to_nameserver)
     finally:
         try:
             if daemon:
