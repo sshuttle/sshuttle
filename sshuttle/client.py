@@ -48,10 +48,6 @@ def got_signal(signum, frame):
 # Filename of the pidfile created by the sshuttle client.
 _pidname = None
 
-# This variable is set to true if the client and the server appear to
-# be running on the same host.
-_client_server_samehost = False
-
 
 def check_daemon(pidfile):
     global _pidname
@@ -477,9 +473,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     # If the server sees the file, then the server can deduce that it
     # is running on the same host as the client. If the client sees
     # that the server deleted the file, then the client can deduce
-    # that it is running on the same host as the server. The
-    # _client_server_samehost variable is set to true when they are on
-    # the same machine.
+    # that it is running on the same host as the server.
     (_, localhost_detector) = tempfile.mkstemp(prefix="sshuttle-localhost-")
 
     try:
@@ -604,14 +598,22 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     # If the server couldn't delete our localhost_detector file, then
     # the server is running on a different machine.
-    global _client_server_samehost
     if os.path.exists(localhost_detector):
-        debug2("Client and server appear to be running on different machines.")
-        _client_server_samehost = False
+        debug3("Client and server appear to be running on different machines.")
         os.remove(localhost_detector)  # cleanup
     else:
-        debug1("Client and server are running on the same machine.")
-        _client_server_samehost = True
+        # The client and server can't run on the same machine because
+        # the firewall rules can't distinguish between data the
+        # sshuttle server sends (which shouldn't be redirected through
+        # sshuttle) and the different connections applications make
+        # (which perhaps should be redirected through sshuttle).
+        # Previously we set the TTL of the packets the server sent to
+        # distinguish between the two, but this feature was removed
+        # since running the client and server on the same machine is
+        # only useful for debugging.
+        raise Fatal("Exiting because sshuttle client and server are "
+                    "running on the same machine. The host specified "
+                    "with the -r option must be a remote host.")
 
     if daemon:
         daemonize()
