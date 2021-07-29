@@ -70,7 +70,14 @@ def setup_daemon():
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
     # I'll die automatically.
-    os.setsid()
+    try:
+        os.setsid()
+    except OSError:
+        raise Fatal("setsid() failed. This may occur if you are using sudo's "
+                    "use_pty option. sshuttle does not currently work with "
+                    "this option. An imperfect workaround: Run the sshuttle "
+                    "command with sudo instead of running it as a regular "
+                    "user and entering the sudo password when prompted.")
 
     # because of limitations of the 'su' command, the *real* stdin/stdout
     # are both attached to stdout initially.  Clone stdout into stdin so we
