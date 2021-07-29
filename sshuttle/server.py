@@ -5,7 +5,6 @@ import traceback
 import time
 import sys
 import os
-import platform
 
 
 import sshuttle.ssnet as ssnet
@@ -272,8 +271,6 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
          auto_nets):
     try:
         helpers.logprefix = ' s: '
-        debug1('Starting server with Python version %s'
-               % platform.python_version())
 
         debug1('latency control setting = %r' % latency_control)
         if latency_buffer_size:
