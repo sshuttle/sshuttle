@@ -1,1 +1,1 @@
-setuptools-scm==6.1.1
+setuptools-scm==6.3.1
