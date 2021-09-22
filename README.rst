@@ -24,7 +24,7 @@ common case:
 - You can't use openssh's PermitTunnel feature because
   it's disabled by default on openssh servers; plus it does
   TCP-over-TCP, which has `terrible performance`_.
-  
+
 .. _terrible performance: https://sshuttle.readthedocs.io/en/stable/how-it-works.html
 
 Obtaining sshuttle
@@ -37,7 +37,7 @@ Obtaining sshuttle
 - Debian stretch or later::
 
       apt-get install sshuttle
-      
+
 - Arch Linux::
 
       pacman -S sshuttle
@@ -45,13 +45,13 @@ Obtaining sshuttle
 - Fedora::
 
       dnf install sshuttle
-      
+
 - openSUSE::
 
       zypper in sshuttle
 
 - Gentoo::
- 
+
       emerge -av net-proxy/sshuttle
 
 - NixOS::
@@ -116,5 +116,5 @@ https://sshuttle.readthedocs.org/en/latest/
 
 Running as a service
 --------------------
-Sshuttle can also be run as a service and configured using a config management system: 
+Sshuttle can also be run as a service and configured using a config management system:
 https://medium.com/@mike.reider/using-sshuttle-as-a-service-bec2684a65fe
