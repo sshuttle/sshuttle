@@ -16,4 +16,4 @@ Assuming the VM has the IP 192.168.1.200 obtained on the bridge NIC (we can
 configure that in Vagrant), we can then ask Windows to route all its traffic
 via the VM by running the following in cmd.exe with admin right::
 
-     route add 0.0.0.0 mask 0.0.0.0 192.168.1.200
+    route add 0.0.0.0 mask 0.0.0.0 192.168.1.200

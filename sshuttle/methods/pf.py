@@ -273,7 +273,7 @@ class OpenBsd(Generic):
     def add_anchors(self, anchor):
         # before adding anchors and rules we must override the skip lo
         # that comes by default in openbsd pf.conf so the rules we will add,
-        # which rely on translating/filtering  packets on lo, can work
+        # which rely on translating/filtering packets on lo, can work
         if self.has_skip_loopback():
             pfctl('-f /dev/stdin', b'match on lo\n')
         super(OpenBsd, self).add_anchors(anchor)
@@ -353,7 +353,7 @@ class Darwin(FreeBsd):
     def add_anchors(self, anchor):
         # before adding anchors and rules we must override the skip lo
         # that in some cases ends up in the chain so the rules we will add,
-        # which rely on translating/filtering  packets on lo, can work
+        # which rely on translating/filtering packets on lo, can work
         if self.has_skip_loopback():
             pfctl('-f /dev/stdin', b'pass on lo\n')
         super(Darwin, self).add_anchors(anchor)

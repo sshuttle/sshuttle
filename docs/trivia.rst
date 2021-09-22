@@ -33,4 +33,3 @@ That project I did for Slipstream was what first gave me the idea to merge
 the concepts of Fast Forward, Double Vision, and Tunnel Vision into a single
 program that was the best of all worlds.  And here we are, at last.
 You're welcome.
-

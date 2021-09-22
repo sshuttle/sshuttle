@@ -81,7 +81,7 @@ Additional Suggested Software
 - If you are using systemd, sshuttle can notify it when the connection to
   the remote end is established and the firewall rules are installed. For
   this feature to work you must configure the process start-up type for the
-  sshuttle service unit to notify, as shown in the example below. 
+  sshuttle service unit to notify, as shown in the example below.
 
 .. code-block:: ini
    :emphasize-lines: 6
@@ -89,10 +89,10 @@ Additional Suggested Software
    [Unit]
    Description=sshuttle
    After=network.target
-   
+
    [Service]
    Type=notify
    ExecStart=/usr/bin/sshuttle --dns --remote <user>@<server> <subnets...>
-   
+
    [Install]
    WantedBy=multi-user.target

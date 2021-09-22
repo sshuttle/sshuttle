@@ -51,7 +51,7 @@ were right there.  And if your "client" machine is a router, everyone on
 your local network can make connections to your remote network.
 
 You don't need to install sshuttle on the remote server;
-the remote server just needs to have python available. 
+the remote server just needs to have python available.
 sshuttle will automatically upload and run its source code
 to the remote python interpreter.
 
@@ -71,7 +71,7 @@ admin access on the server.
 
 Sudoers File
 ------------
-sshuttle can auto-generate the proper sudoers.d file using the current user 
+sshuttle can auto-generate the proper sudoers.d file using the current user
 for Linux and OSX. Doing this will allow sshuttle to run without asking for
 the local sudo password and to give users who do not have sudo access
 ability to run sshuttle::
@@ -83,7 +83,7 @@ it is needed.
 
 A costume user or group can be set with the :
 option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
-values for this vary based on how your system is configured. Values such as 
+values for this vary based on how your system is configured. Values such as
 usernames, groups pre-pended with `%` and sudoers user aliases will work. See
 the sudoers manual for more information on valid user specif actions.
 The options must be used with `--sudoers`::
@@ -99,7 +99,7 @@ access to sshuttle. The default is `sshuttle_auto`::
   sshuttle --sudoer --sudoers-filename sshuttle_auto_tommy
 
 You can also see what configuration will be added to your system without
-modifying anything. This can be helpfull is the auto feature does not work, or
+modifying anything. This can be helpful if the auto feature does not work, or
 you want more control. This option also works with `--sudoers-username`.
 `--sudoers-filename` has no effect with this option::
 

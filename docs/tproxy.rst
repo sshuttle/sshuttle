@@ -11,7 +11,7 @@ There are some things you need to consider for TPROXY to work:
       ip rule add fwmark {TMARK} lookup 100
       ip -6 route add local default dev lo table 100
       ip -6 rule add fwmark {TMARK} lookup 100
-  
+
   where {TMARK} is the identifier mark passed with -t or --tmark flag
   as a hexadecimal string (default value is '0x01').
 
@@ -20,7 +20,7 @@ There are some things you need to consider for TPROXY to work:
 
 - The client needs to be run as root. e.g.::
 
-      sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" $HOME/tree/sshuttle.tproxy/sshuttle  --method=tproxy ...
+      sudo SSH_AUTH_SOCK="$SSH_AUTH_SOCK" $HOME/tree/sshuttle.tproxy/sshuttle --method=tproxy ...
 
 - You may need to exclude the IP address of the server you are connecting to.
   Otherwise sshuttle may attempt to intercept the ssh packets, which will not

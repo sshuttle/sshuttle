@@ -34,4 +34,3 @@ sshuttle assembles the TCP stream locally, multiplexes it statefully over
 an ssh session, and disassembles it back into packets at the other end.  So
 it never ends up doing TCP-over-TCP.  It's just data-over-TCP, which is
 safe.
-

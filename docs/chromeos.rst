@@ -9,4 +9,3 @@ stretch/Debian 9 VM, you can then install sshuttle as on any Linux box and
 it just works, as do xterms and ssvncviewer etc.
 
 https://www.reddit.com/r/Crostini/wiki/getstarted/crostini-setup-guide
-

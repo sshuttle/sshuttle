@@ -344,7 +344,7 @@ information::
     $ sshuttle -r example.com -x example.com:22 0/0
 
     Starting sshuttle proxy (version ...).
-    [local sudo] Password: 
+    [local sudo] Password:
     fw: Starting firewall with Python version 3.9.5
     fw: ready method name nat.
     c : IPv6 disabled since it isn't supported by method nat.
@@ -362,7 +362,7 @@ information::
     c : TCP redirector listening on ('127.0.0.1', 12299).
     c : Starting client with Python version 3.9.5
     c : Connecting to server...
-    user@example.com's password: 
+    user@example.com's password:
      s: Starting server with Python version 3.6.8
      s: latency control setting = True
      s: auto-nets:False
@@ -383,7 +383,7 @@ and subnet guessing::
 
     $ sshuttle -vNHr example.com -x example.com:22
     Starting sshuttle proxy (version ...).
-    [local sudo] Password: 
+    [local sudo] Password:
     fw: Starting firewall with Python version 3.9.5
     fw: ready method name nat.
     c : IPv6 disabled since it isn't supported by method nat.
@@ -401,7 +401,7 @@ and subnet guessing::
     c : TCP redirector listening on ('127.0.0.1', 12300).
     c : Starting client with Python version 3.9.5
     c : Connecting to server...
-    user@example.com's password: 
+    user@example.com's password:
      s: Starting server with Python version 3.6.8
      s: latency control setting = True
      s: auto-nets:True

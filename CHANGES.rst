@@ -133,7 +133,7 @@ Fixed
 
 Added
 ~~~~~
-* doas support as replacmeent for sudo on OpenBSD.
+* doas support as replacement for sudo on OpenBSD.
 * Added ChromeOS section to documentation (#262)
 * Add --no-sudo-pythonpath option
 
