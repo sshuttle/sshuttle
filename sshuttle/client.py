@@ -164,7 +164,7 @@ class MultiListener:
             try:
                 self.v4.listen(backlog)
             except socket.error as e:
-                # on some systems v4 bind will fail if the v6 suceeded,
+                # on some systems v4 bind will fail if the v6 succeeded,
                 # in this case the v6 socket will receive v4 too.
                 if e.errno == errno.EADDRINUSE and self.v6:
                     self.v4 = None

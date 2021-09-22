@@ -126,7 +126,7 @@ def flush_systemd_dns_cache():
 #
 # This code is supposed to clean up after itself by deleting its rules on
 # exit.  In case that fails, it's not the end of the world; future runs will
-# supercede it in the transproxy list, at least, so the leftover rules
+# supersede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
 def main(method_name, syslog):
     helpers.logprefix = 'fw: '

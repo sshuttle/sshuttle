@@ -99,7 +99,7 @@ access to sshuttle. The default is `sshuttle_auto`::
   sshuttle --sudoer --sudoers-filename sshuttle_auto_tommy
 
 You can also see what configuration will be added to your system without
-modifying anything. This can be helpfull is the auto feature does not work, or
+modifying anything. This can be helpful if the auto feature does not work, or
 you want more control. This option also works with `--sudoers-username`.
 `--sudoers-filename` has no effect with this option::
 

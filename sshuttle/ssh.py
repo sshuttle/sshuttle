@@ -61,11 +61,11 @@ def parse_hostport(rhostport):
     if ":" in host:
         # IPv6 address and/or got a port specified
 
-        # If it is an IPv6 adress with port specification,
+        # If it is an IPv6 address with port specification,
         # then it will look like: [::1]:22
 
         try:
-            # try to parse host as an IP adress,
+            # try to parse host as an IP address,
             # if that works it is an IPv6 address
             host = str(ipaddress.ip_address(host))
         except ValueError:
@@ -150,7 +150,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
             # return error code 127.
             #
             # (2) python3 or python exists in the PATH and is
-            # executable. If they aren't, then exec wont work (see (4)
+            # executable. If they aren't, then exec won't work (see (4)
             # below).
             #
             # (3) In /bin/sh, that we can redirect stderr in order to

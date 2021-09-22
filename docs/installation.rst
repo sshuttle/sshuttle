@@ -5,7 +5,7 @@ Installation
 
       pip install sshuttle
 
-- Debain package manager::
+- Debian package manager::
 
       sudo apt install sshuttle
 
