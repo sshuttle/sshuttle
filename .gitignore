@@ -16,3 +16,4 @@
 /.pytest_cache/
 /.python-version
 .vscode/
+.idea/
