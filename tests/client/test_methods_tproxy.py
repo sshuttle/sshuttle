@@ -6,22 +6,12 @@ from unittest.mock import Mock, patch, call
 from sshuttle.methods import get_method
 
 
-@patch("sshuttle.methods.tproxy.recvmsg")
-def test_get_supported_features_recvmsg(mock_recvmsg):
+def test_get_supported_features():
     method = get_method('tproxy')
     features = method.get_supported_features()
     assert features.ipv6
     assert features.udp
     assert features.dns
-
-
-@patch("sshuttle.methods.tproxy.recvmsg", None)
-def test_get_supported_features_norecvmsg():
-    method = get_method('tproxy')
-    features = method.get_supported_features()
-    assert features.ipv6
-    assert not features.udp
-    assert not features.dns
 
 
 def test_get_tcp_dstip():

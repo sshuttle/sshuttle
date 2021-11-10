@@ -5,22 +5,7 @@ from sshuttle.linux import ipt, ipt_chain_exists
 from sshuttle.methods import BaseMethod
 from sshuttle.helpers import debug1, debug2, debug3, Fatal, which
 
-recvmsg = None
-try:
-    # try getting recvmsg from python
-    import socket as pythonsocket
-    getattr(pythonsocket.socket, "recvmsg")
-    socket = pythonsocket
-    recvmsg = "python"
-except AttributeError:
-    # try getting recvmsg from socket_ext library
-    try:
-        import socket_ext
-        getattr(socket_ext.socket, "recvmsg")
-        socket = socket_ext
-        recvmsg = "socket_ext"
-    except ImportError:
-        import socket
+import socket
 
 
 IP_TRANSPARENT = 19
@@ -30,75 +15,37 @@ SOL_IPV6 = 41
 IPV6_ORIGDSTADDR = 74
 IPV6_RECVORIGDSTADDR = IPV6_ORIGDSTADDR
 
-if recvmsg == "python":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP python using recvmsg.')
-        data, ancdata, _, srcip = listener.recvmsg(
-            4096, socket.CMSG_SPACE(24))
-        dstip = None
-        family = None
-        for cmsg_level, cmsg_type, cmsg_data in ancdata:
-            if cmsg_level == socket.SOL_IP and cmsg_type == IP_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET:
-                    start = 4
-                    length = 4
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(family, cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-            elif cmsg_level == SOL_IPV6 and cmsg_type == IPV6_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET6:
-                    start = 8
-                    length = 16
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(family, cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data)
-elif recvmsg == "socket_ext":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using socket_ext recvmsg.')
-        srcip, data, adata, _ = listener.recvmsg(
-            (bufsize,), socket.CMSG_SPACE(24))
-        dstip = None
-        family = None
-        for a in adata:
-            if a.cmsg_level == socket.SOL_IP and a.cmsg_type == IP_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', a.cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET:
-                    start = 4
-                    length = 4
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(
-                    family, a.cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-            elif a.cmsg_level == SOL_IPV6 and a.cmsg_type == IPV6_ORIGDSTADDR:
-                family, port = struct.unpack('=HH', a.cmsg_data[0:4])
-                port = socket.htons(port)
-                if family == socket.AF_INET6:
-                    start = 8
-                    length = 16
-                else:
-                    raise Fatal("Unsupported socket type '%s'" % family)
-                ip = socket.inet_ntop(
-                    family, a.cmsg_data[start:start + length])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data[0])
-else:
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using recvfrom.')
-        data, srcip = listener.recvfrom(bufsize)
-        return (srcip, None, data)
+
+def recv_udp(listener, bufsize):
+    debug3('Accept UDP python using recvmsg.')
+    data, ancdata, _, srcip = listener.recvmsg(
+        4096, socket.CMSG_SPACE(24))
+    dstip = None
+    family = None
+    for cmsg_level, cmsg_type, cmsg_data in ancdata:
+        if cmsg_level == socket.SOL_IP and cmsg_type == IP_ORIGDSTADDR:
+            family, port = struct.unpack('=HH', cmsg_data[0:4])
+            port = socket.htons(port)
+            if family == socket.AF_INET:
+                start = 4
+                length = 4
+            else:
+                raise Fatal("Unsupported socket type '%s'" % family)
+            ip = socket.inet_ntop(family, cmsg_data[start:start + length])
+            dstip = (ip, port)
+            break
+        elif cmsg_level == SOL_IPV6 and cmsg_type == IPV6_ORIGDSTADDR:
+            family, port = struct.unpack('=HH', cmsg_data[0:4])
+            port = socket.htons(port)
+            if family == socket.AF_INET6:
+                start = 8
+                length = 16
+            else:
+                raise Fatal("Unsupported socket type '%s'" % family)
+            ip = socket.inet_ntop(family, cmsg_data[start:start + length])
+            dstip = (ip, port)
+            break
+    return (srcip, dstip, data)
 
 
 class Method(BaseMethod):
@@ -106,12 +53,8 @@ class Method(BaseMethod):
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
         result.ipv6 = True
-        if recvmsg is None:
-            result.udp = False
-            result.dns = False
-        else:
-            result.udp = True
-            result.dns = True
+        result.udp = True
+        result.dns = True
         return result
 
     def get_tcp_dstip(self, sock):

@@ -4,59 +4,26 @@ from sshuttle.methods import BaseMethod
 from sshuttle.helpers import log, debug1, debug2, debug3, \
     Fatal, family_to_string, get_env, which
 
-recvmsg = None
-try:
-    # try getting recvmsg from python
-    import socket as pythonsocket
-    getattr(pythonsocket.socket, "recvmsg")
-    socket = pythonsocket
-    recvmsg = "python"
-except AttributeError:
-    # try getting recvmsg from socket_ext library
-    try:
-        import socket_ext
-        getattr(socket_ext.socket, "recvmsg")
-        socket = socket_ext
-        recvmsg = "socket_ext"
-    except ImportError:
-        import socket
+import socket
 
 IP_BINDANY = 24
 IP_RECVDSTADDR = 7
 SOL_IPV6 = 41
 IPV6_RECVDSTADDR = 74
 
-if recvmsg == "python":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP python using recvmsg.')
-        data, ancdata, _, srcip = listener.recvmsg(4096,
-                                                   socket.CMSG_SPACE(4))
-        dstip = None
-        for cmsg_level, cmsg_type, cmsg_data in ancdata:
-            if cmsg_level == socket.SOL_IP and cmsg_type == IP_RECVDSTADDR:
-                port = 53
-                ip = socket.inet_ntop(socket.AF_INET, cmsg_data[0:4])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data)
-elif recvmsg == "socket_ext":
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using socket_ext recvmsg.')
-        srcip, data, adata, _ = listener.recvmsg((bufsize,),
-                                                 socket.CMSG_SPACE(4))
-        dstip = None
-        for a in adata:
-            if a.cmsg_level == socket.SOL_IP and a.cmsg_type == IP_RECVDSTADDR:
-                port = 53
-                ip = socket.inet_ntop(socket.AF_INET, a.cmsg_data[0:4])
-                dstip = (ip, port)
-                break
-        return (srcip, dstip, data[0])
-else:
-    def recv_udp(listener, bufsize):
-        debug3('Accept UDP using recvfrom.')
-        data, srcip = listener.recvfrom(bufsize)
-        return (srcip, None, data)
+
+def recv_udp(listener, bufsize):
+    debug3('Accept UDP python using recvmsg.')
+    data, ancdata, _, srcip = listener.recvmsg(4096,
+                                               socket.CMSG_SPACE(4))
+    dstip = None
+    for cmsg_level, cmsg_type, cmsg_data in ancdata:
+        if cmsg_level == socket.SOL_IP and cmsg_type == IP_RECVDSTADDR:
+            port = 53
+            ip = socket.inet_ntop(socket.AF_INET, cmsg_data[0:4])
+            dstip = (ip, port)
+            break
+    return (srcip, dstip, data)
 
 
 def ipfw_rule_exists(n):

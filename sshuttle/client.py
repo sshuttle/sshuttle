@@ -22,19 +22,7 @@ try:
 except ImportError:
     getpwnam = None
 
-try:
-    # try getting recvmsg from python
-    import socket as pythonsocket
-    getattr(pythonsocket.socket, "recvmsg")
-    socket = pythonsocket
-except AttributeError:
-    # try getting recvmsg from socket_ext library
-    try:
-        import socket_ext
-        getattr(socket_ext.socket, "recvmsg")
-        socket = socket_ext
-    except ImportError:
-        import socket
+import socket
 
 _extra_fd = os.open(os.devnull, os.O_RDONLY)
 

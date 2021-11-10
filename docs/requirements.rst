@@ -40,11 +40,11 @@ Linux with TPROXY method
 Supports:
 
 * IPv4 TCP
-* IPv4 UDP (requires ``recvmsg`` - see below)
-* IPv6 DNS (requires ``recvmsg`` - see below)
+* IPv4 UDP
+* IPv6 DNS
 * IPv6 TCP
-* IPv6 UDP (requires ``recvmsg`` - see below)
-* IPv6 DNS (requires ``recvmsg`` - see below)
+* IPv6 UDP
+* IPv6 DNS
 
 
 MacOS / FreeBSD / OpenBSD / pfSense
