@@ -186,7 +186,7 @@ class Method(BaseMethod):
         ipfw('add', '1', 'fwd', '127.0.0.1,%d' % port,
              'tcp',
              'from', 'any', 'to', 'table(126)',
-             'not', 'ipttl', ttl, 'keep-state', 'setup')
+             'not', 'ipttl', '%d' % ttl, 'keep-state', 'setup')
 
         ipfw_noexit('table', '124', 'flush')
         dnscount = 0
@@ -197,11 +197,11 @@ class Method(BaseMethod):
             ipfw('add', '1', 'fwd', '127.0.0.1,%d' % dnsport,
                  'udp',
                  'from', 'any', 'to', 'table(124)',
-                 'not', 'ipttl', ttl)
+                 'not', 'ipttl', '%d' % ttl)
         ipfw('add', '1', 'allow',
              'udp',
              'from', 'any', 'to', 'any',
-             'ipttl', ttl)
+             'ipttl', '%d' % ttl)
 
         if subnets:
             # create new subnet entries
