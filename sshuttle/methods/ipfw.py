@@ -210,8 +210,8 @@ class Method(BaseMethod):
                                                     reverse=True):
                 if sexclude:
                     ipfw('table', '125', 'add', '%s/%s' % (snet, swidth))
-            else:
-                ipfw('table', '126', 'add', '%s/%s' % (snet, swidth))
+                else:
+                    ipfw('table', '126', 'add', '%s/%s' % (snet, swidth))
 
     def restore_firewall(self, port, family, udp, user):
         if family not in [socket.AF_INET]:
