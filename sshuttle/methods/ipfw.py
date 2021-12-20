@@ -178,8 +178,7 @@ class Method(BaseMethod):
         if subnets or dnsport:
             sysctl_set('net.inet.ip.fw.enable', 1)
 
-        ipfw('add', '1', 'check-state', 'ip',
-             'from', 'any', 'to', 'any')
+        ipfw('add', '1', 'check-state')
 
         ipfw('add', '1', 'skipto', '2',
              'tcp',
