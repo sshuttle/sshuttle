@@ -216,7 +216,7 @@ class Method(BaseMethod):
     def restore_firewall(self, port, family, udp, user):
         if family not in [socket.AF_INET]:
             raise Exception(
-                'Address family "%s" unsupported by tproxy method'
+                'Address family "%s" unsupported by ipfw method'
                 % family_to_string(family))
 
         ipfw_noexit('delete', '1')
