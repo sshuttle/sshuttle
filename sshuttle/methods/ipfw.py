@@ -33,7 +33,7 @@ def ipfw_rule_exists(n):
     found = False
     for line in p.stdout:
         if line.startswith(b'%05d ' % n):
-            if not 'check-state :sshuttle' in line:
+            if 'check-state :sshuttle' not in line:
                 log('non-sshuttle ipfw rule: %r' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
             found = True
@@ -201,8 +201,8 @@ class Method(BaseMethod):
         if subnets:
             # create new subnet entries
             for _, swidth, sexclude, snet, fport, lport in sorted(subnets,
-                                                    key=lambda s: s[1],
-                                                    reverse=True):
+                                                                  key=lambda s: s[1],
+                                                                  reverse=True):
                 if sexclude:
                     ipfw('table', '125', 'add', '%s/%s' % (snet, swidth))
                 else:
