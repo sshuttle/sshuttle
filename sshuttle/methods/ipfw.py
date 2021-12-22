@@ -200,9 +200,8 @@ class Method(BaseMethod):
 
         if subnets:
             # create new subnet entries
-            for _, swidth, sexclude, snet, fport, lport in sorted(subnets,
-                                                                  key=lambda s: s[1],
-                                                                  reverse=True):
+            for _, swidth, sexclude, snet, fport, lport \
+                    in sorted(subnets, key=lambda s: s[1], reverse=True):
                 if sexclude:
                     ipfw('table', '125', 'add', '%s/%s' % (snet, swidth))
                 else:
