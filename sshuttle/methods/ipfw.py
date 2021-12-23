@@ -27,16 +27,17 @@ def recv_udp(listener, bufsize):
 
 
 def ipfw_rule_exists(n):
-    argv = ['ipfw', 'list']
+    argv = ['ipfw', 'list', '%d' % n]
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=get_env())
 
     found = False
     for line in p.stdout:
         if line.startswith(b'%05d ' % n):
-            if not ('ipttl 63' in line or 'check-state' in line):
+            if 'check-state :sshuttle' not in line:
                 log('non-sshuttle ipfw rule: %r' % line.strip())
                 raise Fatal('non-sshuttle ipfw rule #%d already exists!' % n)
             found = True
+            break
     rv = p.wait()
     if rv:
         raise Fatal('%r returned %d' % (argv, rv))
@@ -156,11 +157,6 @@ class Method(BaseMethod):
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
                        user, tmark):
-        # TODO: The ttl hack to allow the host and server to run on
-        # the same machine has been removed but this method hasn't
-        # been updated yet.
-        ttl = 63
-
         # IPv6 not supported
         if family not in [socket.AF_INET]:
             raise Exception(
@@ -178,8 +174,7 @@ class Method(BaseMethod):
         if subnets or dnsport:
             sysctl_set('net.inet.ip.fw.enable', 1)
 
-        ipfw('add', '1', 'check-state', 'ip',
-             'from', 'any', 'to', 'any')
+        ipfw('add', '1', 'check-state', ':sshuttle')
 
         ipfw('add', '1', 'skipto', '2',
              'tcp',
@@ -187,7 +182,7 @@ class Method(BaseMethod):
         ipfw('add', '1', 'fwd', '127.0.0.1,%d' % port,
              'tcp',
              'from', 'any', 'to', 'table(126)',
-             'not', 'ipttl', ttl, 'keep-state', 'setup')
+             'setup', 'keep-state', ':sshuttle')
 
         ipfw_noexit('table', '124', 'flush')
         dnscount = 0
@@ -198,26 +193,24 @@ class Method(BaseMethod):
             ipfw('add', '1', 'fwd', '127.0.0.1,%d' % dnsport,
                  'udp',
                  'from', 'any', 'to', 'table(124)',
-                 'not', 'ipttl', ttl)
+                 'keep-state', ':sshuttle')
         ipfw('add', '1', 'allow',
              'udp',
-             'from', 'any', 'to', 'any',
-             'ipttl', ttl)
+             'from', 'any', 'to', 'any')
 
         if subnets:
             # create new subnet entries
-            for _, swidth, sexclude, snet in sorted(subnets,
-                                                    key=lambda s: s[1],
-                                                    reverse=True):
+            for _, swidth, sexclude, snet, fport, lport \
+                    in sorted(subnets, key=lambda s: s[1], reverse=True):
                 if sexclude:
                     ipfw('table', '125', 'add', '%s/%s' % (snet, swidth))
-            else:
-                ipfw('table', '126', 'add', '%s/%s' % (snet, swidth))
+                else:
+                    ipfw('table', '126', 'add', '%s/%s' % (snet, swidth))
 
     def restore_firewall(self, port, family, udp, user):
         if family not in [socket.AF_INET]:
             raise Exception(
-                'Address family "%s" unsupported by tproxy method'
+                'Address family "%s" unsupported by ipfw method'
                 % family_to_string(family))
 
         ipfw_noexit('delete', '1')
