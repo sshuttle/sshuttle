@@ -1,6 +1,6 @@
 TPROXY
 ======
-TPROXY is the only method that has full support of IPv6 and UDP.
+TPROXY is the only method that supports UDP.
 
 There are some things you need to consider for TPROXY to work:
 
