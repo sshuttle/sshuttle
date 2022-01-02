@@ -41,7 +41,7 @@ Supports:
 
 * IPv4 TCP
 * IPv4 UDP
-* IPv6 DNS
+* IPv4 DNS
 * IPv6 TCP
 * IPv6 UDP
 * IPv6 DNS
