@@ -6,6 +6,7 @@ from sshuttle.methods import BaseMethod
 from sshuttle.helpers import debug1, debug2, debug3, Fatal, which
 
 import socket
+import os
 
 
 IP_TRANSPARENT = 19
@@ -69,6 +70,15 @@ class Method(BaseMethod):
             return None
         return srcip, dstip, data
 
+    def setsockopt_error(self, e):
+        """The tproxy method needs root permissions to successfully
+        set the IP_TRANSPARENT option on sockets. This method is
+        called when we receive a PermissionError when trying to do
+        so."""
+        raise Fatal("Insufficient permissions for tproxy method.\n"
+                    "Your effective UID is %d, not 0. Try rerunning as root.\n"
+                    % os.geteuid())
+
     def send_udp(self, sock, srcip, dstip, data):
         if not srcip:
             debug1(
@@ -77,16 +87,26 @@ class Method(BaseMethod):
             return
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        try:
+            sender.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        except PermissionError as e:
+            self.setsockopt_error(e)
         sender.bind(srcip)
         sender.sendto(data, dstip)
         sender.close()
 
     def setup_tcp_listener(self, tcp_listener):
-        tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        try:
+            tcp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        except PermissionError as e:
+            self.setsockopt_error(e)
 
     def setup_udp_listener(self, udp_listener):
-        udp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        try:
+            udp_listener.setsockopt(socket.SOL_IP, IP_TRANSPARENT, 1)
+        except PermissionError as e:
+            self.setsockopt_error(e)
+
         if udp_listener.v4 is not None:
             udp_listener.v4.setsockopt(
                 socket.SOL_IP, IP_RECVORIGDSTADDR, 1)
