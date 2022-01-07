@@ -85,16 +85,17 @@ def setup_daemon():
     signal.signal(signal.SIGTERM, firewall_exit)
     signal.signal(signal.SIGINT, firewall_exit)
 
-    # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
-    # I'll die automatically.
+    # Calling setsid() here isn't strictly necessary. However, it forces
+    # Ctrl+C to get sent to the main sshuttle process instead of to
+    # the firewall process---which is our preferred way to shutdown.
+    # Nonetheless, if the firewall process receives a SIGTERM/SIGINT
+    # signal, it will relay a SIGINT to the main sshuttle process
+    # automatically.
     try:
         os.setsid()
     except OSError:
-        raise Fatal("setsid() failed. This may occur if you are using sudo's "
-                    "use_pty option. sshuttle does not currently work with "
-                    "this option. An imperfect workaround: Run the sshuttle "
-                    "command with sudo instead of running it as a regular "
-                    "user and entering the sudo password when prompted.")
+        # setsid() fails if sudo is configured with the use_pty option.
+        pass
 
     # because of limitations of the 'su' command, the *real* stdin/stdout
     # are both attached to stdout initially.  Clone stdout into stdin so we
