@@ -18,15 +18,19 @@ def log(s):
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
-        # Allow multi-line messages
-        if s.find("\n") != -1:
-            prefix = logprefix
-            s = s.rstrip("\n")
-            for line in s.split("\n"):
-                sys.stderr.write(prefix + line + "\n")
-                prefix = "    "
-        else:
-            sys.stderr.write(logprefix + s)
+
+        prefix = logprefix
+        s = s.rstrip("\n")
+        for line in s.split("\n"):
+            # We output with \r\n instead of \n because when we use
+            # sudo with the use_pty option, the firewall process, the
+            # other processes printing to the terminal will have the
+            # \n move to the next line, but they will fail to reset
+            # cursor to the beginning of the line. Printing output
+            # with \r\n endings fixes that problem and does not appear
+            # to cause problems elsewhere.
+            sys.stderr.write(prefix + line + "\r\n")
+            prefix = "    "
         sys.stderr.flush()
     except IOError:
         # this could happen if stderr gets forcibly disconnected, eg. because
