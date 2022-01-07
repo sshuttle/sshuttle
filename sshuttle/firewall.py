@@ -15,6 +15,7 @@ from sshuttle.methods import get_auto_method, get_method
 HOSTSFILE = '/etc/hosts'
 sshuttle_pid = None
 
+
 def rewrite_etc_hosts(hostmap, port):
     BAKFILE = '%s.sbak' % HOSTSFILE
     APPEND = '# sshuttle-firewall-%d AUTOCREATED' % port
@@ -54,6 +55,7 @@ def restore_etc_hosts(hostmap, port):
     if len(hostmap) > 0:
         debug2('undoing /etc/hosts changes.')
         rewrite_etc_hosts({}, port)
+
 
 def firewall_exit(signum, frame):
     # The typical sshuttle exit is that the main sshuttle process
