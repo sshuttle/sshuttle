@@ -13,7 +13,7 @@ from sshuttle.helpers import debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
 HOSTSFILE = '/etc/hosts'
-
+sshuttle_pid = None
 
 def rewrite_etc_hosts(hostmap, port):
     BAKFILE = '%s.sbak' % HOSTSFILE
@@ -55,6 +55,23 @@ def restore_etc_hosts(hostmap, port):
         debug2('undoing /etc/hosts changes.')
         rewrite_etc_hosts({}, port)
 
+def firewall_exit(signum, frame):
+    # The typical sshuttle exit is that the main sshuttle process
+    # exits, closes file descriptors it uses, and the firewall process
+    # notices that it can't read from stdin anymore and exits
+    # (cleaning up firewall rules).
+    #
+    # However, in some cases, Ctrl+C might get sent to the firewall
+    # process. This might caused if someone manually tries to kill the
+    # firewall process, or if sshuttle was started using sudo's use_pty option
+    # and they try to exit by pressing Ctrl+C. Here, we forward the
+    # Ctrl+C/SIGINT to the main sshuttle process which should trigger
+    # the typical exit process as described above.
+    global sshuttle_pid
+    if sshuttle_pid:
+        debug1("Relaying SIGINT to sshuttle process %d\n" % sshuttle_pid)
+        os.kill(sshuttle_pid, signal.SIGINT)
+
 
 # Isolate function that needs to be replaced for tests
 def setup_daemon():
@@ -65,8 +82,8 @@ def setup_daemon():
     # disappears; we still have to clean up.
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     signal.signal(signal.SIGPIPE, signal.SIG_IGN)
-    signal.signal(signal.SIGTERM, signal.SIG_IGN)
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, firewall_exit)
+    signal.signal(signal.SIGINT, firewall_exit)
 
     # ctrl-c shouldn't be passed along to me.  When the main sshuttle dies,
     # I'll die automatically.
@@ -230,12 +247,14 @@ def main(method_name, syslog):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
-    udp, user, tmark = args.strip().split(" ", 2)
+    global sshuttle_pid
+    udp, user, tmark, sshuttle_pid = args.strip().split(" ", 3)
     udp = bool(int(udp))
+    sshuttle_pid = int(sshuttle_pid)
     if user == '-':
         user = None
-    debug2('Got udp: %r, user: %r, tmark: %s' %
-           (udp, user, tmark))
+    debug2('Got udp: %r, user: %r, tmark: %s, sshuttle_pid: %d' %
+           (udp, user, tmark, sshuttle_pid))
 
     subnets_v6 = [i for i in subnets if i[0] == socket.AF_INET6]
     nslist_v6 = [i for i in nslist if i[0] == socket.AF_INET6]
