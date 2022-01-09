@@ -9,7 +9,7 @@ import subprocess as ssubprocess
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
-from sshuttle.helpers import debug1, debug2, Fatal
+from sshuttle.helpers import log, debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
 HOSTSFILE = '/etc/hosts'
@@ -108,16 +108,24 @@ def flush_systemd_dns_cache():
     # resolvectl in systemd 239.
     # https://github.com/systemd/systemd/blob/f8eb41003df1a4eab59ff9bec67b2787c9368dbd/NEWS#L3816
 
+    p = None
     if helpers.which("resolvectl"):
         debug2("Flushing systemd's DNS resolver cache: "
                "resolvectl flush-caches")
-        ssubprocess.Popen(["resolvectl", "flush-caches"],
-                          stdout=ssubprocess.PIPE, env=helpers.get_env())
+        p = ssubprocess.Popen(["resolvectl", "flush-caches"],
+                              stdout=ssubprocess.PIPE, env=helpers.get_env())
     elif helpers.which("systemd-resolve"):
         debug2("Flushing systemd's DNS resolver cache: "
                "systemd-resolve --flush-caches")
-        ssubprocess.Popen(["systemd-resolve", "--flush-caches"],
-                          stdout=ssubprocess.PIPE, env=helpers.get_env())
+        p = ssubprocess.Popen(["systemd-resolve", "--flush-caches"],
+                              stdout=ssubprocess.PIPE, env=helpers.get_env())
+
+    if p:
+        # Wait so flush is finished and process doesn't show up as defunct.
+        rv = p.wait()
+        if rv != 0:
+            log("Received non-zero return code %d when flushing DNS resolver "
+                "cache." % rv)
 
 
 # This is some voodoo for setting up the kernel's transparent
