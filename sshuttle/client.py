@@ -298,8 +298,8 @@ class FirewallClient:
         else:
             user = b'%d' % self.user
 
-        self.pfile.write(b'GO %d %s %s\n' %
-                         (udp, user, bytes(self.tmark, 'ascii')))
+        self.pfile.write(b'GO %d %s %s %d\n' %
+                         (udp, user, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
         line = self.pfile.readline()
