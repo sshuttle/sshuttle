@@ -113,3 +113,16 @@ def test_parse_subnetport_host():
             (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 0, 0),
             (socket.AF_INET, '93.184.216.34', 32, 0, 0),
         ])
+
+
+def test_parse_subnetport_host_with_port():
+    assert set(sshuttle.options.parse_subnetport('example.com:80')) \
+        == set([
+            (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 80, 80),
+            (socket.AF_INET, '93.184.216.34', 32, 80, 80),
+        ])
+    assert set(sshuttle.options.parse_subnetport('example.com:80-90')) \
+        == set([
+            (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 80, 90),
+            (socket.AF_INET, '93.184.216.34', 32, 80, 90),
+        ])
