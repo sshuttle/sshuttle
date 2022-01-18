@@ -105,3 +105,11 @@ def test_parse_subnetport_ip6_with_mask_and_port():
 def test_convert_arg_line_to_args_skips_comments():
     parser = sshuttle.options.MyArgumentParser()
     assert parser.convert_arg_line_to_args("# whatever something") == []
+
+
+def test_parse_subnetport_host():
+    assert set(sshuttle.options.parse_subnetport('example.com')) \
+        == set([
+            (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 0, 0),
+            (socket.AF_INET, '93.184.216.34', 32, 0, 0),
+        ])
