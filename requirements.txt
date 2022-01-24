@@ -1,2 +1,2 @@
 setuptools-scm==6.4.2
-Sphinx==4.3.2
+Sphinx==4.4.0
