@@ -1,12 +1,9 @@
 ==========
 Change log
 ==========
-All notable changes to this project will be documented in this file. The format
-is based on `Keep a Changelog`_ and this project
-adheres to `Semantic Versioning`_.
+Release notes now moved to https://github.com/sshuttle/sshuttle/releases/
 
-.. _`Keep a Changelog`: http://keepachangelog.com/
-.. _`Semantic Versioning`: http://semver.org/
+These are the old release notes.
 
 
 1.0.5 - 2020-12-29
