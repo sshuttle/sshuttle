@@ -89,7 +89,8 @@ def resolvconf_nameservers(systemd_resolved):
     # second file will fail.
     files = ['/etc/resolv.conf']
     if systemd_resolved:
-        files += ['/run/systemd/resolve/resolv.conf']
+        # If it's systemd based system - do not capture the stub service. Only remote servers
+        files = ['/run/systemd/resolve/resolv.conf']
 
     nsservers = []
     for f in files:
