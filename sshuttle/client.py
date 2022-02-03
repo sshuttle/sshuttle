@@ -205,8 +205,8 @@ class FirewallClient:
         else:
             # Linux typically uses sudo; OpenBSD uses doas. However, some
             # Linux distributions are starting to use doas.
-            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']+argvbase
-            doas_cmd = ['doas']+argvbase
+            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
+            doas_cmd = ['doas']
 
             # For clarity, try to replace executable name with the
             # full path.
@@ -225,8 +225,13 @@ class FirewallClient:
                 pp_prefix = ['/usr/bin/env',
                              'PYTHONPATH=%s' %
                              os.path.dirname(os.path.dirname(__file__))]
-                sudo_cmd = pp_prefix + sudo_cmd
-                doas_cmd = pp_prefix + doas_cmd
+                sudo_cmd = sudo_cmd + pp_prefix
+                doas_cmd = doas_cmd + pp_prefix
+
+            # Final order should be: sudo/doas command, env
+            # pythonpath, and then argvbase (sshuttle command).
+            sudo_cmd = sudo_cmd + argvbase
+            doas_cmd = doas_cmd + argvbase
 
             # If we can find doas and not sudo or if we are on
             # OpenBSD, try using doas first.
