@@ -242,8 +242,8 @@ Options
 
 .. option:: --disable-ipv6
 
-    Disable IPv6 support for methods that support it (nft, tproxy, and
-    pf).
+    Disable IPv6 support for methods that support it (nat, nft,
+    tproxy, and pf).
 
 .. option:: --firewall
 
