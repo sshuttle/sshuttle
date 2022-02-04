@@ -164,7 +164,22 @@ class MultiListener:
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
-            self.v6.bind(address_v6)
+            try:
+                self.v6.bind(address_v6)
+            except OSError as e:
+                if e.errno == errno.EADDRNOTAVAIL:
+                    # On an IPv6 Linux machine, this situation occurs
+                    # if you run the following prior to running
+                    # sshuttle:
+                    #
+                    # echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+                    # echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+                    raise Fatal("Could not bind to an IPv6 socket with "
+                                "address %s and port %s. "
+                                "Potential workaround: Run sshuttle "
+                                "with '--disable-ipv6'."
+                                % (str(address_v6[0]), str(address_v6[1])))
+                raise e
         else:
             self.v6 = None
         if address_v4 is not None:
