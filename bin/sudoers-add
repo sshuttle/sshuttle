@@ -19,7 +19,7 @@ fi
 if [ "$1" == "" ]; then
 	(>&2 echo "This command take at lest one argument. See $ME --help")
 
-	exit 1	
+	exit 1
 fi
 
 if [ "$2" == "" ]; then
@@ -51,7 +51,7 @@ if [ "$FILE_NAME" == "" ]; then
 fi
 
 # Verify that the resulting file name begins with /etc/sudoers.d
-FILE_NAME="$(realpath "/etc/sudoers.d/$FILE_NAME")"
+FILE_NAME="$(realpath -s "/etc/sudoers.d/$FILE_NAME")"
 if [[ "$FILE_NAME" != "/etc/sudoers.d/"* ]] ; then
 	echo -n "Invalid sudoers filename: Final sudoers file "
 	echo "location ($FILE_NAME) does not begin with /etc/sudoers.d"
