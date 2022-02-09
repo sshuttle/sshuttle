@@ -121,7 +121,7 @@ def test_convert_arg_line_to_args_skips_comments():
     assert parser.convert_arg_line_to_args("# whatever something") == []
 
 
-@patch('sshuttle.options.socket.getaddrinfo', side_effect = _mock_getaddrinfo)
+@patch('sshuttle.options.socket.getaddrinfo', side_effect=_mock_getaddrinfo)
 def test_parse_subnetport_host(mock_getaddrinfo):
     assert set(sshuttle.options.parse_subnetport('example.com')) \
         == set([
@@ -135,7 +135,7 @@ def test_parse_subnetport_host(mock_getaddrinfo):
         ])
 
 
-@patch('sshuttle.options.socket.getaddrinfo', side_effect = _mock_getaddrinfo)
+@patch('sshuttle.options.socket.getaddrinfo', side_effect=_mock_getaddrinfo)
 def test_parse_subnetport_host_with_port(mock_getaddrinfo):
     assert set(sshuttle.options.parse_subnetport('example.com:80')) \
         == set([
