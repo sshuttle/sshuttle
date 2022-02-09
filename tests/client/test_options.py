@@ -27,6 +27,15 @@ _ip6_reprs = {
 _ip6_swidths = (48, 64, 96, 115, 128)
 
 
+def _mock_getaddrinfo(host, *_):
+    return {
+        "example.com": [
+            (socket.AF_INET6, socket.SOCK_STREAM, 0, '', ('2606:2800:220:1:248:1893:25c8:1946', 0, 0, 0)),
+            (socket.AF_INET, socket.SOCK_STREAM, 0, '', ('93.184.216.34', 0)),
+        ],
+    }.get(host, [])
+
+
 def test_parse_subnetport_ip4():
     for ip_repr, ip in _ip4_reprs.items():
         assert sshuttle.options.parse_subnetport(ip_repr) \
