@@ -1,5 +1,6 @@
 import socket
 from argparse import ArgumentTypeError as Fatal
+from unittest.mock import patch
 
 import pytest
 
@@ -116,7 +117,8 @@ def test_convert_arg_line_to_args_skips_comments():
     assert parser.convert_arg_line_to_args("# whatever something") == []
 
 
-def test_parse_subnetport_host():
+@patch('sshuttle.options.socket.getaddrinfo', side_effect = _mock_getaddrinfo)
+def test_parse_subnetport_host(mock_getaddrinfo):
     assert set(sshuttle.options.parse_subnetport('example.com')) \
         == set([
             (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 0, 0),
@@ -124,7 +126,8 @@ def test_parse_subnetport_host():
         ])
 
 
-def test_parse_subnetport_host_with_port():
+@patch('sshuttle.options.socket.getaddrinfo', side_effect = _mock_getaddrinfo)
+def test_parse_subnetport_host_with_port(mock_getaddrinfo):
     assert set(sshuttle.options.parse_subnetport('example.com:80')) \
         == set([
             (socket.AF_INET6, '2606:2800:220:1:248:1893:25c8:1946', 128, 80, 80),
