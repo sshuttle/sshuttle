@@ -38,6 +38,10 @@ def _mock_getaddrinfo(host, *_):
             (socket.AF_INET6, socket.SOCK_STREAM, 0, '', ('::1', 0, 0, 0)),
             (socket.AF_INET, socket.SOCK_STREAM, 0, '', ('127.0.0.1', 0)),
         ],
+        "*.blogspot.com": [
+            (socket.AF_INET6, socket.SOCK_STREAM, 0, '', ('2404:6800:4004:821::2001', 0, 0, 0)),
+            (socket.AF_INET, socket.SOCK_STREAM, 0, '', ('142.251.42.129', 0)),
+        ],
     }.get(host, [])
 
 
@@ -133,6 +137,11 @@ def test_parse_subnetport_host(mock_getaddrinfo):
             (socket.AF_INET6, '::1', 128, 0, 0),
             (socket.AF_INET, '127.0.0.1', 32, 0, 0),
         ])
+    assert set(sshuttle.options.parse_subnetport('*.blogspot.com')) \
+        == set([
+            (socket.AF_INET6, '2404:6800:4004:821::2001', 128, 0, 0),
+            (socket.AF_INET, '142.251.42.129', 32, 0, 0),
+        ])
 
 
 @patch('sshuttle.options.socket.getaddrinfo', side_effect=_mock_getaddrinfo)
@@ -156,4 +165,14 @@ def test_parse_subnetport_host_with_port(mock_getaddrinfo):
         == set([
             (socket.AF_INET6, '::1', 128, 445, 450),
             (socket.AF_INET, '127.0.0.1', 32, 445, 450),
+        ])
+    assert set(sshuttle.options.parse_subnetport('*.blogspot.com:80')) \
+        == set([
+            (socket.AF_INET6, '2404:6800:4004:821::2001', 128, 80, 80),
+            (socket.AF_INET, '142.251.42.129', 32, 80, 80),
+        ])
+    assert set(sshuttle.options.parse_subnetport('*.blogspot.com:80-90')) \
+        == set([
+            (socket.AF_INET6, '2404:6800:4004:821::2001', 128, 80, 90),
+            (socket.AF_INET, '142.251.42.129', 32, 80, 90),
         ])
