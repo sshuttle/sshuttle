@@ -81,7 +81,7 @@ ability to run sshuttle::
 DO NOT run this command with sudo, it will ask for your sudo password when
 it is needed.
 
-A costume user or group can be set with the :
+A custom user or group can be set with the :
 option:`sshuttle --sudoers --sudoers-username {user_descriptor}` option. Valid
 values for this vary based on how your system is configured. Values such as
 usernames, groups pre-pended with `%` and sudoers user aliases will work. See
