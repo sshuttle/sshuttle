@@ -55,7 +55,6 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Topic :: System :: Networking",
     ],
-    scripts=['bin/sudoers-add'],
     entry_points={
         'console_scripts': [
             'sshuttle = sshuttle.cmdline:main',

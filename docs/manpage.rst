@@ -262,28 +262,23 @@ Options
     makes it a lot easier to debug and test the :option:`--auto-hosts`
     feature.
 
-.. option:: --sudoers
-
-    sshuttle will auto generate the proper sudoers.d config file and add it.
-    Once this is completed, sshuttle will exit and tell the user if
-    it succeed or not. Do not call this options with sudo, it may generate a
-    incorrect config file.
-
 .. option:: --sudoers-no-modify
 
-    sshuttle will auto generate the proper sudoers.d config and print it to
-    stdout. The option will not modify the system at all.
+    sshuttle prints a configuration to stdout which allows a user to
+    run sshuttle without a password. This option is INSECURE because,
+    with some cleverness, it also allows the user to run any command
+    as root without a password. The output also includes a suggested
+    method for you to install the configuration.
+
+    Use --sudoers-user to modify the user that it applies to.
 
 .. option:: --sudoers-user
 
-    Set the user name or group with %group_name for passwordless operation.
-    Default is the current user.set ALL for all users. Only works with
-    --sudoers or --sudoers-no-modify option.
-
-.. option:: --sudoers-filename
-
-    Set the file name for the sudoers.d file to be added. Default is
-    "sshuttle_auto". Only works with --sudoers.
+    Set the user name or group with %group_name for passwordless
+    operation. Default is the current user. Set to ALL for all users
+    (NOT RECOMMENDED: See note about security in --sudoers-no-modify
+    documentation above). Only works with the --sudoers-no-modify
+    option.
 
 .. option:: -t <mark>, --tmark=<mark>
 
