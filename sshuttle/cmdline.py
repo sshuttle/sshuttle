@@ -1,6 +1,5 @@
 import re
 import socket
-import platform
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
@@ -14,20 +13,9 @@ from sshuttle.sudoers import sudoers
 def main():
     opt = parser.parse_args()
 
-    if opt.sudoers or opt.sudoers_no_modify:
-        if platform.platform().startswith('OpenBSD'):
-            log('Automatic sudoers does not work on BSD')
-            return 1
-
-        if not opt.sudoers_filename:
-            log('--sudoers-file must be set or omitted.')
-            return 1
-
-        sudoers(
-            user_name=opt.sudoers_user,
-            no_modify=opt.sudoers_no_modify,
-            file_name=opt.sudoers_filename
-        )
+    if opt.sudoers_no_modify:
+        # sudoers() calls exit() when it completes
+        sudoers(user_name=opt.sudoers_user)
 
     if opt.daemon:
         opt.syslog = 1

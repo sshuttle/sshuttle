@@ -19,6 +19,5 @@ Installation
 Optionally after installation
 -----------------------------
 
-- Add to sudoers file::
+- Install sudoers configuration. For details, see the "Sudoers File" section in :doc:`usage`
 
-      sshuttle --sudoers

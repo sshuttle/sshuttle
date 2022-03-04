@@ -397,17 +397,14 @@ parser.add_argument(
     """
 )
 parser.add_argument(
-    "--sudoers",
-    action="store_true",
-    help="""
-    Add sshuttle to the sudoers for this user
-    """
-)
-parser.add_argument(
     "--sudoers-no-modify",
     action="store_true",
     help="""
-    Prints the sudoers config to STDOUT and DOES NOT modify anything.
+    Prints a sudo configuration to STDOUT which allows a user to
+    run sshuttle without a password. This option is INSECURE because,
+    with some cleverness, it also allows the user to run any command
+    as root without a password. The output also includes a suggested
+    method for you to install the configuration.
     """
 )
 parser.add_argument(
@@ -415,16 +412,7 @@ parser.add_argument(
     default="",
     help="""
     Set the user name or group with %%group_name for passwordless operation.
-    Default is the current user.set ALL for all users. Only works with
-    --sudoers or --sudoers-no-modify option.
-    """
-)
-parser.add_argument(
-    "--sudoers-filename",
-    default="sshuttle_auto",
-    help="""
-    Set the file name for the sudoers.d file to be added. Default is
-    "sshuttle_auto". Only works with --sudoers or --sudoers-no-modify option.
+    Default is the current user. Only works with the --sudoers-no-modify option.
     """
 )
 parser.add_argument(
