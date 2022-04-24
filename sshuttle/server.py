@@ -34,7 +34,6 @@ def _ipmatch(ipstr):
         elif g[3] is None:
             ips += '.0'
             width = min(width, 24)
-        ips = ips
         return (struct.unpack('!I', socket.inet_aton(ips))[0], width)
 
 
