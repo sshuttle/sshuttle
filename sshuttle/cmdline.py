@@ -33,7 +33,8 @@ def main():
                 parser.error('exactly zero arguments expected')
             return firewall.main(opt.method, opt.syslog)
         elif opt.hostwatch:
-            return hostwatch.hw_main(opt.subnets, opt.auto_hosts)
+            hostwatch.hw_main(opt.subnets, opt.auto_hosts)
+            return 0
         else:
             # parse_subnetports() is used to create a list of includes
             # and excludes. It is called once for each parameter and

@@ -7,8 +7,6 @@ from sshuttle.helpers import Fatal, debug3
 
 
 def original_dst(sock):
-    ip = "0.0.0.0"
-    port = -1
     try:
         family = sock.family
         SO_ORIGINAL_DST = 80
@@ -73,7 +71,7 @@ class BaseMethod(object):
     def send_udp(self, sock, srcip, dstip, data):
         if srcip is not None:
             raise Fatal("Method %s send_udp does not support setting srcip to %r"
-                  % (self.name, srcip))
+                        % (self.name, srcip))
         sock.sendto(data, dstip)
 
     def setup_tcp_listener(self, tcp_listener):
