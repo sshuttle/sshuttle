@@ -443,7 +443,7 @@ class Mux(Handler):
             # python < 3.5
             flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_GETFL)
             flags |= os.O_NONBLOCK
-            flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
+            fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
             debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
@@ -459,7 +459,7 @@ class Mux(Handler):
             # python < 3.5
             flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_GETFL)
             flags |= os.O_NONBLOCK
-            flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
+            fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
         try:
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
