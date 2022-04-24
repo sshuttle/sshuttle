@@ -72,7 +72,7 @@ class BaseMethod(object):
 
     def send_udp(self, sock, srcip, dstip, data):
         if srcip is not None:
-            Fatal("Method %s send_udp does not support setting srcip to %r"
+            raise Fatal("Method %s send_udp does not support setting srcip to %r"
                   % (self.name, srcip))
         sock.sendto(data, dstip)
 
