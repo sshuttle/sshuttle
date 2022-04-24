@@ -199,8 +199,8 @@ def main(method_name, syslog):
             break
         try:
             (family, width, exclude, ip, fport, lport) = \
-                    line.strip().split(',', 5)
-        except BaseException:
+                line.strip().split(',', 5)
+        except Exception:
             raise Fatal('expected route or NSLIST but got %r' % line)
         subnets.append((
             int(family),
@@ -222,7 +222,7 @@ def main(method_name, syslog):
             break
         try:
             (family, ip) = line.strip().split(',', 1)
-        except BaseException:
+        except Exception:
             raise Fatal('expected nslist or PORTS but got %r' % line)
         nslist.append((int(family), ip))
         debug2('Got partial nslist: %r' % nslist)
@@ -317,46 +317,46 @@ def main(method_name, syslog):
     finally:
         try:
             debug1('undoing changes.')
-        except BaseException:
+        except Exception:
             debug2('An error occurred, ignoring it.')
 
         try:
             if subnets_v6 or nslist_v6:
                 debug2('undoing IPv6 changes.')
                 method.restore_firewall(port_v6, socket.AF_INET6, udp, user)
-        except BaseException:
+        except Exception:
             try:
                 debug1("Error trying to undo IPv6 firewall.")
                 debug1(traceback.format_exc())
-            except BaseException:
+            except Exception:
                 debug2('An error occurred, ignoring it.')
 
         try:
             if subnets_v4 or nslist_v4:
                 debug2('undoing IPv4 changes.')
                 method.restore_firewall(port_v4, socket.AF_INET, udp, user)
-        except BaseException:
+        except Exception:
             try:
                 debug1("Error trying to undo IPv4 firewall.")
                 debug1(traceback.format_exc())
-            except BaseException:
+            except Exception:
                 debug2('An error occurred, ignoring it.')
 
         try:
             # debug2() message printed in restore_etc_hosts() function.
             restore_etc_hosts(hostmap, port_v6 or port_v4)
-        except BaseException:
+        except Exception:
             try:
                 debug1("Error trying to undo /etc/hosts changes.")
                 debug1(traceback.format_exc())
-            except BaseException:
+            except Exception:
                 debug2('An error occurred, ignoring it.')
 
         try:
             flush_systemd_dns_cache()
-        except BaseException:
+        except Exception:
             try:
                 debug1("Error trying to flush systemd dns cache.")
                 debug1(traceback.format_exc())
-            except BaseException:
+            except Exception:
                 debug2("An error occurred, ignoring it.")
