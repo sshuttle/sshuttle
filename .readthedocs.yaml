@@ -6,10 +6,10 @@ build:
     python: "3.9"
 
 sphinx:
-   configuration: docs/conf.py
+  configuration: docs/conf.py
 
 python:
-   install:
-   - requirements: requirements.txt
-   - method: setuptools
-     path: .
+  install:
+    - requirements: requirements.txt
+    - method: setuptools
+      path: .

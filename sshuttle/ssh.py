@@ -177,7 +177,7 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
             # it is present.
             pycmd = ("P=python3; $P -V 2>%s || P=python; "
                      "exec \"$P\" -c %s; exit 97") % \
-                     (os.devnull, quote(pyscript))
+                (os.devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
         if password is not None:
