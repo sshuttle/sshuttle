@@ -1,4 +1,5 @@
 import errno
+import shutil
 import socket
 import signal
 import sys
@@ -30,7 +31,10 @@ def rewrite_etc_hosts(hostmap, port):
         else:
             raise
     if old_content.strip() and not os.path.exists(BAKFILE):
-        os.link(HOSTSFILE, BAKFILE)
+        try:
+            os.link(HOSTSFILE, BAKFILE)
+        except OSError:
+            shutil.copyfile(HOSTSFILE, BAKFILE)
     tmpname = "%s.%d.tmp" % (HOSTSFILE, port)
     f = open(tmpname, 'w')
     for line in old_content.rstrip().split('\n'):
@@ -47,7 +51,10 @@ def rewrite_etc_hosts(hostmap, port):
     else:
         os.chown(tmpname, 0, 0)
         os.chmod(tmpname, 0o600)
-    os.rename(tmpname, HOSTSFILE)
+    try:
+        os.rename(tmpname, HOSTSFILE)
+    except OSError:
+        shutil.move(tmpname, HOSTSFILE)
 
 
 def restore_etc_hosts(hostmap, port):
