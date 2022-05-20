@@ -34,6 +34,7 @@ def rewrite_etc_hosts(hostmap, port):
         try:
             os.link(HOSTSFILE, BAKFILE)
         except OSError:
+            # file is locked - performing non-atomic copy
             shutil.copyfile(HOSTSFILE, BAKFILE)
     tmpname = "%s.%d.tmp" % (HOSTSFILE, port)
     f = open(tmpname, 'w')
@@ -54,6 +55,9 @@ def rewrite_etc_hosts(hostmap, port):
     try:
         os.rename(tmpname, HOSTSFILE)
     except OSError:
+        # file is locked - performing non-atomic copy
+        log('Warning: Using a non-atomic way to overwrite %s that can corrupt the file if '
+            'multiple processes write to it simultaneously.' % HOSTSFILE)
         shutil.move(tmpname, HOSTSFILE)
 
 
