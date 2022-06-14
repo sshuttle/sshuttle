@@ -78,7 +78,7 @@ def test_assert_features():
 
 def test_firewall_command():
     method = get_method('tproxy')
-    assert not method.firewall_command("somthing")
+    assert not method.firewall_command("something")
 
 
 @patch('sshuttle.methods.tproxy.ipt')

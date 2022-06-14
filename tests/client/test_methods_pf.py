@@ -92,7 +92,7 @@ def test_assert_features():
 @patch('sshuttle.methods.pf.pf_get_dev')
 def test_firewall_command_darwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
     method = get_method('pf')
-    assert not method.firewall_command("somthing")
+    assert not method.firewall_command("something")
 
     command = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % (
         AF_INET, socket.IPPROTO_TCP,
@@ -115,7 +115,7 @@ def test_firewall_command_darwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
 @patch('sshuttle.methods.pf.pf_get_dev')
 def test_firewall_command_freebsd(mock_pf_get_dev, mock_ioctl, mock_stdout):
     method = get_method('pf')
-    assert not method.firewall_command("somthing")
+    assert not method.firewall_command("something")
 
     command = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % (
         AF_INET, socket.IPPROTO_TCP,
@@ -138,7 +138,7 @@ def test_firewall_command_freebsd(mock_pf_get_dev, mock_ioctl, mock_stdout):
 @patch('sshuttle.methods.pf.pf_get_dev')
 def test_firewall_command_openbsd(mock_pf_get_dev, mock_ioctl, mock_stdout):
     method = get_method('pf')
-    assert not method.firewall_command("somthing")
+    assert not method.firewall_command("something")
 
     command = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % (
         AF_INET, socket.IPPROTO_TCP,

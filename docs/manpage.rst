@@ -455,7 +455,7 @@ Packet-level forwarding (eg. using the tun/tap devices on
 Linux) seems elegant at first, but it results in
 several problems, notably the 'tcp over tcp' problem.  The
 tcp protocol depends fundamentally on packets being dropped
-in order to implement its congestion control agorithm; if
+in order to implement its congestion control algorithm; if
 you pass tcp packets through a tcp-based tunnel (such as
 ssh), the inner tcp packets will never be dropped, and so
 the inner tcp stream's congestion control will be
