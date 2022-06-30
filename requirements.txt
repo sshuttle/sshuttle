@@ -1,2 +1,2 @@
-setuptools-scm==7.0.2
+setuptools-scm==7.0.3
 Sphinx==5.0.2
