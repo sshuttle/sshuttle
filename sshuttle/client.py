@@ -123,14 +123,14 @@ class MultiListener:
         self.bind_called = False
 
     def setsockopt(self, level, optname, value):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.setsockopt(level, optname, value)
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
-        assert(self.bind_called)
+        assert self.bind_called
         socks = []
         if self.v6:
             socks.append(self.v6)
@@ -145,7 +145,7 @@ class MultiListener:
         )
 
     def listen(self, backlog):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
@@ -160,7 +160,7 @@ class MultiListener:
                     raise e
 
     def bind(self, address_v6, address_v4):
-        assert(not self.bind_called)
+        assert not self.bind_called
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
@@ -189,7 +189,7 @@ class MultiListener:
             self.v4 = None
 
     def print_listening(self, what):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             listenip = self.v6.getsockname()
             debug1('%s listening on %r.' % (what, listenip))
@@ -374,8 +374,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(br'[^-\w\.]', hostname))
-        assert(not re.search(br'[^0-9.]', ip))
+        assert not re.search(br'[^-\w\.]', hostname)
+        assert not re.search(br'[^0-9.]', ip)
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
@@ -973,7 +973,7 @@ def main(listenip_v6, listenip_v4,
                 raise e
 
     if not bound:
-        assert(last_e)
+        assert last_e
         raise last_e
     tcp_listener.listen(10)
     tcp_listener.print_listening("TCP redirector")
@@ -1019,7 +1019,7 @@ def main(listenip_v6, listenip_v4,
 
         dns_listener.print_listening("DNS")
         if not bound:
-            assert(last_e)
+            assert last_e
             raise last_e
     else:
         dnsport_v6 = 0

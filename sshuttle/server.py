@@ -302,7 +302,7 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         hw.leftover = b('')
 
         def hostwatch_ready(sock):
-            assert(hw.pid)
+            assert hw.pid
             content = hw.sock.recv(4096)
             if content:
                 lines = (hw.leftover + content).split(b('\n'))
@@ -380,7 +380,7 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
 
         while mux.ok:
             if hw.pid:
-                assert(hw.pid > 0)
+                assert hw.pid > 0
                 (rpid, rv) = os.waitpid(hw.pid, os.WNOHANG)
                 if rpid:
                     raise Fatal(

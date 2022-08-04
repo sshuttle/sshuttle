@@ -127,7 +127,7 @@ class Method(BaseMethod):
 
         def _ipt_proto_ports(proto, fport, lport):
             return proto + ('--dport', '%d:%d' % (fport, lport)) \
-                    if fport else proto
+                if fport else proto
 
         mark_chain = 'sshuttle-m-%s' % port
         tproxy_chain = 'sshuttle-t-%s' % port

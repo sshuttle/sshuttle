@@ -250,14 +250,14 @@ def main(method_name, syslog):
     dnsport_v6 = int(ports[2])
     dnsport_v4 = int(ports[3])
 
-    assert(port_v6 >= 0)
-    assert(port_v6 <= 65535)
-    assert(port_v4 >= 0)
-    assert(port_v4 <= 65535)
-    assert(dnsport_v6 >= 0)
-    assert(dnsport_v6 <= 65535)
-    assert(dnsport_v4 >= 0)
-    assert(dnsport_v4 <= 65535)
+    assert port_v6 >= 0
+    assert port_v6 <= 65535
+    assert port_v4 >= 0
+    assert port_v4 <= 65535
+    assert dnsport_v6 >= 0
+    assert dnsport_v6 <= 65535
+    assert dnsport_v4 >= 0
+    assert dnsport_v4 <= 65535
 
     debug2('Got ports: %d,%d,%d,%d'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))

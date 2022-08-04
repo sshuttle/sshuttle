@@ -52,7 +52,7 @@ def _fill_oldctls(prefix):
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=get_env())
     for line in p.stdout:
         line = line.decode()
-        assert(line[-1] == '\n')
+        assert line[-1] == '\n'
         (k, v) = line[:-1].split(': ', 1)
         _oldctls[k] = v.strip()
     rv = p.wait()
@@ -74,7 +74,7 @@ _changedctls = []
 
 def sysctl_set(name, val, permanent=False):
     PREFIX = 'net.inet.ip'
-    assert(name.startswith(PREFIX + '.'))
+    assert name.startswith(PREFIX + '.')
     val = str(val)
     if not _oldctls:
         _fill_oldctls(PREFIX)
