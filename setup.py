@@ -20,19 +20,8 @@
 from setuptools import setup, find_packages
 
 
-def version_scheme(version):
-    from setuptools_scm.version import guess_next_dev_version
-    version = guess_next_dev_version(version)
-    return version.lstrip("v")
-
-
 setup(
     name="sshuttle",
-    use_scm_version={
-        'write_to': "sshuttle/version.py",
-        'version_scheme': version_scheme,
-    },
-    setup_requires=['setuptools_scm'],
     # version=version,
     url='https://github.com/sshuttle/sshuttle',
     author='Brian May',
