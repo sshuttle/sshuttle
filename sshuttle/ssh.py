@@ -175,9 +175,10 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             # case, sshuttle might not work at all since it is not
             # possible to run python on the remote machine---even if
             # it is present.
+            devnull='/dev/null'
             pycmd = ("P=python3; $P -V 2>%s || P=python; "
                      "exec \"$P\" -c %s; exit 97") % \
-                (os.devnull, quote(pyscript))
+                (devnull, quote(pyscript))
             pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
         if password is not None:
@@ -203,19 +204,56 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
         raise Fatal("Failed to find '%s' in path %s" % (argv[0], get_path()))
     argv[0] = abs_path
 
-    (s1, s2) = socket.socketpair()
 
-    def setup():
-        # runs in the child process
-        s2.close()
-    s1a, s1b = os.dup(s1.fileno()), os.dup(s1.fileno())
-    s1.close()
+    if sys.platform != 'win32':
+        (s1, s2) = socket.socketpair()
+        def preexec_fn():
+            # runs in the child process
+            s2.close()
+        pstdin, pstdout = os.dup(s1.fileno()), os.dup(s1.fileno())
+        s1.close()
 
-    debug2('executing: %r' % argv)
-    p = ssubprocess.Popen(argv, stdin=s1a, stdout=s1b, preexec_fn=setup,
-                          close_fds=True, stderr=stderr)
-    os.close(s1a)
-    os.close(s1b)
-    s2.sendall(content)
-    s2.sendall(content2)
-    return p, s2
+        def get_serversock():
+            os.close(pstdin)
+            os.close(pstdout)
+            return s2
+    else:
+        (s1, s2) = socket.socketpair()
+        preexec_fn = None
+        pstdin = ssubprocess.PIPE
+        pstdout = ssubprocess.PIPE
+        def get_serversock():
+            import threading
+            def steam_stdout_to_sock():
+                while True:
+                    data = p.stdout.read(1)
+                    if not data:
+                        debug2("EOF on ssh process stdout. Process probably exited")
+                        break
+                    n = s1.sendall(data)
+                    print("<<<<< p.stdout.read()", len(data), '->', n, data[:min(32,len(data))])
+            def stream_sock_to_stdin():
+                while True:
+                    data = s1.recv(16384)
+                    if not data:
+                        print(">>>>>> EOF stream_sock_to_stdin")
+                        break
+                    n = p.stdin.write(data)
+                    print(">>>>>> s1.recv()", len(data) , "->" , n , data[:min(32,len(data))])
+                    p.communicate
+            threading.Thread(target=steam_stdout_to_sock,  name='steam_stdout_to_sock', daemon=True).start()
+            threading.Thread(target=stream_sock_to_stdin, name='stream_sock_to_stdin',  daemon=True).start()
+            # s2.setblocking(False)
+            return s2
+
+    # https://stackoverflow.com/questions/48671215/howto-workaround-of-close-fds-true-and-redirect-stdout-stderr-on-windows
+    close_fds = False if sys.platform == 'win32' else True
+
+    debug2("executing: %r" % argv)
+    p = ssubprocess.Popen(argv, stdin=pstdin, stdout=pstdout, preexec_fn=preexec_fn,
+                        close_fds=close_fds, stderr=stderr, bufsize=0)
+
+    serversock = get_serversock()
+    serversock.sendall(content)
+    serversock.sendall(content2)
+    return p, serversock

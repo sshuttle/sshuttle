@@ -14,7 +14,7 @@ import sshuttle.ssyslog as ssyslog
 import sshuttle.sdnotify as sdnotify
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-    resolvconf_nameservers, which
+    resolvconf_nameservers, which, is_admin_user
 from sshuttle.methods import get_method, Features
 from sshuttle import __version__
 try:
@@ -219,67 +219,97 @@ class FirewallClient:
         # A list of commands that we can try to run to start the firewall.
         argv_tries = []
 
-        if os.getuid() == 0:  # No need to elevate privileges
+        if is_admin_user():  # No need to elevate privileges
             argv_tries.append(argvbase)
         else:
-            # Linux typically uses sudo; OpenBSD uses doas. However, some
-            # Linux distributions are starting to use doas.
-            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
-            doas_cmd = ['doas']
-
-            # For clarity, try to replace executable name with the
-            # full path.
-            doas_path = which("doas")
-            if doas_path:
-                doas_cmd[0] = doas_path
-            sudo_path = which("sudo")
-            if sudo_path:
-                sudo_cmd[0] = sudo_path
-
-            # sudo_pythonpath indicates if we should set the
-            # PYTHONPATH environment variable when elevating
-            # privileges. This can be adjusted with the
-            # --no-sudo-pythonpath option.
-            if sudo_pythonpath:
-                pp_prefix = ['/usr/bin/env',
-                             'PYTHONPATH=%s' %
-                             os.path.dirname(os.path.dirname(__file__))]
-                sudo_cmd = sudo_cmd + pp_prefix
-                doas_cmd = doas_cmd + pp_prefix
-
-            # Final order should be: sudo/doas command, env
-            # pythonpath, and then argvbase (sshuttle command).
-            sudo_cmd = sudo_cmd + argvbase
-            doas_cmd = doas_cmd + argvbase
-
-            # If we can find doas and not sudo or if we are on
-            # OpenBSD, try using doas first.
-            if (doas_path and not sudo_path) or \
-               platform.platform().startswith('OpenBSD'):
-                argv_tries = [doas_cmd, sudo_cmd, argvbase]
+            if sys.platform == 'win32':
+                argv_tries.append(argvbase)
+                # runas_path = which("runas")
+                # if runas_path:
+                    # argv_tries.append(['runas' , '/noprofile', '/user:Administrator',  'python'])
             else:
-                argv_tries = [sudo_cmd, doas_cmd, argvbase]
+                # Linux typically uses sudo; OpenBSD uses doas. However, some
+                # Linux distributions are starting to use doas.
+                sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
+                doas_cmd = ['doas']
+
+                # For clarity, try to replace executable name with the
+                # full path.
+                doas_path = which("doas")
+                if doas_path:
+                    doas_cmd[0] = doas_path
+                sudo_path = which("sudo")
+                if sudo_path:
+                    sudo_cmd[0] = sudo_path
+
+                # sudo_pythonpath indicates if we should set the
+                # PYTHONPATH environment variable when elevating
+                # privileges. This can be adjusted with the
+                # --no-sudo-pythonpath option.
+                if sudo_pythonpath:
+                    pp_prefix = ['/usr/bin/env',
+                                'PYTHONPATH=%s' %
+                                os.path.dirname(os.path.dirname(__file__))]
+                    sudo_cmd = sudo_cmd + pp_prefix
+                    doas_cmd = doas_cmd + pp_prefix
+
+                # Final order should be: sudo/doas command, env
+                # pythonpath, and then argvbase (sshuttle command).
+                sudo_cmd = sudo_cmd + argvbase
+                doas_cmd = doas_cmd + argvbase
+
+                # If we can find doas and not sudo or if we are on
+                # OpenBSD, try using doas first.
+                if (doas_path and not sudo_path) or \
+                platform.platform().startswith('OpenBSD'):
+                    argv_tries = [doas_cmd, sudo_cmd, argvbase]
+                else:
+                    argv_tries = [sudo_cmd, doas_cmd, argvbase]
 
         # Try all commands in argv_tries in order. If a command
         # produces an error, try the next one. If command is
         # successful, set 'success' variable and break.
         success = False
         for argv in argv_tries:
-            # we can't use stdin/stdout=subprocess.PIPE here, as we
-            # normally would, because stupid Linux 'su' requires that
-            # stdin be attached to a tty. Instead, attach a
-            # *bidirectional* socket to its stdout, and use that for
-            # talking in both directions.
-            (s1, s2) = socket.socketpair()
 
-            def setup():
-                # run in the child process
-                s2.close()
+            if sys.platform != 'win32':
+                # we can't use stdin/stdout=subprocess.PIPE here, as we
+                # normally would, because stupid Linux 'su' requires that
+                # stdin be attached to a tty. Instead, attach a
+                # *bidirectional* socket to its stdout, and use that for
+                # talking in both directions.
+                (s1, s2) = socket.socketpair()
+                pstdout = s1
+                pstdin = s1
+                penv = None
+                def preexec_fn():
+                    # run in the child process
+                    s2.close()
+                def get_pfile():
+                    s1.close()
+                    return s2.makefile('rwb')
+
+            else:
+                (s1, s2) = socket.socketpair()
+                pstdout = None
+                pstdin = ssubprocess.PIPE
+                preexec_fn = None
+                penv = os.environ.copy()
+                penv['PYTHONPATH'] =  os.path.dirname(os.path.dirname(__file__))
+                def get_pfile():
+                    import base64
+                    socket_share_data = s1.share(self.p.pid)
+                    s1.close()
+                    socket_share_data_b64 = base64.b64encode(socket_share_data)
+                    # debug3(f"{socket_share_data_b64=}")
+                    self.p.stdin.write(socket_share_data_b64 + b'\n')
+                    self.p.stdin.flush()
+                    return s2.makefile('rwb')
 
             try:
                 debug1("Starting firewall manager with command: %r" % argv)
-                self.p = ssubprocess.Popen(argv, stdout=s1, stdin=s1,
-                                           preexec_fn=setup)
+                self.p = ssubprocess.Popen(argv, stdout=pstdout, stdin=pstdin, env=penv,
+                                           preexec_fn=preexec_fn)
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
             except OSError as e:
                 # This exception will occur if the program isn't
@@ -287,11 +317,15 @@ class FirewallClient:
                 debug1('Unable to start firewall manager. Popen failed. '
                        'Command=%r Exception=%s' % (argv, e))
                 continue
-
             self.argv = argv
-            s1.close()
-            self.pfile = s2.makefile('rwb')
-            line = self.pfile.readline()
+            
+            self.pfile = get_pfile()
+
+            try:
+                line = self.pfile.readline()
+            except ConnectionResetError:
+                # happens in Windows, when subprocess exists
+                line=''
 
             rv = self.p.poll()   # Check if process is still running
             if rv:
@@ -327,14 +361,14 @@ class FirewallClient:
                        'Command=%r' % (skipped_text, self.argv))
                 continue
 
-            method_name = line[6:-1]
+            method_name = line.strip()[6:]
             self.method = get_method(method_name.decode("ASCII"))
             self.method.set_firewall(self)
             success = True
             break
 
         if not success:
-            raise Fatal("All attempts to elevate privileges failed.")
+            raise Fatal("All attempts to run firewall client with elevated privileges were failed.")
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
@@ -397,9 +431,9 @@ class FirewallClient:
                          (udp, user, group, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
-        line = self.pfile.readline()
+        line = self.pfile.readline().strip()
         self.check()
-        if line != b'STARTED\n':
+        if line != b'STARTED':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
@@ -562,24 +596,26 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
+            debug3('Error: EPIPE: ' + repr(e))
             raise Fatal("failed to establish ssh session (1)")
         else:
             raise
-    mux = Mux(serversock.makefile("rb"), serversock.makefile("wb"))
+    rfile, wfile = serversock.makefile("rb"), serversock.makefile("wb")
+    mux = Mux(rfile, wfile)
     handlers.append(mux)
 
     expected = b'SSHUTTLE0001'
-
     try:
         v = 'x'
         while v and v != b'\0':
-            v = serversock.recv(1)
+            v = rfile.read(1)
         v = 'x'
         while v and v != b'\0':
-            v = serversock.recv(1)
-        initstring = serversock.recv(len(expected))
+            v = rfile.read(1)
+        initstring = rfile.read(len(expected))
     except socket.error as e:
         if e.args[0] == errno.ECONNRESET:
+            debug3('Error: ECONNRESET ' + repr(e))
             raise Fatal("failed to establish ssh session (2)")
         else:
             raise

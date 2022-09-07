@@ -7,10 +7,12 @@ import os
 import platform
 import traceback
 import subprocess as ssubprocess
+import base64
+import io
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
-from sshuttle.helpers import log, debug1, debug2, Fatal
+from sshuttle.helpers import is_admin_user, log, debug1, debug2, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
 HOSTSFILE = '/etc/hosts'
@@ -87,8 +89,8 @@ def firewall_exit(signum, frame):
 
 
 # Isolate function that needs to be replaced for tests
-def setup_daemon():
-    if os.getuid() != 0:
+def _setup_daemon_unix():
+    if not is_admin_user():
         raise Fatal('You must be root (or enable su/sudo) to set the firewall')
 
     # don't disappear if our controlling terminal or stdout/stderr
@@ -112,6 +114,25 @@ def setup_daemon():
 
     return sys.stdin, sys.stdout
 
+
+def _setup_daemon_windows():
+    if not is_admin_user():
+        raise Fatal('You must be administrator to set the firewall')
+
+    signal.signal(signal.SIGTERM, firewall_exit)
+    signal.signal(signal.SIGINT, firewall_exit)
+    socket_share_data_b64 = sys.stdin.readline()
+    # debug3(f'FROM_SHARE ${socket_share_data_b64=}')
+    socket_share_data = base64.b64decode(socket_share_data_b64)
+    sock = socket.fromshare(socket_share_data)
+    sys.stdin = io.TextIOWrapper(sock.makefile('rb'))
+    sys.stdout = io.TextIOWrapper(sock.makefile('wb'))
+    return sys.stdin, sys.stdout
+
+if sys.platform == 'win32':
+    setup_daemon = _setup_daemon_windows
+else:
+    setup_daemon = _setup_daemon_unix
 
 # Note that we're sorting in a very particular order:
 # we need to go from smaller, more specific, port ranges, to larger,
@@ -190,9 +211,13 @@ def main(method_name, syslog):
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
-    line = stdin.readline(128)
-    if not line:
-        return  # parent died; nothing to do
+    try:
+        line = stdin.readline(128)
+        if not line:
+            return  # parent died; nothing to do
+    except ConnectionResetError:   
+        # On windows, this is thrown when parent process closes it's socket pair end
+        return
 
     subnets = []
     if line != 'ROUTES\n':

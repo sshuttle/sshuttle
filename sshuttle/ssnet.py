@@ -4,7 +4,9 @@ import socket
 import errno
 import select
 import os
-import fcntl
+
+if sys.platform != "win32":
+    import fcntl
 
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
 
@@ -213,7 +215,10 @@ class SockWrapper:
             return 0  # still connecting
         self.wsock.setblocking(False)
         try:
-            return _nb_clean(os.write, self.wsock.fileno(), buf)
+            if sys.platform == 'win32':
+                return _nb_clean(self.wsock.send, buf)
+            else:
+                return _nb_clean(os.write, self.wsock.fileno(), buf)
         except OSError:
             _, e = sys.exc_info()[:2]
             if e.errno == errno.EPIPE:
@@ -236,7 +241,10 @@ class SockWrapper:
             return
         self.rsock.setblocking(False)
         try:
-            return _nb_clean(os.read, self.rsock.fileno(), 65536)
+            if sys.platform == 'win32':
+                return _nb_clean(self.rsock.recv, 65536)
+            else:
+                return _nb_clean(os.read, self.rsock.fileno(), 65536)
         except OSError:
             _, e = sys.exc_info()[:2]
             self.seterr('uread: %s' % e)
@@ -431,15 +439,22 @@ class Mux(Handler):
                 callback(cmd, data)
 
     def flush(self):
-        try:
-            os.set_blocking(self.wfile.fileno(), False)
-        except AttributeError:
-            # python < 3.5
-            flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_GETFL)
-            flags |= os.O_NONBLOCK
-            fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
+        if sys.platform != "win32":
+            try:
+                os.set_blocking(self.wfile.fileno(), False)
+            except AttributeError:
+                # python < 3.5
+                flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_GETFL)
+                flags |= os.O_NONBLOCK
+                fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
+        else:
+            self.wfile.raw._sock.setblocking(False)
+
         if self.outbuf and self.outbuf[0]:
-            wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
+            if sys.platform == 'win32':
+                wrote = _nb_clean(self.wfile.raw._sock.send, self.outbuf[0])
+            else:
+                wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
             debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
@@ -447,18 +462,26 @@ class Mux(Handler):
             self.outbuf[0:1] = []
 
     def fill(self):
-        try:
-            os.set_blocking(self.rfile.fileno(), False)
-        except AttributeError:
-            # python < 3.5
-            flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_GETFL)
-            flags |= os.O_NONBLOCK
-            fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
+        if sys.platform != "win32":
+            try:
+                os.set_blocking(self.rfile.fileno(), False)
+            except AttributeError:
+                # python < 3.5
+                flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_GETFL)
+                flags |= os.O_NONBLOCK
+                fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
+        else:
+            self.rfile.raw._sock.setblocking(False)
+
         try:
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
-            read = _nb_clean(os.read, self.rfile.fileno(),
-                             min(1048576, LATENCY_BUFFER_SIZE))
+            if sys.platform == 'win32':
+                read = _nb_clean(self.rfile.raw._sock.recv,
+                                min(1048576, LATENCY_BUFFER_SIZE))
+            else:
+                read = _nb_clean(os.read, self.rfile.fileno(),
+                                min(1048576, LATENCY_BUFFER_SIZE))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)

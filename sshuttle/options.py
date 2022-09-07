@@ -1,5 +1,6 @@
 import re
 import socket
+import sys
 from argparse import ArgumentParser, Action, ArgumentTypeError as Fatal
 
 from sshuttle import __version__
@@ -236,7 +237,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--method",
-    choices=["auto", "nat", "nft", "tproxy", "pf", "ipfw"],
+    choices=["auto", "nat", "nft", "tproxy", "pf", "ipfw"] if sys.platform != 'win32' else ["auto", "windivert"],
     metavar="TYPE",
     default="auto",
     help="""
