@@ -233,4 +233,4 @@ def is_admin_user():
         except:
             return False
 
-    return os.getuid() != 0
+    return os.getuid() == 0
