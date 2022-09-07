@@ -220,3 +220,14 @@ def which(file, mode=os.F_OK | os.X_OK):
     else:
         debug2("which() could not find '%s' in %s" % (file, path))
     return rv
+
+def is_admin_user():
+    if sys.platform == 'win32':
+        import ctypes
+        # https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script/41930586#41930586
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+
+    return os.getuid() != 0

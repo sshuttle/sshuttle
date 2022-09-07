@@ -1,6 +1,7 @@
 import importlib
 import socket
 import struct
+import sys
 import errno
 import ipaddress
 from sshuttle.helpers import Fatal, debug3
@@ -109,7 +110,7 @@ def get_method(method_name):
 def get_auto_method():
     debug3("Selecting a method automatically...")
     # Try these methods, in order:
-    methods_to_try = ["nat", "nft", "pf", "ipfw"]
+    methods_to_try = ["nat", "nft", "pf", "ipfw"] if sys.platform != "win32" else ["windivert"]
     for m in methods_to_try:
         method = get_method(m)
         if method.is_supported():
