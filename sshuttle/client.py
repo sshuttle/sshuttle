@@ -226,7 +226,10 @@ class FirewallClient:
                 argv_tries.append(argvbase)
                 # runas_path = which("runas")
                 # if runas_path:
-                # argv_tries.append(['runas' , '/noprofile', '/user:Administrator',  'python'])
+                #   argv_tries.append([runas_path , '/noprofile', '/user:Administrator',  'python'])
+                # XXX:attempt to elevate privilege using 'runas' in windows seems not working.
+                # This is due to underlying ShellExecute() Windows api does not allow child process to inherit stdio.
+                # TODO(nom3ad): try to implement another way to achieve this.
             else:
                 # Linux typically uses sudo; OpenBSD uses doas. However, some
                 # Linux distributions are starting to use doas.
@@ -303,7 +306,6 @@ class FirewallClient:
                     socket_share_data = s1.share(self.p.pid)
                     s1.close()
                     socket_share_data_b64 = base64.b64encode(socket_share_data)
-                    # debug3(f"{socket_share_data_b64=}")
                     self.p.stdin.write(socket_share_data_b64 + b'\n')
                     self.p.stdin.flush()
                     return s2.makefile('rwb')

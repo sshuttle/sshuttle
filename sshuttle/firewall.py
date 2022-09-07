@@ -328,6 +328,8 @@ def main(method_name, syslog):
                 user, group, tmark)
 
         try:
+            # For some methods (eg: windivert) firewall setup will be differed / will run asynchronously.
+            # Such method implements wait_for_firewall_ready() to wait until firewall is up and running.
             method.wait_for_firewall_ready()
         except NotImplementedError:
             pass
@@ -347,9 +349,7 @@ def main(method_name, syslog):
         # authentication at shutdown time - that cleanup is important!
         while 1:
             try:
-                debug3("===================================================")
                 line = stdin.readline(128)
-                debug3("===================================================" + str(line))
             except IOError as e:
                 debug3('read from stdin failed: %s' % (e,))
                 return

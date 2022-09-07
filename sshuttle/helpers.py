@@ -227,8 +227,8 @@ def which(file, mode=os.F_OK | os.X_OK):
 
 def is_admin_user():
     if sys.platform == 'win32':
-        import ctypes
         # https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script/41930586#41930586
+        import ctypes
         try:
             return ctypes.windll.shell32.IsUserAnAdmin()
         except Exception:
