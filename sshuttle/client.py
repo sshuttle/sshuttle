@@ -323,8 +323,8 @@ class FirewallClient:
 
             try:
                 line = self.pfile.readline()
-            except ConnectionResetError:
-                # happens in Windows, when subprocess exists
+            except IOError:
+                # happens when firewall subprocess exists
                 line=''
 
             rv = self.p.poll()   # Check if process is still running

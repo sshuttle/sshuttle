@@ -12,7 +12,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import sshuttle.helpers as helpers
-from sshuttle.helpers import debug2, which, get_path, Fatal
+from sshuttle.helpers import debug2, debug3, which, get_path, Fatal
 
 
 def get_module_source(name):
@@ -224,24 +224,31 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
         pstdout = ssubprocess.PIPE
         def get_serversock():
             import threading
-            def steam_stdout_to_sock():
-                while True:
-                    data = p.stdout.read(1)
-                    if not data:
-                        debug2("EOF on ssh process stdout. Process probably exited")
-                        break
-                    n = s1.sendall(data)
-                    print("<<<<< p.stdout.read()", len(data), '->', n, data[:min(32,len(data))])
+
+            def stream_stdout_to_sock():
+                try:
+                    fd = p.stdout.fileno()
+                    for data in iter(lambda:os.read(fd, 16384), b''):
+                        s1.sendall(data)
+                        debug3(f"<<<<< p.stdout.read() {len(data)} {data[:min(32,len(data))]}...")
+                finally:
+                    debug2("Thread 'stream_stdout_to_sock' exiting")
+                    s1.close()
+                    p.terminate()
+
             def stream_sock_to_stdin():
-                while True:
-                    data = s1.recv(16384)
-                    if not data:
-                        print(">>>>>> EOF stream_sock_to_stdin")
-                        break
-                    n = p.stdin.write(data)
-                    print(">>>>>> s1.recv()", len(data) , "->" , n , data[:min(32,len(data))])
-                    p.communicate
-            threading.Thread(target=steam_stdout_to_sock,  name='steam_stdout_to_sock', daemon=True).start()
+                try:
+                    for data in iter(lambda:s1.recv(16384), b''):
+                        debug3(f">>>>> p.stdout.write() {len(data)} {data[:min(32,len(data))]}...")
+                        while data:
+                            n = p.stdin.write(data)
+                            data = data[n:]
+                finally:
+                    debug2("Thread 'stream_sock_to_stdin' exiting")
+                    s1.close()
+                    p.terminate()
+                
+            threading.Thread(target=stream_stdout_to_sock,  name='stream_stdout_to_sock', daemon=True).start()
             threading.Thread(target=stream_sock_to_stdin, name='stream_sock_to_stdin',  daemon=True).start()
             # s2.setblocking(False)
             return s2
