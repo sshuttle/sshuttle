@@ -14,7 +14,10 @@ def b(s):
 def log(s):
     global logprefix
     try:
-        sys.stdout.flush()
+        try:
+            sys.stdout.flush()
+        except (IOError,ValueError):
+            pass
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
