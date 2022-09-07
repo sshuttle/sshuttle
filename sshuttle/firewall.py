@@ -12,7 +12,7 @@ import io
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
-from sshuttle.helpers import is_admin_user, log, debug1, debug2, Fatal
+from sshuttle.helpers import is_admin_user, log, debug1, debug2, debug3, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
 HOSTSFILE = '/etc/hosts'
@@ -214,9 +214,11 @@ def main(method_name, syslog):
     try:
         line = stdin.readline(128)
         if not line:
-            return  # parent died; nothing to do
-    except ConnectionResetError:   
-        # On windows, this is thrown when parent process closes it's socket pair end
+            # parent probably exited
+            return  
+    except IOError:   
+        # On windows, this ConnectionResetError is thrown when parent process closes it's socket pair end
+        debug3('read from stdin failed: %s' % (e,))
         return
 
     subnets = []
@@ -322,21 +324,26 @@ def main(method_name, syslog):
                 socket.AF_INET, subnets_v4, udp,
                 user, group, tmark)
 
-        flush_systemd_dns_cache()
-        stdout.write('STARTED\n')
+        if sys.platform != 'win32':
+            flush_systemd_dns_cache()
+
 
         try:
+            stdout.write('STARTED\n')
             stdout.flush()
-        except IOError:
-            # the parent process died for some reason; he's surely been loud
-            # enough, so no reason to report another error
+        except IOError as e:
+            debug3('write to stdout failed: %s' % (e,))
             return
 
         # Now we wait until EOF or any other kind of exception.  We need
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            line = stdin.readline(128)
+            try:
+                line = stdin.readline(128)
+            except IOError as e:
+                debug3('read from stdin failed: %s' % (e,))
+                return
             if line.startswith('HOST '):
                 (name, ip) = line[5:].strip().split(',', 1)
                 hostmap[name] = ip
@@ -385,11 +392,12 @@ def main(method_name, syslog):
             except Exception:
                 debug2('An error occurred, ignoring it.')
 
-        try:
-            flush_systemd_dns_cache()
-        except Exception:
+        if sys.platform != 'win32':
             try:
-                debug1("Error trying to flush systemd dns cache.")
-                debug1(traceback.format_exc())
+                flush_systemd_dns_cache()
             except Exception:
-                debug2("An error occurred, ignoring it.")
+                try:
+                    debug1("Error trying to flush systemd dns cache.")
+                    debug1(traceback.format_exc())
+                except Exception:
+                    debug2("An error occurred, ignoring it.")
