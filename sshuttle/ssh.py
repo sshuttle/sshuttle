@@ -175,7 +175,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             # case, sshuttle might not work at all since it is not
             # possible to run python on the remote machine---even if
             # it is present.
-            devnull='/dev/null'
+            devnull = '/dev/null'
             pycmd = ("P=python3; $P -V 2>%s || P=python; "
                      "exec \"$P\" -c %s; exit 97") % \
                 (devnull, quote(pyscript))
@@ -204,9 +204,9 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
         raise Fatal("Failed to find '%s' in path %s" % (argv[0], get_path()))
     argv[0] = abs_path
 
-
     if sys.platform != 'win32':
         (s1, s2) = socket.socketpair()
+
         def preexec_fn():
             # runs in the child process
             s2.close()
@@ -222,13 +222,14 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
         preexec_fn = None
         pstdin = ssubprocess.PIPE
         pstdout = ssubprocess.PIPE
+
         def get_serversock():
             import threading
 
             def stream_stdout_to_sock():
                 try:
                     fd = p.stdout.fileno()
-                    for data in iter(lambda:os.read(fd, 16384), b''):
+                    for data in iter(lambda: os.read(fd, 16384), b''):
                         s1.sendall(data)
                         debug3(f"<<<<< p.stdout.read() {len(data)} {data[:min(32,len(data))]}...")
                 finally:
@@ -238,7 +239,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
 
             def stream_sock_to_stdin():
                 try:
-                    for data in iter(lambda:s1.recv(16384), b''):
+                    for data in iter(lambda: s1.recv(16384), b''):
                         debug3(f">>>>> p.stdout.write() {len(data)} {data[:min(32,len(data))]}...")
                         while data:
                             n = p.stdin.write(data)
@@ -247,7 +248,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
                     debug2("Thread 'stream_sock_to_stdin' exiting")
                     s1.close()
                     p.terminate()
-                
+
             threading.Thread(target=stream_stdout_to_sock,  name='stream_stdout_to_sock', daemon=True).start()
             threading.Thread(target=stream_sock_to_stdin, name='stream_sock_to_stdin',  daemon=True).start()
             # s2.setblocking(False)
@@ -258,7 +259,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
 
     debug2("executing: %r" % argv)
     p = ssubprocess.Popen(argv, stdin=pstdin, stdout=pstdout, preexec_fn=preexec_fn,
-                        close_fds=close_fds, stderr=stderr, bufsize=0)
+                          close_fds=close_fds, stderr=stderr, bufsize=0)
 
     serversock = get_serversock()
     serversock.sendall(content)
