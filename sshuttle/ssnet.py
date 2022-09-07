@@ -477,11 +477,9 @@ class Mux(Handler):
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
             if sys.platform == 'win32':
-                read = _nb_clean(self.rfile.raw._sock.recv,
-                                min(1048576, LATENCY_BUFFER_SIZE))
+                read = _nb_clean(self.rfile.raw._sock.recv, min(1048576, LATENCY_BUFFER_SIZE))
             else:
-                read = _nb_clean(os.read, self.rfile.fileno(),
-                                min(1048576, LATENCY_BUFFER_SIZE))
+                read = _nb_clean(os.read, self.rfile.fileno(), min(1048576, LATENCY_BUFFER_SIZE))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)

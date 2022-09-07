@@ -130,10 +130,12 @@ def _setup_daemon_windows():
     sock.close()
     return sys.stdin, sys.stdout
 
+
 if sys.platform == 'win32':
     setup_daemon = _setup_daemon_windows
 else:
     setup_daemon = _setup_daemon_unix
+
 
 # Note that we're sorting in a very particular order:
 # we need to go from smaller, more specific, port ranges, to larger,
@@ -216,8 +218,8 @@ def main(method_name, syslog):
         line = stdin.readline(128)
         if not line:
             # parent probably exited
-            return  
-    except IOError:   
+            return
+    except IOError as e:
         # On windows, this ConnectionResetError is thrown when parent process closes it's socket pair end
         debug3('read from stdin failed: %s' % (e,))
         return

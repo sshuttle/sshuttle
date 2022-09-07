@@ -226,7 +226,7 @@ class FirewallClient:
                 argv_tries.append(argvbase)
                 # runas_path = which("runas")
                 # if runas_path:
-                    # argv_tries.append(['runas' , '/noprofile', '/user:Administrator',  'python'])
+                # argv_tries.append(['runas' , '/noprofile', '/user:Administrator',  'python'])
             else:
                 # Linux typically uses sudo; OpenBSD uses doas. However, some
                 # Linux distributions are starting to use doas.
@@ -248,8 +248,8 @@ class FirewallClient:
                 # --no-sudo-pythonpath option.
                 if sudo_pythonpath:
                     pp_prefix = ['/usr/bin/env',
-                                'PYTHONPATH=%s' %
-                                os.path.dirname(os.path.dirname(__file__))]
+                                 'PYTHONPATH=%s' %
+                                 os.path.dirname(os.path.dirname(__file__))]
                     sudo_cmd = sudo_cmd + pp_prefix
                     doas_cmd = doas_cmd + pp_prefix
 
@@ -260,8 +260,7 @@ class FirewallClient:
 
                 # If we can find doas and not sudo or if we are on
                 # OpenBSD, try using doas first.
-                if (doas_path and not sudo_path) or \
-                platform.platform().startswith('OpenBSD'):
+                if (doas_path and not sudo_path) or platform.platform().startswith('OpenBSD'):
                     argv_tries = [doas_cmd, sudo_cmd, argvbase]
                 else:
                     argv_tries = [sudo_cmd, doas_cmd, argvbase]
@@ -282,9 +281,11 @@ class FirewallClient:
                 pstdout = s1
                 pstdin = s1
                 penv = None
+
                 def preexec_fn():
                     # run in the child process
                     s2.close()
+
                 def get_pfile():
                     s1.close()
                     return s2.makefile('rwb')
@@ -295,7 +296,8 @@ class FirewallClient:
                 pstdin = ssubprocess.PIPE
                 preexec_fn = None
                 penv = os.environ.copy()
-                penv['PYTHONPATH'] =  os.path.dirname(os.path.dirname(__file__))
+                penv['PYTHONPATH'] = os.path.dirname(os.path.dirname(__file__))
+
                 def get_pfile():
                     import base64
                     socket_share_data = s1.share(self.p.pid)
@@ -318,14 +320,13 @@ class FirewallClient:
                        'Command=%r Exception=%s' % (argv, e))
                 continue
             self.argv = argv
-            
             self.pfile = get_pfile()
 
             try:
                 line = self.pfile.readline()
             except IOError:
                 # happens when firewall subprocess exists
-                line=''
+                line = ''
 
             rv = self.p.poll()   # Check if process is still running
             if rv:
