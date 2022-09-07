@@ -125,8 +125,9 @@ def _setup_daemon_windows():
     # debug3(f'FROM_SHARE ${socket_share_data_b64=}')
     socket_share_data = base64.b64decode(socket_share_data_b64)
     sock = socket.fromshare(socket_share_data)
-    sys.stdin = io.TextIOWrapper(sock.makefile('rb'))
-    sys.stdout = io.TextIOWrapper(sock.makefile('wb'))
+    sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
+    sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
+    sock.close()
     return sys.stdin, sys.stdout
 
 if sys.platform == 'win32':
@@ -324,9 +325,13 @@ def main(method_name, syslog):
                 socket.AF_INET, subnets_v4, udp,
                 user, group, tmark)
 
+        try:
+            method.wait_for_firewall_ready()
+        except NotImplementedError:
+            pass
+
         if sys.platform != 'win32':
             flush_systemd_dns_cache()
-
 
         try:
             stdout.write('STARTED\n')
@@ -340,7 +345,9 @@ def main(method_name, syslog):
         # authentication at shutdown time - that cleanup is important!
         while 1:
             try:
+                debug3("===================================================")
                 line = stdin.readline(128)
+                debug3("===================================================" + str(line))
             except IOError as e:
                 debug3('read from stdin failed: %s' % (e,))
                 return

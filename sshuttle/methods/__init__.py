@@ -97,6 +97,9 @@ class BaseMethod(object):
     def restore_firewall(self, port, family, udp, user, group):
         raise NotImplementedError()
 
+    def wait_for_firewall_ready(self):
+        raise NotImplementedError()
+
     @staticmethod
     def firewall_command(line):
         return False
