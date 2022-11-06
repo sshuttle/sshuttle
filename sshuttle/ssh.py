@@ -12,7 +12,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import sshuttle.helpers as helpers
-from sshuttle.helpers import debug2, debug3, which, get_path, Fatal
+from sshuttle.helpers import debug2, which, get_path, Fatal
 
 
 def get_module_source(name):
