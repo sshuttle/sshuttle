@@ -223,13 +223,13 @@ class FirewallClient:
             argv_tries.append(argvbase)
         else:
             if sys.platform == 'win32':
-                argv_tries.append(argvbase)
                 # runas_path = which("runas")
                 # if runas_path:
                 #   argv_tries.append([runas_path , '/noprofile', '/user:Administrator',  'python'])
-                # XXX:attempt to elevate privilege using 'runas' in windows seems not working.
-                # This is due to underlying ShellExecute() Windows api does not allow child process to inherit stdio.
-                # TODO(nom3ad): try to implement another way to achieve this.
+                # XXX: Attempt to elevate privilege using 'runas' in windows seems not working.
+                # Because underlying ShellExecute() Windows api does not allow child process to inherit stdio.
+                # TODO(nom3ad): Try to implement another way to achieve this.
+                raise Fatal("Privilege elevation for Windows is not yet implemented. Please run from an administrator shell")
             else:
                 # Linux typically uses sudo; OpenBSD uses doas. However, some
                 # Linux distributions are starting to use doas.
@@ -294,22 +294,32 @@ class FirewallClient:
                     return s2.makefile('rwb')
 
             else:
-                (s1, s2) = socket.socketpair()
-                pstdout = None
+                # In windows, if client/firewall processes is running as admin user, stdio can be used for communication.
+                # But if firewall process is run with elevated mode, access to stdio is lost. 
+                # So we have to use a socketpair (as in unix).
+                # But socket need to be "shared" to child process as it can't be directly set as stdio in Windows 
+                can_use_stdio = is_admin_user() 
+                pstdout = ssubprocess.PIPE if can_use_stdio else None
                 pstdin = ssubprocess.PIPE
                 preexec_fn = None
                 penv = os.environ.copy()
                 penv['PYTHONPATH'] = os.path.dirname(os.path.dirname(__file__))
 
                 def get_pfile():
-                    import base64
-                    socket_share_data = s1.share(self.p.pid)
-                    s1.close()
-                    socket_share_data_b64 = base64.b64encode(socket_share_data)
-                    self.p.stdin.write(socket_share_data_b64 + b'\n')
-                    self.p.stdin.flush()
-                    return s2.makefile('rwb')
-
+                    if can_use_stdio:  
+                        import io
+                        self.p.stdin.write(b'STDIO:\n')
+                        self.p.stdin.flush()
+                        return io.BufferedRWPair(self.p.stdout, self.p.stdin, 1)
+                    else:
+                        import base64
+                        (s1, s2) = socket.socketpair()
+                        socket_share_data = s1.share(self.p.pid)
+                        s1.close()
+                        socket_share_data_b64 = base64.b64encode(socket_share_data)
+                        self.p.stdin.write(b'SOCKETSHARE:' + socket_share_data_b64 + b'\n')
+                        self.p.stdin.flush()
+                        return s2.makefile('rwb')
             try:
                 debug1("Starting firewall manager with command: %r" % argv)
                 self.p = ssubprocess.Popen(argv, stdout=pstdout, stdin=pstdin, env=penv,

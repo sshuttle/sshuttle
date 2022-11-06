@@ -121,13 +121,22 @@ def _setup_daemon_windows():
 
     signal.signal(signal.SIGTERM, firewall_exit)
     signal.signal(signal.SIGINT, firewall_exit)
-    socket_share_data_b64 = sys.stdin.readline()
-    # debug3(f'FROM_SHARE ${socket_share_data_b64=}')
-    socket_share_data = base64.b64decode(socket_share_data_b64)
-    sock = socket.fromshare(socket_share_data)
-    sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
-    sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
-    sock.close()
+
+    socket_share_data_prefix = 'SOCKETSHARE:'
+    line = sys.stdin.readline().strip()
+    if line.startswith('SOCKETSHARE:'):
+        debug3('Using shared socket for communicating with sshuttle client process')
+        socket_share_data_b64 = line[len(socket_share_data_prefix):]
+        socket_share_data = base64.b64decode(socket_share_data_b64)
+        sock = socket.fromshare(socket_share_data)
+        sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
+        sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
+        sock.close()
+    elif line.startswith("STDIO:"):
+        debug3('Using inherited stdio for communicating with sshuttle client process')
+    else:
+        raise Fatal("Unexpected stdin: " + line)
+
     return sys.stdin, sys.stdout
 
 
