@@ -310,7 +310,22 @@ class FirewallClient:
                         import io
                         self.p.stdin.write(b'STDIO:\n')
                         self.p.stdin.flush()
-                        return io.BufferedRWPair(self.p.stdout, self.p.stdin, 1)
+                        class RWPair:
+                            def __init__(self, r, w):
+                                self.r = r 
+                                self.w = w
+                                self.read = r.read
+                                self.readline = r.readline
+                                self.write = w.write
+                                self.flush = w.flush
+                            def close(self):
+                                for f in self.r, self.w:
+                                    try:
+                                        f.close()
+                                    except:
+                                        pass
+                        return RWPair(self.p.stdout, self.p.stdin)
+                        # return io.BufferedRWPair(self.p.stdout, self.p.stdin, 1)
                     else:
                         import base64
                         (s1, s2) = socket.socketpair()
