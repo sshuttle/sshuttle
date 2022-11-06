@@ -295,10 +295,10 @@ class FirewallClient:
 
             else:
                 # In windows, if client/firewall processes is running as admin user, stdio can be used for communication.
-                # But if firewall process is run with elevated mode, access to stdio is lost. 
+                # But if firewall process is run with elevated mode, access to stdio is lost.
                 # So we have to use a socketpair (as in unix).
-                # But socket need to be "shared" to child process as it can't be directly set as stdio in Windows 
-                can_use_stdio = is_admin_user() 
+                # But socket need to be "shared" to child process as it can't be directly set as stdio in Windows
+                can_use_stdio = is_admin_user()
                 pstdout = ssubprocess.PIPE if can_use_stdio else None
                 pstdin = ssubprocess.PIPE
                 preexec_fn = None
@@ -306,25 +306,27 @@ class FirewallClient:
                 penv['PYTHONPATH'] = os.path.dirname(os.path.dirname(__file__))
 
                 def get_pfile():
-                    if can_use_stdio:  
-                        import io
+                    if can_use_stdio:
                         self.p.stdin.write(b'STDIO:\n')
                         self.p.stdin.flush()
+
                         class RWPair:
                             def __init__(self, r, w):
-                                self.r = r 
+                                self.r = r
                                 self.w = w
                                 self.read = r.read
                                 self.readline = r.readline
                                 self.write = w.write
                                 self.flush = w.flush
+
                             def close(self):
                                 for f in self.r, self.w:
                                     try:
                                         f.close()
-                                    except:
+                                    except Exception:
                                         pass
                         return RWPair(self.p.stdout, self.p.stdin)
+                        # import io
                         # return io.BufferedRWPair(self.p.stdout, self.p.stdin, 1)
                     else:
                         import base64
@@ -885,7 +887,11 @@ def main(listenip_v6, listenip_v4,
 
     # listenip_v4 contains user specified value or it is set to "auto".
     if listenip_v4 == "auto":
-        listenip_v4 = ('127.0.0.1', 0)
+        if sys.platform == 'win32':
+            listenip_v4 = ('0.0.0.0', 0)  # windivert method won't work with loopback interface
+        else:
+            listenip_v4 = ('127.0.0.1', 0)
+        debug1("Using default IPv4 listen address " + listenip_v4[0])
 
     # listenip_v6 is...
     #    None when IPv6 is disabled.
@@ -895,8 +901,11 @@ def main(listenip_v6, listenip_v4,
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
         if avail.ipv6:
-            debug1("IPv6 enabled: Using default IPv6 listen address ::1")
-            listenip_v6 = ('::1', 0)
+            if sys.platform == 'win32':
+                listenip_v6 = ('::', 0)  # windivert method won't work with loopback interface
+            else:
+                listenip_v6 = ('::1', 0)
+            debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:
             debug1("IPv6 disabled since it isn't supported by method "
                    "%s." % fw.method.name)

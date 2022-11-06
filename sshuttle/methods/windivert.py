@@ -4,6 +4,8 @@ import ipaddress
 import threading
 from collections import namedtuple
 import socket
+import subprocess
+import re
 from multiprocessing import shared_memory
 import struct
 from functools import wraps
@@ -270,6 +272,18 @@ class Method(BaseMethod):
     def __init__(self, name):
         super().__init__(name)
 
+    def _get_local_proxy_listen_addr(self, port, family):
+        proto = "TCPv6" if family.version == 6 else "TCP"
+        for line in subprocess.check_output(["netstat", "-a", "-n", "-p", proto]).decode().splitlines():
+            try:
+                _, local_addr, _, state, *_ = re.split(r"\s+", line.strip())
+            except ValueError:
+                continue
+            port_suffix = ":" + str(port)
+            if state == "LISTENING" and local_addr.endswith(port_suffix):
+                return ipaddress.ip_address(local_addr[:-len(port_suffix)].strip("[]"))
+        raise Fatal("Could not find listening address for {}/{}".format(port, proto))
+
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user, tmark):
         log(f"{port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
 
@@ -279,16 +293,20 @@ class Method(BaseMethod):
         family = IPFamily(family)
 
         # using loopback proxy address never worked.
+        # >>> self.proxy_addr[family] = family.loopback_addr
         # See: https://github.com/basil00/Divert/issues/17#issuecomment-341100167 ,https://github.com/basil00/Divert/issues/82)
         # As a workaround we use another interface ip instead.
-        # self.proxy_addr[family] = family.loopback_addr
+
+        local_addr = self._get_local_proxy_listen_addr(port, family)
         for addr in (ipaddress.ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
             if addr.is_loopback or addr.version != family.version:
                 continue
-            self.proxy_addr[family] = str(addr)
-            break
+            if local_addr.is_unspecified or local_addr == addr:
+                debug2("Found non loopback address to connect to proxy: " + str(addr))
+                self.proxy_addr[family] = str(addr)
+                break
         else:
-            raise Fatal(f"Could not find a non loopback proxy address for {family.name}")
+            raise Fatal("Windivert method requires proxy to listen on non loopback address")
 
         self.proxy_port = port
 
@@ -423,6 +441,8 @@ class Method(BaseMethod):
             else:
                 # ip_checks.append(f"ip.SrcAddr=={hex(int(addr))}") # only Windivert >=2 supports this
                 ip_filters.append(f"ipv6.SrcAddr=={addr}")
+        if not ip_filters:
+            raise Fatal("At least ipv4 or ipv6 address is expected")
         filter = f"{direction} and {proto.filter} and ({' or '.join(ip_filters)}) and tcp.SrcPort=={self.proxy_port}"
         debug2(f"[INGRESS] {filter=}")
         with pydivert.WinDivert(filter) as w:
