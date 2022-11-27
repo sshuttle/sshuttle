@@ -193,7 +193,6 @@ class SockWrapper:
         if not self.shut_read:
             debug2('%r: done reading' % self)
             self.shut_read = True
-            # self.rsock.shutdown(SHUT_RD)  # doesn't do anything anyway
 
     def nowrite(self):
         if not self.shut_write:
@@ -373,11 +372,6 @@ class Mux(Handler):
             if not self.too_full:
                 self.send(0, CMD_PING, b('rttest'))
             self.too_full = True
-        # ob = []
-        # for b in self.outbuf:
-        #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
-        #    ob.append(c)
-        # log('outbuf: %d %r' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -476,8 +470,6 @@ class Mux(Handler):
 
     def handle(self):
         self.fill()
-        # log('inbuf is: (%d,%d) %r'
-        #     % (self.want, len(self.inbuf), self.inbuf))
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1, s2, channel, cmd, datalen) = \
