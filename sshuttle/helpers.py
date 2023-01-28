@@ -12,9 +12,10 @@ def b(s):
 
 
 def log(s):
-    global logprefix
+    global logprefix, isforkedchild
     try:
-        sys.stdout.flush()
+        if not isforkedchild:
+            sys.stdout.flush()
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
@@ -31,7 +32,8 @@ def log(s):
             # to cause problems elsewhere.
             sys.stderr.write(prefix + line + "\r\n")
             prefix = "    "
-        sys.stderr.flush()
+        if not isforkedchild:
+            sys.stderr.flush()
     except IOError:
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.

@@ -120,8 +120,10 @@ def _exc_dump():
 
 
 def start_hostwatch(seed_hosts, auto_hosts):
+    global isforkedchild
     s1, s2 = socket.socketpair()
     pid = os.fork()
+    isforkedchild = not pid
     if not pid:
         # child
         rv = 99
