@@ -2,6 +2,8 @@ import sys
 import socket
 import errno
 import os
+import threading
+import time
 
 logprefix = ''
 verbose = 0
@@ -10,11 +12,19 @@ verbose = 0
 def b(s):
     return s.encode("ASCII")
 
+def flush_loop():
+    while True:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        time.sleep(0.5)
+
+def start_stdout_stderr_flush_thread():
+    flush_thread = threading.Thread(target=flush_loop)
+    flush_thread.start()
 
 def log(s):
     global logprefix
     try:
-        sys.stdout.flush()
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
@@ -31,7 +41,6 @@ def log(s):
             # to cause problems elsewhere.
             sys.stderr.write(prefix + line + "\r\n")
             prefix = "    "
-        sys.stderr.flush()
     except IOError:
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.
