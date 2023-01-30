@@ -104,6 +104,7 @@ def found_host(name, ip):
     if hostname != name:
         found_host(hostname, ip)
 
+    global SHOULD_WRITE_CACHE
     oldip = hostnames.get(name)
     if oldip != ip:
         hostnames[name] = ip

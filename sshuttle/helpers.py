@@ -12,15 +12,18 @@ verbose = 0
 def b(s):
     return s.encode("ASCII")
 
+
 def flush_loop():
     while True:
         sys.stdout.flush()
         sys.stderr.flush()
         time.sleep(0.5)
 
+
 def start_stdout_stderr_flush_thread():
     flush_thread = threading.Thread(target=flush_loop)
     flush_thread.start()
+
 
 def log(s):
     global logprefix
