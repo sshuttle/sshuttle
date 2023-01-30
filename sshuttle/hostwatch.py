@@ -84,6 +84,7 @@ def read_host_cache():
             if name and ip:
                 found_host(name, ip)
     f.close()
+    global SHOULD_WRITE_CACHE
     if SHOULD_WRITE_CACHE:
         write_host_cache()
         SHOULD_WRITE_CACHE = False
