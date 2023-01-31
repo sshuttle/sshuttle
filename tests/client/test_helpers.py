@@ -17,7 +17,7 @@ def test_log(mock_stderr, mock_stdout):
     sshuttle.helpers.log("message 1\n")
     sshuttle.helpers.log("message 2\nline2\nline3\n")
     sshuttle.helpers.log("message 3\nline2\nline3")
-    time.Sleep(1)
+    time.sleep(1)
     assert call.flush() in mock_stdout.mock_calls
     stderr_contents = [
         call.write('prefix: message\r\n'),
@@ -41,7 +41,7 @@ def test_log(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug1(mock_stderr, mock_stdout):
     sshuttle.helpers.debug1("message")
-    time.Sleep(1)
+    time.sleep(1)
     assert call.flush() in mock_stdout.mock_calls
     stderr_contents = [
         call.write('prefix: message\r\n'),
@@ -67,8 +67,8 @@ def test_debug1_nop(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug2(mock_stderr, mock_stdout):
     sshuttle.helpers.debug2("message")
+    time.sleep(1)
     assert call.flush() in mock_stdout.mock_calls
-    time.Sleep(1)
     stderr_contents = [
         call.write('prefix: message\r\n'),
         call.flush(),
@@ -93,7 +93,7 @@ def test_debug2_nop(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug3(mock_stderr, mock_stdout):
     sshuttle.helpers.debug3("message")
-    time.Sleep(1)
+    time.sleep(1)
     assert call.flush() in mock_stdout.mock_calls
     stderr_contents = [
         call.write('prefix: message\r\n'),
