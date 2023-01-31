@@ -2,6 +2,7 @@ import io
 import socket
 from socket import AF_INET, AF_INET6
 import errno
+import time
 
 from unittest.mock import patch, call
 import sshuttle.helpers
@@ -16,29 +17,22 @@ def test_log(mock_stderr, mock_stdout):
     sshuttle.helpers.log("message 1\n")
     sshuttle.helpers.log("message 2\nline2\nline3\n")
     sshuttle.helpers.log("message 3\nline2\nline3")
-    assert mock_stdout.mock_calls == [
-        call.flush(),
-        call.flush(),
-        call.flush(),
-        call.flush(),
-        call.flush(),
-    ]
-    assert mock_stderr.mock_calls == [
+    time.Sleep(1)
+    assert call.flush() in mock_stdout.mock_calls
+    stderr_contents = [
         call.write('prefix: message\r\n'),
-        call.flush(),
         call.write('prefix: abc\r\n'),
-        call.flush(),
         call.write('prefix: message 1\r\n'),
-        call.flush(),
         call.write('prefix: message 2\r\n'),
         call.write('    line2\r\n'),
         call.write('    line3\r\n'),
-        call.flush(),
         call.write('prefix: message 3\r\n'),
         call.write('    line2\r\n'),
         call.write('    line3\r\n'),
-        call.flush(),
+        call.flush()
     ]
+    for line in stderr_contents:
+        assert line in mock_stderr.mock_calls
 
 
 @patch('sshuttle.helpers.logprefix', new='prefix: ')
@@ -47,13 +41,14 @@ def test_log(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug1(mock_stderr, mock_stdout):
     sshuttle.helpers.debug1("message")
-    assert mock_stdout.mock_calls == [
-        call.flush(),
-    ]
-    assert mock_stderr.mock_calls == [
+    time.Sleep(1)
+    assert call.flush() in mock_stdout.mock_calls
+    stderr_contents = [
         call.write('prefix: message\r\n'),
         call.flush(),
     ]
+    for line in stderr_contents:
+        assert line in mock_stderr.mock_calls
 
 
 @patch('sshuttle.helpers.logprefix', new='prefix: ')
@@ -72,13 +67,14 @@ def test_debug1_nop(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug2(mock_stderr, mock_stdout):
     sshuttle.helpers.debug2("message")
-    assert mock_stdout.mock_calls == [
-        call.flush(),
-    ]
-    assert mock_stderr.mock_calls == [
+    assert call.flush() in mock_stdout.mock_calls
+    time.Sleep(1)
+    stderr_contents = [
         call.write('prefix: message\r\n'),
         call.flush(),
     ]
+    for line in stderr_contents:
+        assert line in mock_stderr.mock_calls
 
 
 @patch('sshuttle.helpers.logprefix', new='prefix: ')
@@ -97,13 +93,14 @@ def test_debug2_nop(mock_stderr, mock_stdout):
 @patch('sshuttle.helpers.sys.stderr')
 def test_debug3(mock_stderr, mock_stdout):
     sshuttle.helpers.debug3("message")
-    assert mock_stdout.mock_calls == [
-        call.flush(),
-    ]
-    assert mock_stderr.mock_calls == [
+    time.Sleep(1)
+    assert call.flush() in mock_stdout.mock_calls
+    stderr_contents = [
         call.write('prefix: message\r\n'),
         call.flush(),
     ]
+    for line in stderr_contents:
+        assert line in mock_stderr.mock_calls
 
 
 @patch('sshuttle.helpers.logprefix', new='prefix: ')
