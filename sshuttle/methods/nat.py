@@ -59,11 +59,6 @@ class Method(BaseMethod):
                  '--dport', '53',
                  '--to-ports', str(dnsport))
 
-        # Don't route any remaining local traffic through sshuttle.
-        _ipt('-A', chain, '-j', 'RETURN',
-             '-m', 'addrtype',
-             '--dst-type', 'LOCAL')
-
         # create new subnet entries.
         for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
@@ -79,6 +74,11 @@ class Method(BaseMethod):
                 _ipt('-A', chain, '-j', 'REDIRECT',
                      '--dest', '%s/%s' % (snet, swidth),
                      *(tcp_ports + ('--to-ports', str(port))))
+        
+        # Don't route any remaining local traffic through sshuttle.
+        _ipt('-A', chain, '-j', 'RETURN',
+             '-m', 'addrtype',
+             '--dst-type', 'LOCAL')
 
     def restore_firewall(self, port, family, udp, user, group):
         # only ipv4 supported with NAT
