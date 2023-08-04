@@ -104,6 +104,7 @@ def main():
                                       opt.to_ns,
                                       opt.pidfile,
                                       opt.user,
+                                      opt.group,
                                       opt.sudo_pythonpath,
                                       opt.tmark)
 

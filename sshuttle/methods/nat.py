@@ -13,7 +13,7 @@ class Method(BaseMethod):
     # recently-started one will win (because we use "-I OUTPUT 1" instead of
     # "-A OUTPUT").
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, tmark):
+                       user, group, tmark):
         if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
                 'Address family "%s" unsupported by nat method_name'
@@ -35,9 +35,14 @@ class Method(BaseMethod):
 
         _ipt('-N', chain)
         _ipt('-F', chain)
-        if user is not None:
-            _ipm('-I', 'OUTPUT', '1', '-m', 'owner', '--uid-owner', str(user),
-                 '-j', 'MARK', '--set-mark', str(port))
+        if user is not None or group is not None:
+            margs = ['-I', 'OUTPUT', '1', '-m', 'owner']
+            if user is not None:
+                margs.append('--uid-owner', str(user))
+            if group is not None:
+                margs.append('--gid-owner', str(group))
+            margs = args.append('-j', 'MARK', '--set-mark', str(port))
+            nonfatal(_ipm, *margs)
             args = '-m', 'mark', '--mark', str(port), '-j', chain
         else:
             args = '-j', chain
@@ -75,7 +80,7 @@ class Method(BaseMethod):
                      '--dest', '%s/%s' % (snet, swidth),
                      *(tcp_ports + ('--to-ports', str(port))))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, group):
         # only ipv4 supported with NAT
         if family != socket.AF_INET and family != socket.AF_INET6:
             raise Exception(
@@ -96,9 +101,15 @@ class Method(BaseMethod):
 
         # basic cleanup/setup of chains
         if ipt_chain_exists(family, table, chain):
-            if user is not None:
-                nonfatal(_ipm, '-D', 'OUTPUT', '-m', 'owner', '--uid-owner',
-                         str(user), '-j', 'MARK', '--set-mark', str(port))
+            if user is not None or group is not None:
+                margs = ['-D', 'OUTPUT', '-m', 'owner']
+                if user is not None:
+                    margs.append('--uid-owner', str(user))
+                if group is not None:
+                    margs.append('--gid-owner', str(group))
+                margs = args.append('-j', 'MARK', '--set-mark', str(port))
+                nonfatal(_ipm, *margs)
+
                 args = '-m', 'mark', '--mark', str(port), '-j', chain
             else:
                 args = '-j', chain
@@ -111,6 +122,7 @@ class Method(BaseMethod):
         result = super(Method, self).get_supported_features()
         result.user = True
         result.ipv6 = True
+        result.group = True
         return result
 
     def is_supported(self):
