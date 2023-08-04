@@ -101,6 +101,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
          (AF_INET6, 128, True, u'2404:6800:4004:80c::101f', 80, 80)],
         False,
         None,
+        None,
         '0x01')
 
     assert mock_ipt_chain_exists.mock_calls == [
@@ -142,6 +143,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
                 (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
             True,
             None,
+            None,
             '0x01')
     assert str(excinfo.value) == 'UDP not supported by nat method_name'
     assert mock_ipt_chain_exists.mock_calls == []
@@ -154,6 +156,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
         [(AF_INET, 24, False, u'1.2.3.0', 8000, 9000),
             (AF_INET, 32, True, u'1.2.3.66', 8080, 8080)],
         False,
+        None,
         None,
         '0x01')
     assert mock_ipt_chain_exists.mock_calls == [
@@ -182,7 +185,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, AF_INET, False, None)
+    method.restore_firewall(1025, AF_INET, False, None, None)
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET, 'nat', 'sshuttle-1025')
     ]
@@ -197,7 +200,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, AF_INET6, False, None)
+    method.restore_firewall(1025, AF_INET6, False, None,)
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET6, 'nat', 'sshuttle-1025')
     ]
