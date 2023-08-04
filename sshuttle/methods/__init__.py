@@ -50,6 +50,7 @@ class BaseMethod(object):
         result.udp = False
         result.dns = True
         result.user = False
+        result.group = False
         return result
 
     @staticmethod

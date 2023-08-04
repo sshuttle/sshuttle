@@ -156,7 +156,7 @@ class Method(BaseMethod):
         #     udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, tmark):
+                       user, group, tmark):
         # IPv6 not supported
         if family not in [socket.AF_INET]:
             raise Exception(
@@ -207,7 +207,7 @@ class Method(BaseMethod):
                 else:
                     ipfw('table', '126', 'add', '%s/%s' % (snet, swidth))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, group):
         if family not in [socket.AF_INET]:
             raise Exception(
                 'Address family "%s" unsupported by ipfw method'

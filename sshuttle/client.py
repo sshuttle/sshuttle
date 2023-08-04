@@ -21,6 +21,10 @@ try:
     from pwd import getpwnam
 except ImportError:
     getpwnam = None
+try:
+    from grp import getgrnam
+except ImportError:
+    getgrnam = None
 
 import socket
 
@@ -726,7 +730,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark):
+         user, group, sudo_pythonpath, tmark):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -828,6 +832,15 @@ def main(listenip_v6, listenip_v4,
         except KeyError:
             raise Fatal("User %s does not exist." % user)
     required.user = False if user is None else True
+
+    if group is not None:
+        if getgrnam is None:
+            raise Fatal("Routing by group not available on this system.")
+        try:
+            group = getgrnam(group).gr_gid
+        except KeyError:
+            raise Fatal("User %s does not exist." % user)
+    required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
         print("WARNING: IPv6 subnets were ignored because IPv6 is disabled "
@@ -1058,7 +1071,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark)
+             required.udp, user, group, tmark)
 
     # start the client process
     try:
