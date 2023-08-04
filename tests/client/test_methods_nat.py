@@ -120,13 +120,13 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
              '--dest', u'2404:6800:4004:80c::33', '-p', 'udp',
              '--dport', '53', '--to-ports', '1026'),
         call(AF_INET6, 'nat', '-A', 'sshuttle-1024', '-j', 'RETURN',
-             '-m', 'addrtype', '--dst-type', 'LOCAL'),
-        call(AF_INET6, 'nat', '-A', 'sshuttle-1024', '-j', 'RETURN',
              '--dest', u'2404:6800:4004:80c::101f/128', '-p', 'tcp',
              '--dport', '80:80'),
         call(AF_INET6, 'nat', '-A', 'sshuttle-1024', '-j', 'REDIRECT',
              '--dest', u'2404:6800:4004:80c::/64', '-p', 'tcp',
-             '--to-ports', '1024')
+             '--to-ports', '1024'),
+        call(AF_INET6, 'nat', '-A', 'sshuttle-1024', '-j', 'RETURN',
+             '-m', 'addrtype', '--dst-type', 'LOCAL')
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
@@ -175,12 +175,12 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
              '--dest', u'1.2.3.33', '-p', 'udp',
              '--dport', '53', '--to-ports', '1027'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
-             '-m', 'addrtype', '--dst-type', 'LOCAL'),
-        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
              '--dest', u'1.2.3.66/32', '-p', 'tcp', '--dport', '8080:8080'),
         call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'REDIRECT',
              '--dest', u'1.2.3.0/24', '-p', 'tcp', '--dport', '8000:9000',
-             '--to-ports', '1025')
+             '--to-ports', '1025'),
+        call(AF_INET, 'nat', '-A', 'sshuttle-1025', '-j', 'RETURN',
+             '-m', 'addrtype', '--dst-type', 'LOCAL'),
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
@@ -200,7 +200,7 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
 
-    method.restore_firewall(1025, AF_INET6, False, None,)
+    method.restore_firewall(1025, AF_INET6, False, None, None)
     assert mock_ipt_chain_exists.mock_calls == [
         call(AF_INET6, 'nat', 'sshuttle-1025')
     ]

@@ -19,7 +19,7 @@ NSLIST
 {inet},1.2.3.33
 {inet6},2404:6800:4004:80c::33
 PORTS 1024,1025,1026,1027
-GO 1 - 0x01 12345
+GO 1 - - 0x01 12345
 HOST 1.2.3.3,existing
 """.format(inet=AF_INET, inet6=AF_INET6))
     stdout = Mock()
