@@ -31,17 +31,17 @@ class Method(BaseMethod):
         chain = 'sshuttle-%s' % port
 
         # basic cleanup/setup of chains
-        self.restore_firewall(port, family, udp, user)
+        self.restore_firewall(port, family, udp, user, group)
 
         _ipt('-N', chain)
         _ipt('-F', chain)
         if user is not None or group is not None:
             margs = ['-I', 'OUTPUT', '1', '-m', 'owner']
             if user is not None:
-                margs.append('--uid-owner', str(user))
+                margs += ['--uid-owner', str(user)]
             if group is not None:
-                margs.append('--gid-owner', str(group))
-            margs = args.append('-j', 'MARK', '--set-mark', str(port))
+                margs += ['--gid-owner', str(group)]
+            margs += ['-j', 'MARK', '--set-mark', str(port)]
             nonfatal(_ipm, *margs)
             args = '-m', 'mark', '--mark', str(port), '-j', chain
         else:
@@ -104,10 +104,10 @@ class Method(BaseMethod):
             if user is not None or group is not None:
                 margs = ['-D', 'OUTPUT', '-m', 'owner']
                 if user is not None:
-                    margs.append('--uid-owner', str(user))
+                    margs += ['--uid-owner', str(user)]
                 if group is not None:
-                    margs.append('--gid-owner', str(group))
-                margs = args.append('-j', 'MARK', '--set-mark', str(port))
+                    margs += ['--gid-owner', str(group)]
+                margs += ['-j', 'MARK', '--set-mark', str(port)]
                 nonfatal(_ipm, *margs)
 
                 args = '-m', 'mark', '--mark', str(port), '-j', chain

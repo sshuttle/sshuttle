@@ -134,7 +134,7 @@ class Method(BaseMethod):
         divert_chain = 'sshuttle-d-%s' % port
 
         # basic cleanup/setup of chains
-        self.restore_firewall(port, family, udp, user)
+        self.restore_firewall(port, family, udp, user, group)
 
         _ipt('-N', mark_chain)
         _ipt('-F', mark_chain)

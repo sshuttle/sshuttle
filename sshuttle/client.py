@@ -319,7 +319,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark):
+              user, group, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -329,6 +329,7 @@ class FirewallClient:
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
         self.user = user
+        self.group = group
         self.tmark = tmark
 
     def check(self):
@@ -367,9 +368,14 @@ class FirewallClient:
             user = bytes(self.user, 'utf-8')
         else:
             user = b'%d' % self.user
-
-        self.pfile.write(b'GO %d %s %s %d\n' %
-                         (udp, user, bytes(self.tmark, 'ascii'), os.getpid()))
+        if self.group is None:
+            group = b'-'
+        elif isinstance(self.group, str):
+            group =  bytes(self.group, 'utf-8')
+        else:
+            group = b'%d' % self.group
+        self.pfile.write(b'GO %d %s %s %s %d\n' %
+                         (udp, user, group, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
         line = self.pfile.readline()
