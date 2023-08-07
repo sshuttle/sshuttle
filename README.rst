@@ -75,6 +75,10 @@ Obtaining sshuttle
       # pkg
       pkg install py36-sshuttle
 
+- OpenBSD::
+
+      pkg_add sshuttle
+
 - macOS, via MacPorts::
 
       sudo port selfupdate
