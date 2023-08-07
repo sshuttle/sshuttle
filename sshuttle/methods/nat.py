@@ -74,7 +74,7 @@ class Method(BaseMethod):
                 _ipt('-A', chain, '-j', 'REDIRECT',
                      '--dest', '%s/%s' % (snet, swidth),
                      *(tcp_ports + ('--to-ports', str(port))))
-        
+
         # Don't route any remaining local traffic through sshuttle.
         _ipt('-A', chain, '-j', 'RETURN',
              '-m', 'addrtype',

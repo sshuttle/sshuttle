@@ -371,7 +371,7 @@ class FirewallClient:
         if self.group is None:
             group = b'-'
         elif isinstance(self.group, str):
-            group =  bytes(self.group, 'utf-8')
+            group = bytes(self.group, 'utf-8')
         else:
             group = b'%d' % self.group
         self.pfile.write(b'GO %d %s %s %s %d\n' %
