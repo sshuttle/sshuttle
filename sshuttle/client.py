@@ -845,7 +845,7 @@ def main(listenip_v6, listenip_v4,
         try:
             group = getgrnam(group).gr_gid
         except KeyError:
-            raise Fatal("User %s does not exist." % user)
+            raise Fatal("Group %s does not exist." % user)
     required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
