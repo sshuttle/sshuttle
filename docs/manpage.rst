@@ -321,6 +321,18 @@ annotations. For example::
     192.168.63.0/24
 
 
+Environment Variable
+--------------------
+
+You can specify command line options with the `SSHUTTLE_ARGS` environment
+variable. If a given option is defined in both the environment variable and
+command line, the value on the command line will take precedence.
+
+For example::
+
+    SSHUTTLE_ARGS="-e 'ssh -v' --dns" sshuttle -r example.com 0/0
+
+
 Examples
 --------
 
