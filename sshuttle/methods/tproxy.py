@@ -145,8 +145,18 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
         _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
 
+        for _, ip in [i for i in nslist if i[0] == family]:
+            _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
+                 '--dest', '%s/32' % ip,
+                 '-m', 'udp', '-p', 'udp', '--dport', '53')
+            _ipt('-A', tproxy_chain, '-j', 'TPROXY',
+                 '--tproxy-mark', tmark,
+                 '--dest', '%s/32' % ip,
+                 '-m', 'udp', '-p', 'udp', '--dport', '53',
+                 '--on-port', str(dnsport))
+
         # Don't have packets sent to any of our local IP addresses go
-        # through the tproxy or mark chains.
+        # through the tproxy or mark chains (except DNS ones).
         #
         # Without this fix, if a large subnet is redirected through
         # sshuttle (i.e., 0/0), then the user may be unable to receive
@@ -168,16 +178,6 @@ class Method(BaseMethod):
         if udp:
             _ipt('-A', tproxy_chain, '-m', 'socket', '-j', divert_chain,
                  '-m', 'udp', '-p', 'udp')
-
-        for _, ip in [i for i in nslist if i[0] == family]:
-            _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
-                 '--dest', '%s/32' % ip,
-                 '-m', 'udp', '-p', 'udp', '--dport', '53')
-            _ipt('-A', tproxy_chain, '-j', 'TPROXY',
-                 '--tproxy-mark', tmark,
-                 '--dest', '%s/32' % ip,
-                 '-m', 'udp', '-p', 'udp', '--dport', '53',
-                 '--on-port', str(dnsport))
 
         for _, swidth, sexclude, snet, fport, lport \
                 in sorted(subnets, key=subnet_weight, reverse=True):
