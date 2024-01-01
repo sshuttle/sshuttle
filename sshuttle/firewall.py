@@ -84,14 +84,17 @@ def firewall_exit(signum, frame):
     # the typical exit process as described above.
     global sshuttle_pid
     if sshuttle_pid:
-        debug1("Relaying SIGINT to sshuttle process %d\n" % sshuttle_pid)
-        os.kill(sshuttle_pid, signal.SIGINT)
+        debug1("Relaying interupt signal to sshuttle process %d\n" % sshuttle_pid)
+        if sys.platform == 'win32':
+            sig = signal.CTRL_C_EVENT
+        else:
+            sig = signal.SIGINT
+        os.kill(sshuttle_pid, sig)
 
 
-# Isolate function that needs to be replaced for tests
-def _setup_daemon_unix():
+def _setup_daemon_for_unix_like():
     if not is_admin_user():
-        raise Fatal('You must be root (or enable su/sudo) to set the firewall')
+        raise Fatal('You must have root privileges (or enable su/sudo) to set the firewall')
 
     # don't disappear if our controlling terminal or stdout/stderr
     # disappears; we still have to clean up.
@@ -115,7 +118,7 @@ def _setup_daemon_unix():
     return sys.stdin, sys.stdout
 
 
-def _setup_daemon_windows():
+def _setup_daemon_for_windows():
     if not is_admin_user():
         raise Fatal('You must be administrator to set the firewall')
 
@@ -128,7 +131,7 @@ def _setup_daemon_windows():
         debug3('Using shared socket for communicating with sshuttle client process')
         socket_share_data_b64 = line[len(socket_share_data_prefix):]
         socket_share_data = base64.b64decode(socket_share_data_b64)
-        sock = socket.fromshare(socket_share_data)
+        sock = socket.fromshare(socket_share_data)  # type: socket.socket
         sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
         sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
         sock.close()
@@ -140,10 +143,11 @@ def _setup_daemon_windows():
     return sys.stdin, sys.stdout
 
 
+# Isolate function that needs to be replaced for tests
 if sys.platform == 'win32':
-    setup_daemon = _setup_daemon_windows
+    setup_daemon = _setup_daemon_for_windows
 else:
-    setup_daemon = _setup_daemon_unix
+    setup_daemon = _setup_daemon_for_unix_like
 
 
 # Note that we're sorting in a very particular order:
@@ -226,10 +230,9 @@ def main(method_name, syslog):
     try:
         line = stdin.readline(128)
         if not line:
-            # parent probably exited
-            return
-    except IOError as e:
-        # On windows, this ConnectionResetError is thrown when parent process closes it's socket pair end
+            return  # parent probably exited
+    except ConnectionResetError as e:
+        # On windows, ConnectionResetError is thrown when parent process closes it's socket pair end
         debug3('read from stdin failed: %s' % (e,))
         return
 
@@ -343,13 +346,13 @@ def main(method_name, syslog):
         except NotImplementedError:
             pass
 
-        if sys.platform != 'win32':
+        if sys.platform == 'linux':
             flush_systemd_dns_cache()
 
         try:
             stdout.write('STARTED\n')
             stdout.flush()
-        except IOError as e:
+        except IOError as e:  # the parent process probably died
             debug3('write to stdout failed: %s' % (e,))
             return
 
@@ -410,7 +413,7 @@ def main(method_name, syslog):
             except Exception:
                 debug2('An error occurred, ignoring it.')
 
-        if sys.platform != 'win32':
+        if sys.platform == 'linux':
             try:
                 flush_systemd_dns_cache()
             except Exception:

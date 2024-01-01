@@ -281,7 +281,7 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         sys.stdout.flush()
 
         handlers = []
-        mux = Mux(sys.stdin, sys.stdout)
+        mux = Mux(sys.stdin.buffer, sys.stdout.buffer)
         handlers.append(mux)
 
         debug1('auto-nets:' + str(auto_nets))

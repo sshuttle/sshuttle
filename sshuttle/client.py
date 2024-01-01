@@ -391,14 +391,14 @@ class FirewallClient:
                        'Command=%r' % (skipped_text, self.argv))
                 continue
 
-            method_name = line.strip()[6:]
+            method_name = line[6:-1]
             self.method = get_method(method_name.decode("ASCII"))
             self.method.set_firewall(self)
             success = True
             break
 
         if not success:
-            raise Fatal("All attempts to run firewall client with elevated privileges were failed.")
+            raise Fatal("All attempts to run firewall client process with elevated privileges were failed.")
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
@@ -461,9 +461,9 @@ class FirewallClient:
                          (udp, user, group, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
-        line = self.pfile.readline().strip()
+        line = self.pfile.readline()
         self.check()
-        if line != b'STARTED':
+        if line != b'STARTED\n':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
@@ -615,7 +615,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     debug1('Connecting to server...')
 
     try:
-        (serverproc, serversock) = ssh.connect(
+        (serverproc, rfile, wfile) = ssh.connect(
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             add_cmd_delimiter=add_cmd_delimiter,
@@ -630,7 +630,6 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             raise Fatal("failed to establish ssh session (1)")
         else:
             raise
-    rfile, wfile = serversock.makefile("rb"), serversock.makefile("wb")
     mux = Mux(rfile, wfile)
     handlers.append(mux)
 
@@ -887,10 +886,7 @@ def main(listenip_v6, listenip_v4,
 
     # listenip_v4 contains user specified value or it is set to "auto".
     if listenip_v4 == "auto":
-        if sys.platform == 'win32':
-            listenip_v4 = ('0.0.0.0', 0)  # windivert method won't work with loopback interface
-        else:
-            listenip_v4 = ('127.0.0.1', 0)
+        listenip_v4 = ('127.0.0.1' if avail.loopback_port else '0.0.0.0', 0)
         debug1("Using default IPv4 listen address " + listenip_v4[0])
 
     # listenip_v6 is...
@@ -901,10 +897,7 @@ def main(listenip_v6, listenip_v4,
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
         if avail.ipv6:
-            if sys.platform == 'win32':
-                listenip_v6 = ('::', 0)  # windivert method won't work with loopback interface
-            else:
-                listenip_v6 = ('::1', 0)
+            listenip_v6 = ('::1' if avail.loopback_port else '::', 0)
             debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:
             debug1("IPv6 disabled since it isn't supported by method "

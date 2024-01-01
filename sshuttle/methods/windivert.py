@@ -350,6 +350,7 @@ class Method(BaseMethod):
 
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
+        result.loopback_port = False
         result.user = False
         result.dns = False
         result.ipv6 = False
@@ -444,7 +445,7 @@ class Method(BaseMethod):
         if not ip_filters:
             raise Fatal("At least ipv4 or ipv6 address is expected")
         filter = f"{direction} and {proto.filter} and ({' or '.join(ip_filters)}) and tcp.SrcPort=={self.proxy_port}"
-        debug2(f"[INGRESS] {filter=}")
+        debug1(f"[INGRESS] {filter=}")
         with pydivert.WinDivert(filter) as w:
             ready_cb()
             for pkt in w:
