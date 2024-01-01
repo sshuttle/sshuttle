@@ -24,7 +24,7 @@ ping)
     ;;
 iperf3)
     port=5001
-    with_set_x exec iperf3 --client "$ip" --port=$port --connect-timeout=$connect_timeout_sec "$@"
+    with_set_x exec iperf3 --client "$ip" --port=$port --connect-timeout=$((connect_timeout_sec * 1000)) "$@"
     ;;
 curl)
     port=8080
@@ -32,6 +32,6 @@ curl)
     ;;
 ab)
     port=8080
-    with_set_x exec ab -n 100 -c 20 -s $connect_timeout_sec "$@" "http://$ip:$port/" 
+    with_set_x exec ab -n 100 -c 20 -s $connect_timeout_sec "$@" "http://$ip:$port/"
     ;;
 esac
