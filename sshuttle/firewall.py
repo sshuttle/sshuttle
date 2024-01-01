@@ -224,7 +224,6 @@ def main(method_name, syslog):
     stdout.write(('READY %s\n' % method.name).encode('ASCII'))
     stdout.flush()
 
-
     def _read_next_string_line():
         try:
             line = stdin.readline(128)

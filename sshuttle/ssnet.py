@@ -432,7 +432,8 @@ class Mux(Handler):
     def flush(self):
         set_non_blocking_io(self.wfile.fileno())
         if self.outbuf and self.outbuf[0]:
-            wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
+            wrote = _nb_clean(self.wfile.write, self.outbuf[0])
+            self.wfile.flush()
             debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]

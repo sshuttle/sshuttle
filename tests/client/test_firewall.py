@@ -21,7 +21,7 @@ NSLIST
 PORTS 1024,1025,1026,1027
 GO 1 - - 0x01 12345
 HOST 1.2.3.3,existing
-""".format(inet=AF_INET, inet6=AF_INET6))
+""".format(inet=AF_INET, inet6=AF_INET6).encode('ASCII'))
     stdout = Mock()
     return stdin, stdout
 
