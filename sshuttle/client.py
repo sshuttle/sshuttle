@@ -307,7 +307,7 @@ class FirewallClient:
 
                 def get_pfile():
                     if can_use_stdio:
-                        self.p.stdin.write(b'STDIO:\n')
+                        self.p.stdin.write(b'COM_STDIO:\n')
                         self.p.stdin.flush()
 
                         class RWPair:
@@ -334,7 +334,7 @@ class FirewallClient:
                         socket_share_data = s1.share(self.p.pid)
                         s1.close()
                         socket_share_data_b64 = base64.b64encode(socket_share_data)
-                        self.p.stdin.write(b'SOCKETSHARE:' + socket_share_data_b64 + b'\n')
+                        self.p.stdin.write(b'COM_SOCKETSHARE:' + socket_share_data_b64 + b'\n')
                         self.p.stdin.flush()
                         return s2.makefile('rwb')
             try:

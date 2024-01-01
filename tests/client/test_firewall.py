@@ -10,7 +10,7 @@ import sshuttle.firewall
 
 
 def setup_daemon():
-    stdin = io.StringIO(u"""ROUTES
+    stdin = io.BytesIO(u"""ROUTES
 {inet},24,0,1.2.3.0,8000,9000
 {inet},32,1,1.2.3.66,8080,8080
 {inet6},64,0,2404:6800:4004:80c::,0,0
@@ -127,9 +127,9 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
     ]
 
     assert stdout.mock_calls == [
-        call.write('READY test\n'),
+        call.write(b'READY test\n'),
         call.flush(),
-        call.write('STARTED\n'),
+        call.write(b'STARTED\n'),
         call.flush()
     ]
     assert mock_setup_daemon.mock_calls == [call()]
