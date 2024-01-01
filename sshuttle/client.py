@@ -302,10 +302,28 @@ class FirewallClient:
                        '%r returned %d' % (self.argv, rv))
                 continue
 
+            # Normally, READY will be the first text on the first
+            # line. However, if an administrator replaced sudo with a
+            # shell script that echos a message to stdout and then
+            # runs sudo, READY won't be on the first line. To
+            # workaround this problem, we read a limited number of
+            # lines until we encounter "READY". Store all of the text
+            # we skipped in case we need it for an error message.
+            #
+            # A proper way to print a sudo warning message is to use
+            # sudo's lecture feature. sshuttle works correctly without
+            # this hack if sudo's lecture feature is used instead.
+            skipped_text = line
+            for i in range(100):
+                if line[0:5] == b'READY':
+                    break
+                line = self.pfile.readline()
+                skipped_text += line
+
             if line[0:5] != b'READY':
                 debug1('Unable to start firewall manager. '
                        'Expected READY, got %r. '
-                       'Command=%r' % (line, self.argv))
+                       'Command=%r' % (skipped_text, self.argv))
                 continue
 
             method_name = line[6:-1]
