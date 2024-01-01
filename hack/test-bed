@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+
+
+if [[ -z $1 || $1 = -* ]]; then
+    set -- up "$@"
+fi
+
+function with_set_x() {
+    set -x
+    "$@"
+    { ec=$?; set +x;return $ec; } 2>/dev/null
+}
+
+function build() {
+    # podman build -t ghcr.io/sshuttle/sshuttle-testbed .
+    with_set_x docker build -t ghcr.io/sshuttle/sshuttle-testbed -f Containerfile .
+}
+
+function compose() {
+    # podman-compose "$@"
+    with_set_x docker compose "$@"
+}
+
+
+if [[ $* = *--build* ]]; then
+    build
+fi
+compose "$@"

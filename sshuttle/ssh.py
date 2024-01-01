@@ -115,8 +115,8 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
     pyscript = r"""
                 import sys, os;
                 verbosity=%d;
-                sys.stdin = os.fdopen(0, "rb");
-                exec(compile(sys.stdin.read(%d), "assembler.py", "exec"));
+                stdin = os.fdopen(0, "rb");
+                exec(compile(stdin.read(%d), "assembler.py", "exec"));
                 sys.exit(98);
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
@@ -213,24 +213,26 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             s2.close()
         s1.close()
 
-        def get_serversock():
+        def get_server_io():
             os.close(pstdin)
             os.close(pstdout)
-            return s2
+            return s2.makefile("rb", buffering=0), s2.makefile("wb", buffering=0)
     else:
-        # In Windows python implementation it seems not possible to use sockets as subprocess stdio
-        # Also select.select() won't work on pipes.
-        # So we have to use both socketpair and pipes together along with reader/writer threads to
-        # stream data between them
-        # NOTE: Their can be a way to use sockets as stdio with some hacks.
+        # In Windows CPython, we can't use BSD sockets as subprocess stdio
+        # and select.select() used in ssnet.py won't work on Windows pipes.
+        # So we have to use both socketpair (for select.select) and pipes (for subprocess.Popen) together
+        # along with reader/writer threads to stream data between them
+        # NOTE: Their could be a better way. Need to investigate further on this.
+        #   Either to use sockets as stdio for subprocess. Or to use pipes but with a select() alternative
         #   https://stackoverflow.com/questions/4993119/redirect-io-of-process-to-windows-socket
+
         (s1, s2) = socket.socketpair()
         pstdin = ssubprocess.PIPE
         pstdout = ssubprocess.PIPE
 
         preexec_fn = None
 
-        def get_serversock():
+        def get_server_io():
             import threading
 
             def stream_stdout_to_sock():
@@ -267,7 +269,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
     p = ssubprocess.Popen(argv, stdin=pstdin, stdout=pstdout, preexec_fn=preexec_fn,
                           close_fds=close_fds, stderr=stderr, bufsize=0)
 
-    serversock = get_serversock()
-    serversock.sendall(content)
-    serversock.sendall(content2)
-    return p, serversock
+    rfile, wfile = get_server_io()
+    wfile.write(content)
+    wfile.write(content2)
+    return p, rfile, wfile

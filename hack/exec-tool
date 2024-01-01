@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -e
+
+tool=${1?:"tool argument missing. should be one of iperf3,ping,curl,ab"}
+node=${2?:"node argument missing. should be '1' , '2' etc"}
+shift 2
+
+ip="10.55.$node.77"
+connect_timeout_sec=3
+
+function with_set_x() {
+    set -x
+    "$@"
+    {
+        ec=$?
+        set +x
+        return $ec
+    } 2>/dev/null
+}
+
+case "$tool" in
+ping)
+    with_set_x exec ping -W $connect_timeout_sec "$@" "$ip"
+    ;;
+iperf3)
+    port=5001
+    with_set_x exec iperf3 --client "$ip" --port=$port --connect-timeout=$connect_timeout_sec "$@"
+    ;;
+curl)
+    port=8080
+    with_set_x exec curl "http://$ip:$port/" -v --connect-timeout $connect_timeout_sec "$@"
+    ;;
+ab)
+    port=8080
+    with_set_x exec ab -n 100 -c 20 -s $connect_timeout_sec "$@" "http://$ip:$port/" 
+    ;;
+esac

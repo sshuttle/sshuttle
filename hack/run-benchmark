@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+
+function with_set_x() {
+    set -x
+    "$@"
+    { ec=$?; set +x;return $ec; } 2>/dev/null
+}
+
+
+./test-bed up -d
+
+
+
+benchmark() {
+    local sshuttle_bin="${1?:}"
+    echo -e "\n======== Benchmarking sshuttle: $sshuttle_bin  ========"
+    if [[ "$sshuttle_bin" == dev ]]; then
+        sshuttle_bin="../run"
+    fi
+    SSHUTTLE_BIN=$sshuttle_bin ./exec-sshuttle 1 --listen 55771 &
+    sshuttle_pid=$!
+    trap 'kill -0 $sshuttle_pid &>/dev/null && kill -15 $sshuttle_pid' EXIT
+    while ! nc -z localhost 55771; do sleep 0.1; done
+    sleep 1
+    ./exec-tool iperf3 1 --time=4
+    with_set_x kill -15 $sshuttle_pid
+    wait $sshuttle_pid || true
+}
+
+
+if [[ "$1" ]]; then
+    benchmark "$1"
+else
+    benchmark "${SSHUTTLE_BIN:-/bin/sshuttle}"
+    benchmark dev
+fi
+
+

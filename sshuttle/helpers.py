@@ -3,6 +3,10 @@ import socket
 import errno
 import os
 
+
+if sys.platform != "win32":
+    import fcntl
+
 logprefix = ''
 verbose = 0
 
@@ -14,10 +18,10 @@ def b(s):
 def log(s):
     global logprefix
     try:
-        try:
-            sys.stdout.flush()
-        except (IOError, ValueError):
-            pass
+        sys.stdout.flush()
+    except IOError:
+        pass
+    try:
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
@@ -234,4 +238,19 @@ def is_admin_user():
         except Exception:
             return False
 
+    # TODO(nom3ad): for sys.platform == 'linux', support capabilities check for non-root users. (CAP_NET_ADMIN might be enough?)
     return os.getuid() == 0
+
+
+def set_non_blocking_io(fd):
+    if sys.platform != "win32":
+        try:
+            os.set_blocking(fd, False)
+        except AttributeError:
+            # python < 3.5
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    else:
+        _sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
+        _sock.setblocking(False)

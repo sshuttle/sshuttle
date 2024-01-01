@@ -5,16 +5,20 @@ set -e
 
 echo -e ">>> Setting up $(hostname) | id: $(id) | $(python --version) \nip: $(ip a)\n route: $(ip r)"
 
+function with_set_x() {
+    set -x
+    "$@"
+    { ec=$?; set +x;return $ec; } 2>/dev/null
+}
+
+
 iface="$(ip route | awk '/default/ { print $5 }')"
 default_gw="$(ip route | awk '/default/ { print $3 }')"
 for addr in ${IP_ADDRESSES//,/ }; do
     echo ">>> Adding $addr to interface $iface"
     net_addr=$(ipcalc -n "$addr" | awk -F= '{print $2}')
-    (
-        set -ex
-        ip addr add "$addr" dev "$iface"
-        ip route add "$net_addr" via "$default_gw" dev "$iface" # so that sshuttle -N can discover routes
-    )
+    with_set_x ip addr add "$addr" dev "$iface"
+    with_set_x ip route add "$net_addr" via "$default_gw" dev "$iface" # so that sshuttle -N can discover routes
 done
 
 echo ">>> Starting iperf3 server"
