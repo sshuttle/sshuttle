@@ -284,7 +284,7 @@ class Method(BaseMethod):
                 return ipaddress.ip_address(local_addr[:-len(port_suffix)].strip("[]"))
         raise Fatal("Could not find listening address for {}/{}".format(port, proto))
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user, tmark):
+    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user, group, tmark):
         log(f"{port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
 
         if nslist or user or udp:
@@ -345,7 +345,7 @@ class Method(BaseMethod):
             if not ev.wait(5):  # at most 5 sec
                 raise Fatal("timeout in wait_for_firewall_ready()")
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, group):
         pass
 
     def get_supported_features(self):

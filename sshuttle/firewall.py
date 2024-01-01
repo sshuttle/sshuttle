@@ -84,7 +84,7 @@ def firewall_exit(signum, frame):
     # the typical exit process as described above.
     global sshuttle_pid
     if sshuttle_pid:
-        debug1("Relaying interupt signal to sshuttle process %d\n" % sshuttle_pid)
+        debug1("Relaying interupt signal to sshuttle process %d" % sshuttle_pid)
         if sys.platform == 'win32':
             sig = signal.CTRL_C_EVENT
         else:
@@ -115,7 +115,7 @@ def _setup_daemon_for_unix_like():
         # setsid() fails if sudo is configured with the use_pty option.
         pass
 
-    return sys.stdin, sys.stdout
+    return sys.stdin.buffer, sys.stdout.buffer
 
 
 def _setup_daemon_for_windows():
@@ -125,9 +125,9 @@ def _setup_daemon_for_windows():
     signal.signal(signal.SIGTERM, firewall_exit)
     signal.signal(signal.SIGINT, firewall_exit)
 
-    socket_share_data_prefix = 'SOCKETSHARE:'
-    line = sys.stdin.readline().strip()
-    if line.startswith('SOCKETSHARE:'):
+    socket_share_data_prefix = b'COM_SOCKETSHARE:'
+    line = sys.stdin.buffer.readline().strip()
+    if line.startswith(socket_share_data_prefix):
         debug3('Using shared socket for communicating with sshuttle client process')
         socket_share_data_b64 = line[len(socket_share_data_prefix):]
         socket_share_data = base64.b64decode(socket_share_data_b64)
@@ -135,12 +135,12 @@ def _setup_daemon_for_windows():
         sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
         sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
         sock.close()
-    elif line.startswith("STDIO:"):
+    elif line.startswith(b"COM_STDIO:"):
         debug3('Using inherited stdio for communicating with sshuttle client process')
     else:
         raise Fatal("Unexpected stdin: " + line)
 
-    return sys.stdin, sys.stdout
+    return sys.stdin.buffer, sys.stdout.buffer
 
 
 # Isolate function that needs to be replaced for tests
@@ -221,33 +221,43 @@ def main(method_name, syslog):
                     "PATH." % method_name)
 
     debug1('ready method name %s.' % method.name)
-    stdout.write('READY %s\n' % method.name)
+    stdout.write(('READY %s\n' % method.name).encode('ASCII'))
     stdout.flush()
 
+
+    def _read_next_string_line():
+        try:
+            line = stdin.readline(128)
+            if not line:
+                return  # parent probably exited
+            return line.decode('ASCII').strip()
+        except IOError as e:
+            # On windows, ConnectionResetError is thrown when parent process closes it's socket pair end
+            debug3('read from stdin failed: %s' % (e,))
+            return
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
     try:
-        line = stdin.readline(128)
+        line = _read_next_string_line()
         if not line:
             return  # parent probably exited
-    except ConnectionResetError as e:
+    except IOError as e:
         # On windows, ConnectionResetError is thrown when parent process closes it's socket pair end
         debug3('read from stdin failed: %s' % (e,))
         return
 
     subnets = []
-    if line != 'ROUTES\n':
+    if line != 'ROUTES':
         raise Fatal('expected ROUTES but got %r' % line)
     while 1:
-        line = stdin.readline(128)
+        line = _read_next_string_line()
         if not line:
             raise Fatal('expected route but got %r' % line)
-        elif line.startswith("NSLIST\n"):
+        elif line.startswith("NSLIST"):
             break
         try:
-            (family, width, exclude, ip, fport, lport) = \
-                line.strip().split(',', 5)
+            (family, width, exclude, ip, fport, lport) = line.split(',', 5)
         except Exception:
             raise Fatal('expected route or NSLIST but got %r' % line)
         subnets.append((
@@ -260,16 +270,16 @@ def main(method_name, syslog):
     debug2('Got subnets: %r' % subnets)
 
     nslist = []
-    if line != 'NSLIST\n':
+    if line != 'NSLIST':
         raise Fatal('expected NSLIST but got %r' % line)
     while 1:
-        line = stdin.readline(128)
+        line = _read_next_string_line()
         if not line:
             raise Fatal('expected nslist but got %r' % line)
         elif line.startswith("PORTS "):
             break
         try:
-            (family, ip) = line.strip().split(',', 1)
+            (family, ip) = line.split(',', 1)
         except Exception:
             raise Fatal('expected nslist or PORTS but got %r' % line)
         nslist.append((int(family), ip))
@@ -299,15 +309,13 @@ def main(method_name, syslog):
     debug2('Got ports: %d,%d,%d,%d'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
-    line = stdin.readline(128)
-    if not line:
-        raise Fatal('expected GO but got %r' % line)
-    elif not line.startswith("GO "):
+    line = _read_next_string_line()
+    if not line or not line.startswith("GO "):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
     global sshuttle_pid
-    udp, user, group, tmark, sshuttle_pid = args.strip().split(" ", 4)
+    udp, user, group, tmark, sshuttle_pid = args.split(" ", 4)
     udp = bool(int(udp))
     sshuttle_pid = int(sshuttle_pid)
     if user == '-':
@@ -350,7 +358,7 @@ def main(method_name, syslog):
             flush_systemd_dns_cache()
 
         try:
-            stdout.write('STARTED\n')
+            stdout.write(b'STARTED\n')
             stdout.flush()
         except IOError as e:  # the parent process probably died
             debug3('write to stdout failed: %s' % (e,))
@@ -360,13 +368,11 @@ def main(method_name, syslog):
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            try:
-                line = stdin.readline(128)
-            except IOError as e:
-                debug3('read from stdin failed: %s' % (e,))
+            line = _read_next_string_line()
+            if not line:
                 return
             if line.startswith('HOST '):
-                (name, ip) = line[5:].strip().split(',', 1)
+                (name, ip) = line[5:].split(',', 1)
                 hostmap[name] = ip
                 debug2('setting up /etc/hosts.')
                 rewrite_etc_hosts(hostmap, port_v6 or port_v4)
