@@ -1,0 +1,15 @@
+FROM docker.io/linuxserver/openssh-server:latest
+# https://hub.docker.com/r/linuxserver/openssh-server/
+
+RUN apk add --no-cache bash python3 nginx iperf3
+
+# suppress linuxserver.io logo printing
+RUN  sed -i '1 a exec &>/dev/null' /etc/s6-overlay/s6-rc.d/init-adduser/run
+
+ENV PUID=1000
+ENV PGID=1000
+ENV PASSWORD_ACCESS=true
+ENV USER_NAME=test
+ENV USER_PASSWORD=test
+ENV LOG_STDOUT=true
+COPY ./setup.service /etc/services.d/setup.service/run

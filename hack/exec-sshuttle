@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -e
+
+node=$1
+
+if [[ ! $node =~ [1-9]+ ]]; then
+    echo "node argument missing. should be '1' , '2' etc"
+    exit 2
+fi
+shift
+
+port="2200$node"
+subnet_args="-N"
+host=localhost
+user="test:test"
+
+if ! command -v sshpass >/dev/null; then
+    echo "sshpass is not found. You have to manually enter ssh password: 'test'" >&2
+    user="test"
+fi
+ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+if [[ "$*" =~ -v ]]; then
+    ssh_cmd+='-v'
+fi
+
+SSHUTTLE_BIN=${SSHUTTLE_BIN:-"$(dirname "$0")/../run"}
+set -x
+exec "${SSHUTTLE_BIN}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "$@" $subnet_args

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+
+node=$1
+
+if [[ ! $node =~ [1-9]+ ]]; then
+    echo "node argument missing. should be '1' , '2' etc"
+    exit 2
+fi
+shift
+
+ip="10.55.$node.77"
+
+exec iperf3 --client "$ip"  --port 5001

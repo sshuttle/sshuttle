@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+
+# podman build -t ghcr.io/sshuttle/sshuttle-testbed .
+# podman-compose up
+
+docker build -t ghcr.io/sshuttle/sshuttle-testbed -f Containerfile .
+docker compose up

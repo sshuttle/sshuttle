@@ -1,0 +1,49 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+set -e
+
+echo -e ">>> Setting up $(hostname) | id: $(id) | $(python --version) \nip: $(ip a)\n route: $(ip r)"
+
+iface="$(ip route | awk '/default/ { print $5 }')"
+default_gw="$(ip route | awk '/default/ { print $3 }')"
+for addr in ${IP_ADDRESSES//,/ }; do
+    echo ">>> Adding $addr to interface $iface"
+    net_addr=$(ipcalc -n "$addr" | awk -F= '{print $2}')
+    (
+        set -ex
+        ip addr add "$addr" dev "$iface"
+        ip route add "$net_addr" via "$default_gw" dev "$iface" # so that sshuttle -N can discover routes
+    )
+done
+
+echo ">>> Starting iperf3 server"
+iperf3 --server --port 5001 &
+
+mkdir -p /www
+echo -e "<h5>Hello from $(hostname)</h5>
+<pre>
+<u>ip address</u>
+$(ip address)
+<u>ip route</u>
+$(ip route)
+</pre>" >/www/index.html
+echo " 
+daemon off;
+worker_processes 1;
+error_log /dev/stdout info;
+events {
+    worker_connections 1024;
+}
+http {
+    include /etc/nginx/mime.types;
+    server {
+        access_log /dev/stdout;
+        listen 8080 default_server;
+        listen [::]:8080 default_server;
+        root /www;
+    }
+}" >/etc/nginx/nginx.conf
+
+echo ">>> Starting nginx"
+exec nginx
