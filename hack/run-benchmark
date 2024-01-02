@@ -16,14 +16,14 @@ function with_set_x() {
 
 benchmark() {
     local sshuttle_bin="${1?:}"
-    local node="${2:-'node-1'}"
+    local node="${2:-"node-1"}"
     echo -e "\n======== Benchmarking sshuttle: $sshuttle_bin  ========"
-    ./exec-sshuttle "$node" --sshuttle-bin="$sshuttle_bin" --listen 55771 &
+    with_set_x ./exec-sshuttle "$node" --sshuttle-bin="$sshuttle_bin" --listen 55771 &
     sshuttle_pid=$!
     trap 'kill -0 $sshuttle_pid &>/dev/null && kill -15 $sshuttle_pid' EXIT
     while ! nc -z localhost 55771; do sleep 0.1; done
     sleep 1
-    ./exec-tool iperf3 1 --time=4
+    ./exec-tool iperf3 "$node" --time=4
     with_set_x kill -15 $sshuttle_pid
     wait $sshuttle_pid || true
 }
