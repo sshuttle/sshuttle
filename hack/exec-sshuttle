@@ -11,7 +11,6 @@ function with_set_x() {
     } 2>/dev/null
 }
 
-
 ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 args=()
 while [[ $# -gt 0 ]]; do
@@ -24,13 +23,16 @@ while [[ $# -gt 0 ]]; do
     --copy-id)
         ssh_copy_id=true
         continue
-    ;;
+        ;;
+    -6)
+        ipv6_only=true
+        continue
+        ;;
     --sshuttle-bin=*)
         sshuttle_bin="${arg#*=}"
         continue
-    ;;
-    -*)
         ;;
+    -*) ;;
     *)
         if [[ -z "$node" ]]; then
             node=$arg
@@ -41,19 +43,22 @@ while [[ $# -gt 0 ]]; do
     args+=("$arg")
 done
 
-
 port="2222"
 user="test:test"
 
 if [[ $node == node-* ]]; then
     host=$("$(dirname "$0")/test-bed" get-ip "$node")
     index=${node#node-}
-    args+=("10.55.$index.0/24")
+    if [[ $ipv6_only == true ]]; then
+        args+=("2001:0DB8::/112")
+    else
+        args+=("10.55.$index.0/24")
+    fi
 else
     host=$node
 fi
 
-if [[ "${args[$(( ${#args[@]} - 1 ))]}" !=  *.* && "${args[$(( ${#args[@]} - 1 ))]}" !=  *:* ]]; then
+if [[ "${args[$((${#args[@]} - 1))]}" != *.* && "${args[$((${#args[@]} - 1))]}" != *:* ]]; then
     echo "No subnet specified. Using -N" >&2
     args+=('-N')
 fi
@@ -68,7 +73,7 @@ if [[ $ssh_copy_id == true ]]; then
     with_set_x ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$port" "$user@$host"
 fi
 
-if [[ -z $sshuttle_bin ||  "$sshuttle_bin" == dev ]]; then
+if [[ -z $sshuttle_bin || "$sshuttle_bin" == dev ]]; then
     cd "$(dirname "$0")/.."
     export PYTHONPATH="."
     sshuttle_bin="./run"
@@ -76,5 +81,4 @@ fi
 
 set -x
 
-exec "${sshuttle_bin}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "${args[@]}" 
-
+exec "${sshuttle_bin}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "${args[@]}"

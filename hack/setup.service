@@ -17,7 +17,7 @@ function with_set_x() {
 
 iface="$(ip route | awk '/default/ { print $5 }')"
 default_gw="$(ip route | awk '/default/ { print $3 }')"
-for addr in ${IP_ADDRESSES//,/ }; do
+for addr in ${ADD_IP_ADDRESSES//,/ }; do
     echo ">>> Adding $addr to interface $iface"
     net_addr=$(ipcalc -n "$addr" | awk -F= '{print $2}')
     with_set_x ip addr add "$addr" dev "$iface"

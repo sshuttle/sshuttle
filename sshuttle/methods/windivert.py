@@ -255,8 +255,8 @@ class ConnTrack:
             state_epoch,
             state,
         ) = self.struct_full_tuple.unpack(packed)
-        dst_addr = str(ip_address(dst_addr_packed if ip_version == 6 else dst_addr_packed[:4]))
-        src_addr = str(ip_address(src_addr_packed if ip_version == 6 else src_addr_packed[:4]))
+        dst_addr = ip_address(dst_addr_packed if ip_version == 6 else dst_addr_packed[:4]).exploded
+        src_addr = ip_address(src_addr_packed if ip_version == 6 else src_addr_packed[:4]).exploded
         return ConnectionTuple(
             IPProtocol(proto), ip_version, src_addr, src_port, dst_addr, dst_port, state_epoch, ConnState(state)
         )
@@ -306,14 +306,15 @@ class Method(BaseMethod):
         # As a workaround, finding another interface ip instead. (client should not bind proxy to loopback address)
         local_addr = self._get_bind_addresses_for_port(proxy_port, family)
         for addr in (ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
-            if addr.is_loopback or addr.version != family.version:
+            if addr.version != family.version or addr.is_loopback or addr.is_link_local:
                 continue
             if local_addr.is_unspecified or local_addr == addr:
-                debug2("Found non loopback address to connect to proxy: " + str(addr))
-                proxy_ip = str(addr)
+                proxy_ip = addr.exploded
+                debug2("Found non loopback address to connect to proxy: " + proxy_ip)
                 break
         else:
-            raise Fatal("Windivert method requires proxy to listen on a non loopback address")
+            raise Fatal("Windivert method requires proxy to be reachable by a non loopback address."
+                        f"No addersss found for {family.name}")
 
         subnet_addresses = []
         for (_, mask, exclude, network_addr, fport, lport) in subnets:
@@ -388,15 +389,18 @@ class Method(BaseMethod):
             subnet_filters = []
             for cidr in c["subnets"]:
                 ip_net = ip_network(cidr)
-                first_ip = ip_net.network_address
-                last_ip = ip_net.broadcast_address
+                first_ip = ip_net.network_address.exploded
+                last_ip = ip_net.broadcast_address.exploded
                 subnet_filters.append(f"({af.filter}.DstAddr>={first_ip} and {af.filter}.DstAddr<={last_ip})")
+            if not subnet_filters:
+                continue
             proxy_ip, proxy_port = c["proxy_addr"]
             proxy_guard_filter = f'({af.filter}.DstAddr!={proxy_ip} or tcp.DstPort!={proxy_port})'
             family_filters.append(f"{af.filter} and ({' or '.join(subnet_filters)}) and {proxy_guard_filter}")
+        if not family_filters:
+            raise Fatal("At least one ipv4 or ipv6 subnet is expected")
 
         filter = f"{filter} and ({' or '.join(family_filters)})"
-
         debug1(f"[EGRESS] {filter=}")
         with pydivert.WinDivert(filter, layer=pydivert.Layer.NETWORK, flags=pydivert.Flag.DEFAULT) as w:
             ready_cb()
@@ -444,6 +448,8 @@ class Method(BaseMethod):
         direction = "outbound"
         proxy_addr_filters = []
         for af, c in self.network_config.items():
+            if not c["subnets"]:
+                continue
             proxy_ip, proxy_port = c["proxy_addr"]
             # "ip.SrcAddr=={hex(int(proxy_ip))}" # only Windivert >=2 supports this
             proxy_addr_filters.append(f"{af.filter}.SrcAddr=={proxy_ip} and tcp.SrcPort=={proxy_port}")
