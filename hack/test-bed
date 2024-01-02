@@ -2,7 +2,6 @@
 set -e
 cd "$(dirname "$0")"
 
-
 if [[ -z $1 || $1 = -* ]]; then
     set -- up "$@"
 fi
@@ -10,7 +9,11 @@ fi
 function with_set_x() {
     set -x
     "$@"
-    { ec=$?; set +x;return $ec; } 2>/dev/null
+    {
+        ec=$?
+        set +x
+        return $ec
+    } 2>/dev/null
 }
 
 function build() {
@@ -23,8 +26,17 @@ function compose() {
     with_set_x docker compose "$@"
 }
 
+function get-ip() {
+    local container_name=sshuttle-testbed-"$1"
+    docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container_name"
+}
 
-if [[ $* = *--build* ]]; then
-    build
+if [[ $1 == get-ip ]]; then
+    shift
+    get-ip "$@"
+else
+    if [[ $* = *--build* ]]; then
+        build
+    fi
+    compose "$@"
 fi
-compose "$@"

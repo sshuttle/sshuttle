@@ -5,8 +5,6 @@ services:
     image: ghcr.io/sshuttle/sshuttle-testbed
     container_name: sshuttle-testbed-node-1
     hostname: node-1
-    ports:
-      - 22001:2222
     cap_add:
       - "NET_ADMIN"
     environment:
@@ -15,8 +13,6 @@ services:
     image: ghcr.io/sshuttle/sshuttle-testbed
     container_name: sshuttle-testbed-node-2
     hostname: node-2
-    ports:
-      - 22002:2222
     cap_add:
       - "NET_ADMIN"
     environment:

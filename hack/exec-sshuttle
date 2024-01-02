@@ -9,9 +9,9 @@ if [[ ! $node =~ [1-9]+ ]]; then
 fi
 shift
 
-port="2200$node"
+port="2222"
 subnet_args="-N"
-host=localhost
+host=$("$(dirname "$0")/test-bed" get-ip "$node")
 user="test:test"
 
 if ! command -v sshpass >/dev/null; then
