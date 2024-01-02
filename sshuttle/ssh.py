@@ -218,7 +218,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             os.close(pstdout)
             return s2.makefile("rb", buffering=0), s2.makefile("wb", buffering=0)
     else:
-        # In Windows CPython, we can't use BSD sockets as subprocess stdio
+        # In Windows CPython, BSD sockets are not supported as subprocess stdio
         # and select.select() used in ssnet.py won't work on Windows pipes.
         # So we have to use both socketpair (for select.select) and pipes (for subprocess.Popen) together
         # along with reader/writer threads to stream data between them

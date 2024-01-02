@@ -1,6 +1,6 @@
 import os
 import sys
-import ipaddress
+from ipaddress import ip_address, ip_network
 import threading
 from collections import namedtuple
 import socket
@@ -15,7 +15,7 @@ import traceback
 
 
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import debug3, log, debug1, debug2, Fatal
+from sshuttle.helpers import debug3, log, debug1, debug2, get_verbose_level, Fatal
 
 try:
     # https://reqrypt.org/windivert-doc.html#divert_iphdr
@@ -30,7 +30,7 @@ ConnectionTuple = namedtuple(
 )
 
 
-WINDIVERT_MAX_CONNECTIONS = 10_000
+WINDIVERT_MAX_CONNECTIONS = int(os.environ.get('WINDIVERT_MAX_CONNECTIONS', 1024))
 
 
 class IPProtocol(IntEnum):
@@ -150,8 +150,8 @@ class ConnTrack:
         else:
             raise RuntimeError("No slot available in ConnTrack")  # should not be here
 
-        src_addr = ipaddress.ip_address(src_addr)
-        dst_addr = ipaddress.ip_address(dst_addr)
+        src_addr = ip_address(src_addr)
+        dst_addr = ip_address(dst_addr)
         assert src_addr.version == dst_addr.version
         ip_version = src_addr.version
         state_epoch = int(time.time())
@@ -169,7 +169,7 @@ class ConnTrack:
     def update(self, proto, src_addr, src_port, state):
         if not self.is_owner:
             raise RuntimeError("Only owner can mutate ConnTrack")
-        src_addr = ipaddress.ip_address(src_addr)
+        src_addr = ip_address(src_addr)
         packed = self.struct_src_tuple.pack(proto, src_addr.version, src_addr.packed, src_port)
         for i in self.used_slots:
             if self.shm_list[i].startswith(packed):
@@ -190,7 +190,7 @@ class ConnTrack:
     def remove(self, proto, src_addr, src_port):
         if not self.is_owner:
             raise RuntimeError("Only owner can mutate ConnTrack")
-        src_addr = ipaddress.ip_address(src_addr)
+        src_addr = ip_address(src_addr)
         packed = self.struct_src_tuple.pack(proto, src_addr.version, src_addr.packed, src_port)
         for i in self.used_slots:
             if self.shm_list[i].startswith(packed):
@@ -209,7 +209,7 @@ class ConnTrack:
             )
 
     def get(self, proto, src_addr, src_port):
-        src_addr = ipaddress.ip_address(src_addr)
+        src_addr = ip_address(src_addr)
         packed = self.struct_src_tuple.pack(proto, src_addr.version, src_addr.packed, src_port)
         for entry in self.shm_list:
             if entry and entry.startswith(packed):
@@ -246,8 +246,8 @@ class ConnTrack:
             state_epoch,
             state,
         ) = self.struct_full_tuple.unpack(packed)
-        dst_addr = str(ipaddress.ip_address(dst_addr_packed if ip_version == 6 else dst_addr_packed[:4]))
-        src_addr = str(ipaddress.ip_address(src_addr_packed if ip_version == 6 else src_addr_packed[:4]))
+        dst_addr = str(ip_address(dst_addr_packed if ip_version == 6 else dst_addr_packed[:4]))
+        src_addr = str(ip_address(src_addr_packed if ip_version == 6 else src_addr_packed[:4]))
         return ConnectionTuple(
             IPProtocol(proto), ip_version, src_addr, src_port, dst_addr, dst_port, state_epoch, ConnState(state)
         )
@@ -281,7 +281,7 @@ class Method(BaseMethod):
                 continue
             port_suffix = ":" + str(port)
             if state == "LISTENING" and local_addr.endswith(port_suffix):
-                return ipaddress.ip_address(local_addr[:-len(port_suffix)].strip("[]"))
+                return ip_address(local_addr[:-len(port_suffix)].strip("[]"))
         raise Fatal("Could not find listening address for {}/{}".format(port, proto))
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user, group, tmark):
@@ -298,7 +298,7 @@ class Method(BaseMethod):
         # As a workaround we use another interface ip instead.
 
         local_addr = self._get_local_proxy_listen_addr(port, family)
-        for addr in (ipaddress.ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
+        for addr in (ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
             if addr.is_loopback or addr.version != family.version:
                 continue
             if local_addr.is_unspecified or local_addr == addr:
@@ -380,9 +380,9 @@ class Method(BaseMethod):
         for af, c in self.network_config.items():
             subnet_filters = []
             for cidr in c["subnets"]:
-                ip_network = ipaddress.ip_network(cidr)
-                first_ip = ip_network.network_address
-                last_ip = ip_network.broadcast_address
+                ip_net = ip_network(cidr)
+                first_ip = ip_net.network_address
+                last_ip = ip_net.broadcast_address
                 subnet_filters.append(f"(ip.DstAddr>={first_ip} and ip.DstAddr<={last_ip})")
             family_filters.append(f"{af.filter} and ({' or '.join(subnet_filters)}) ")
 
@@ -394,8 +394,9 @@ class Method(BaseMethod):
             proxy_port = self.proxy_port
             proxy_addr_ipv4 = self.proxy_addr[IPFamily.IPv4]
             proxy_addr_ipv6 = self.proxy_addr[IPFamily.IPv6]
+            verbose = get_verbose_level()
             for pkt in w:
-                debug3(">>> " + repr_pkt(pkt))
+                verbose >= 3 and debug3(">>> " + repr_pkt(pkt))
                 if pkt.tcp.syn and not pkt.tcp.ack:
                     # SYN sent (start of 3-way handshake connection establishment from our side, we wait for SYN+ACK)
                     self.conntrack.add(
@@ -434,7 +435,7 @@ class Method(BaseMethod):
         proto = IPProtocol.TCP
         direction = "inbound"  # only when proxy address is not loopback address (Useful for testing)
         ip_filters = []
-        for addr in (ipaddress.ip_address(a) for a in self.proxy_addr.values() if a):
+        for addr in (ip_address(a) for a in self.proxy_addr.values() if a):
             if addr.is_loopback:  # Windivert treats all loopback traffic as outbound
                 direction = "outbound"
             if addr.version == 4:
@@ -448,8 +449,9 @@ class Method(BaseMethod):
         debug1(f"[INGRESS] {filter=}")
         with pydivert.WinDivert(filter) as w:
             ready_cb()
+            verbose = get_verbose_level()
             for pkt in w:
-                debug3("<<< " + repr_pkt(pkt))
+                verbose >= 3 and debug3("<<< " + repr_pkt(pkt))
                 if pkt.tcp.syn and pkt.tcp.ack:
                     # SYN+ACK received (connection established)
                     conn = self.conntrack.update(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port, ConnState.TCP_ESTABLISHED)
@@ -466,7 +468,7 @@ class Method(BaseMethod):
                 else:
                     conn = self.conntrack.get(socket.IPPROTO_TCP, pkt.dst_addr, pkt.dst_port)
                 if not conn:
-                    debug2("Unexpected packet: " + repr_pkt(pkt))
+                    verbose >= 2 and debug2("Unexpected packet: " + repr_pkt(pkt))
                     continue
                 pkt.src_addr = conn.dst_addr
                 pkt.tcp.src_port = conn.dst_port

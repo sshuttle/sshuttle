@@ -15,6 +15,10 @@ def b(s):
     return s.encode("ASCII")
 
 
+def get_verbose_level():
+    return verbose
+
+
 def log(s):
     global logprefix
     try:
@@ -254,3 +258,20 @@ def set_non_blocking_io(fd):
     else:
         _sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
         _sock.setblocking(False)
+
+
+class RWPair:
+    def __init__(self, r, w):
+        self.r = r
+        self.w = w
+        self.read = r.read
+        self.readline = r.readline
+        self.write = w.write
+        self.flush = w.flush
+
+    def close(self):
+        for f in self.r, self.w:
+            try:
+                f.close()
+            except Exception:
+                pass
