@@ -125,21 +125,16 @@ def _setup_daemon_for_windows():
     signal.signal(signal.SIGTERM, firewall_exit)
     signal.signal(signal.SIGINT, firewall_exit)
 
-    socket_share_data_prefix = b'COM_SOCKETSHARE:'
-    line = sys.stdin.buffer.readline().strip()
-    if line.startswith(socket_share_data_prefix):
+    com_chan = os.environ.get('SSHUTTLE_FW_COM_CHANNEL')
+    if com_chan == 'stdio':
+        debug3('Using inherited stdio for communicating with sshuttle client process')
+    else:
         debug3('Using shared socket for communicating with sshuttle client process')
-        socket_share_data_b64 = line[len(socket_share_data_prefix):]
-        socket_share_data = base64.b64decode(socket_share_data_b64)
+        socket_share_data = base64.b64decode(com_chan)
         sock = socket.fromshare(socket_share_data)  # type: socket.socket
         sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
         sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
         sock.close()
-    elif line.startswith(b"COM_STDIO:"):
-        debug3('Using inherited stdio for communicating with sshuttle client process')
-    else:
-        raise Fatal("Unexpected stdin: " + line)
-
     return sys.stdin.buffer, sys.stdout.buffer
 
 

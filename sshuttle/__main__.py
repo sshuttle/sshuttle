@@ -3,9 +3,8 @@ import sys
 import os
 from sshuttle.cmdline import main
 from sshuttle.helpers import debug3
-from sshuttle import __version__
 
-debug3("Starting cmd %r (pid:%s) | sshuttle: %s | Python: %s" % (sys.argv, os.getpid(), __version__, sys.version))
+debug3("Start: (pid=%s, ppid=%s) %r" % (os.getpid(), os.getppid(), sys.argv))
 exit_code = main()
-debug3("Exiting cmd %r (pid:%s) with code %s" % (sys.argv, os.getpid(), exit_code,))
+debug3("Exit: (pid=%s, ppid=%s, code=%s) cmd %r" % (os.getpid(), os.getppid(), exit_code, sys.argv))
 sys.exit(exit_code)

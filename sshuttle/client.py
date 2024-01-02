@@ -5,6 +5,7 @@ import time
 import subprocess as ssubprocess
 import os
 import sys
+import base64
 import platform
 
 import sshuttle.helpers as helpers
@@ -14,7 +15,7 @@ import sshuttle.ssyslog as ssyslog
 import sshuttle.sdnotify as sdnotify
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-    resolvconf_nameservers, which, is_admin_user
+    resolvconf_nameservers, which, is_admin_user, RWPair
 from sshuttle.methods import get_method, Features
 from sshuttle import __version__
 try:
@@ -294,48 +295,32 @@ class FirewallClient:
                     return s2.makefile('rwb')
 
             else:
-                # In windows, if client/firewall processes is running as admin user, stdio can be used for communication.
-                # But if firewall process is run with elevated mode, access to stdio is lost.
-                # So we have to use a socketpair (as in unix).
-                # But socket need to be "shared" to child process as it can't be directly set as stdio in Windows
+                # In Windows CPython, BSD sockets are not supported as subprocess stdio.
+                # if client (and firewall) processes is running as admin user, pipe based stdio can be used for communication.
+                # But if firewall process is spwaned in elevated mode by non-admin client process, access to stdio is lost.
+                # To work around this, we can use a socketpair.
+                # But socket need to be "shared" to child process as it can't be directly set as stdio.
                 can_use_stdio = is_admin_user()
-                pstdout = ssubprocess.PIPE if can_use_stdio else None
-                pstdin = ssubprocess.PIPE
+
                 preexec_fn = None
                 penv = os.environ.copy()
-                penv['PYTHONPATH'] = os.path.dirname(os.path.dirname(__file__))
+                if can_use_stdio:
+                    pstdout = ssubprocess.PIPE
+                    pstdin = ssubprocess.PIPE
 
-                def get_pfile():
-                    if can_use_stdio:
-                        self.p.stdin.write(b'COM_STDIO:\n')
-                        self.p.stdin.flush()
-
-                        class RWPair:
-                            def __init__(self, r, w):
-                                self.r = r
-                                self.w = w
-                                self.read = r.read
-                                self.readline = r.readline
-                                self.write = w.write
-                                self.flush = w.flush
-
-                            def close(self):
-                                for f in self.r, self.w:
-                                    try:
-                                        f.close()
-                                    except Exception:
-                                        pass
+                    def get_pfile():
                         return RWPair(self.p.stdout, self.p.stdin)
-                        # import io
-                        # return io.BufferedRWPair(self.p.stdout, self.p.stdin, 1)
-                    else:
-                        import base64
-                        (s1, s2) = socket.socketpair()
-                        socket_share_data = s1.share(self.p.pid)
+                    penv['SSHUTTLE_FW_COM_CHANNEL'] = 'stdio'
+                else:
+                    pstdout = None
+                    pstdin = None
+                    (s1, s2) = socket.socketpair()
+                    socket_share_data = s1.share(self.p.pid)
+                    socket_share_data_b64 = base64.b64encode(socket_share_data)
+                    penv['SSHUTTLE_FW_COM_CHANNEL'] = socket_share_data_b64
+
+                    def get_pfile():
                         s1.close()
-                        socket_share_data_b64 = base64.b64encode(socket_share_data)
-                        self.p.stdin.write(b'COM_SOCKETSHARE:' + socket_share_data_b64 + b'\n')
-                        self.p.stdin.flush()
                         return s2.makefile('rwb')
             try:
                 debug1("Starting firewall manager with command: %r" % argv)

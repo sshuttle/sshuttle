@@ -18,9 +18,6 @@ benchmark() {
     local sshuttle_bin="${1?:}"
     local node="${2:-'node-1'}"
     echo -e "\n======== Benchmarking sshuttle: $sshuttle_bin  ========"
-    if [[ "$sshuttle_bin" == dev ]]; then
-        sshuttle_bin="../run"
-    fi
     ./exec-sshuttle "$node" --sshuttle-bin="$sshuttle_bin" --listen 55771 &
     sshuttle_pid=$!
     trap 'kill -0 $sshuttle_pid &>/dev/null && kill -15 $sshuttle_pid' EXIT
@@ -34,6 +31,6 @@ benchmark() {
 if [[ "$1" ]]; then
     benchmark "$1"
 else
-    benchmark "${SSHUTTLE_BIN:-/bin/sshuttle}" node-1
+    benchmark "${SSHUTTLE_BIN:-sshuttle}" node-1
     benchmark dev node-1
 fi

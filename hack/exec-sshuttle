@@ -68,6 +68,13 @@ if [[ $ssh_copy_id == true ]]; then
     with_set_x ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$port" "$user@$host"
 fi
 
-sshuttle_bin=${sshuttle_bin:-"$(dirname "$0")/../run"}
+if [[ -z $sshuttle_bin ||  "$sshuttle_bin" == dev ]]; then
+    cd "$(dirname "$0")/.."
+    export PYTHONPATH="."
+    sshuttle_bin="./run"
+fi
+
 set -x
+
 exec "${sshuttle_bin}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "${args[@]}" 
+
