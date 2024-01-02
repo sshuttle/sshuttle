@@ -23,7 +23,7 @@ def log(s):
     global logprefix
     try:
         sys.stdout.flush()
-    except IOError:
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
         pass
     try:
         # Put newline at end of string if line doesn't have one.
@@ -36,7 +36,7 @@ def log(s):
             sys.stderr.write(prefix + line + "\n")
             prefix = "    "
         sys.stderr.flush()
-    except IOError:
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.
         pass
