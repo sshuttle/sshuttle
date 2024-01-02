@@ -5,8 +5,13 @@ tool=${1?:"tool argument missing. should be one of iperf3,ping,curl,ab"}
 node=${2?:"node argument missing. should be 'node-1' , 'node-2' etc"}
 shift 2
 
-index=${node#node-}
-ip="10.55.$index.77"
+if [[ $node == node-* ]]; then
+    index=${node#node-}
+    host="10.55.$index.77"
+else
+    host=$node
+fi
+
 connect_timeout_sec=3
 
 function with_set_x() {
@@ -21,19 +26,22 @@ function with_set_x() {
 
 case "$tool" in
 ping)
-    with_set_x exec ping -W $connect_timeout_sec "$@" "$ip"
+    with_set_x exec ping -W $connect_timeout_sec "$@" "$host"
     ;;
 iperf3)
     port=5001
-    with_set_x exec iperf3 --client "$ip" --port=$port --connect-timeout=$((connect_timeout_sec * 1000)) "$@"
+    with_set_x exec iperf3 --client "$host" --port=$port --connect-timeout=$((connect_timeout_sec * 1000)) "$@"
     ;;
 curl)
     port=8080
-    with_set_x exec curl "http://$ip:$port/" -v --connect-timeout $connect_timeout_sec "$@"
+    with_set_x exec curl "http://$host:$port/" -v --connect-timeout $connect_timeout_sec "$@"
     ;;
 ab)
     port=8080
-    with_set_x exec ab -n 100 -c 20 -s $connect_timeout_sec "$@" "http://$ip:$port/"
+    if [[ " $*" != *" -n "* && " $*" != *" -c "* ]]; then
+        set -- -n 500 -c 50 "$@"
+    fi
+    with_set_x exec ab -s $connect_timeout_sec "$@" "http://$host:$port/"
     ;;
 *)
     echo "Unknown tool: $tool" >&2

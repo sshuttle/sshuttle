@@ -1,29 +1,73 @@
 #!/usr/bin/env bash
 set -e
 
-node=$1
+function with_set_x() {
+    set -x
+    "$@"
+    {
+        ec=$?
+        set +x
+        return $ec
+    } 2>/dev/null
+}
 
-if [[ ! $node =~ [1-9]+ ]]; then
-    echo "node argument missing. should be '1' , '2' etc"
-    exit 2
-fi
-shift
+
+ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+args=()
+while [[ $# -gt 0 ]]; do
+    arg=$1
+    shift
+    case "$arg" in
+    -v)
+        ssh_cmd+='-v'
+        ;;
+    --copy-id)
+        ssh_copy_id=true
+        continue
+    ;;
+    --sshuttle-bin=*)
+        sshuttle_bin="${arg#*=}"
+        continue
+    ;;
+    -*)
+        ;;
+    *)
+        if [[ -z "$node" ]]; then
+            node=$arg
+            continue
+        fi
+        ;;
+    esac
+    args+=("$arg")
+done
+
 
 port="2222"
-subnet_args="-N"
-host=$("$(dirname "$0")/test-bed" get-ip "$node")
 user="test:test"
 
+if [[ $node == node-* ]]; then
+    host=$("$(dirname "$0")/test-bed" get-ip "$node")
+    index=${node#node-}
+    args+=("10.55.$index.0/24")
+else
+    host=$node
+fi
+
+if [[ "${args[$(( ${#args[@]} - 1 ))]}" !=  *.* && "${args[$(( ${#args[@]} - 1 ))]}" !=  *:* ]]; then
+    echo "No subnet specified. Using -N" >&2
+    args+=('-N')
+fi
+
 if ! command -v sshpass >/dev/null; then
-    echo "sshpass is not found. You have to manually enter ssh password: 'test'" >&2
-    user="test"
-fi
-ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-
-if [[ "$*" =~ -v ]]; then
-    ssh_cmd+='-v'
+    echo "sshpass is not found. You might have to manually enter ssh password: 'test'" >&2
+    user=${user%:*}
 fi
 
-SSHUTTLE_BIN=${SSHUTTLE_BIN:-"$(dirname "$0")/../run"}
+if [[ $ssh_copy_id == true ]]; then
+    echo "Trying to make it passwordless" >&2
+    with_set_x ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$port" "$user@$host"
+fi
+
+sshuttle_bin=${sshuttle_bin:-"$(dirname "$0")/../run"}
 set -x
-exec "${SSHUTTLE_BIN}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "$@" $subnet_args
+exec "${sshuttle_bin}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "${args[@]}" 
