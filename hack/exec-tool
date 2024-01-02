@@ -2,10 +2,11 @@
 set -e
 
 tool=${1?:"tool argument missing. should be one of iperf3,ping,curl,ab"}
-node=${2?:"node argument missing. should be '1' , '2' etc"}
+node=${2?:"node argument missing. should be 'node-1' , 'node-2' etc"}
 shift 2
 
-ip="10.55.$node.77"
+index=${node#node-}
+ip="10.55.$index.77"
 connect_timeout_sec=3
 
 function with_set_x() {
@@ -33,5 +34,9 @@ curl)
 ab)
     port=8080
     with_set_x exec ab -n 100 -c 20 -s $connect_timeout_sec "$@" "http://$ip:$port/"
+    ;;
+*)
+    echo "Unknown tool: $tool" >&2
+    exit 2
     ;;
 esac

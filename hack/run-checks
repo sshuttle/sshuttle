@@ -6,4 +6,4 @@ export PYTHONPATH=.
 
 set -x
 python -m pytest .
-python -m flake8 .  
+python -m flake8 .

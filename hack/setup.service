@@ -8,9 +8,12 @@ echo -e ">>> Setting up $(hostname) | id: $(id) | $(python --version) \nip: $(ip
 function with_set_x() {
     set -x
     "$@"
-    { ec=$?; set +x;return $ec; } 2>/dev/null
+    {
+        ec=$?
+        set +x
+        return $ec
+    } 2>/dev/null
 }
-
 
 iface="$(ip route | awk '/default/ { print $5 }')"
 default_gw="$(ip route | awk '/default/ { print $3 }')"
