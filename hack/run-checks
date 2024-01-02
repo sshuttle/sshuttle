@@ -5,5 +5,5 @@ cd "$(dirname "$0")/.."
 export PYTHONPATH=.
 
 set -x
+python -m flake8 sshuttle tests 
 python -m pytest .
-python -m flake8 .
