@@ -210,7 +210,10 @@ class FirewallClient:
     def __init__(self, method_name, sudo_pythonpath):
         self.auto_nets = []
 
-        argvbase = ([sys.executable, sys.argv[0]] +
+        argv0 = sys.argv[0]
+        # if argv0 is a not python script, it shall be an executable.
+        # In windows it will be a .exe file and other platforms it will be a shebang script
+        argvbase = (([sys.executable, sys.argv[0]] if argv0.endswith('.py') else [argv0]) +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
                     ['--firewall'])
