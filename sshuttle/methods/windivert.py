@@ -19,6 +19,7 @@ from sshuttle.helpers import debug3, log, debug1, debug2, get_verbose_level, Fat
 
 try:
     # https://reqrypt.org/windivert-doc.html#divert_iphdr
+    # https://www.reqrypt.org/windivert-changelog.txt
     import pydivert
 except ImportError:
     raise Exception("Could not import pydivert module. windivert requires https://pypi.org/project/pydivert")
@@ -275,12 +276,11 @@ class Method(BaseMethod):
 
     network_config = {}
     proxy_port = None
-    proxy_addr = {IPFamily.IPv4: None, IPFamily.IPv6: None}
 
     def __init__(self, name):
         super().__init__(name)
 
-    def _get_local_proxy_listen_addr(self, port, family):
+    def _get_bind_addresses_for_port(self, port, family):
         proto = "TCPv6" if family.version == 6 else "TCP"
         for line in subprocess.check_output(["netstat", "-a", "-n", "-p", proto]).decode().splitlines():
             try:
@@ -292,31 +292,28 @@ class Method(BaseMethod):
                 return ip_address(local_addr[:-len(port_suffix)].strip("[]"))
         raise Fatal("Could not find listening address for {}/{}".format(port, proto))
 
-    def setup_firewall(self, port, dnsport, nslist, family, subnets, udp, user, group, tmark):
-        log(f"{port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
+    def setup_firewall(self, proxy_port, dnsport, nslist, family, subnets, udp, user, group, tmark):
+        log(f"{proxy_port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
 
         if nslist or user or udp:
             raise NotImplementedError()
 
         family = IPFamily(family)
 
-        # using loopback proxy address never worked.
-        # >>> self.proxy_addr[family] = family.loopback_addr
-        # See: https://github.com/basil00/Divert/issues/17#issuecomment-341100167 ,https://github.com/basil00/Divert/issues/82)
-        # As a workaround we use another interface ip instead.
-
-        local_addr = self._get_local_proxy_listen_addr(port, family)
+        proxy_ip = None
+        # using loopback only proxy binding won't work with windivert.
+        # See: https://github.com/basil00/Divert/issues/17#issuecomment-341100167 https://github.com/basil00/Divert/issues/82)
+        # As a workaround, finding another interface ip instead. (client should not bind proxy to loopback address)
+        local_addr = self._get_bind_addresses_for_port(proxy_port, family)
         for addr in (ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
             if addr.is_loopback or addr.version != family.version:
                 continue
             if local_addr.is_unspecified or local_addr == addr:
                 debug2("Found non loopback address to connect to proxy: " + str(addr))
-                self.proxy_addr[family] = str(addr)
+                proxy_ip = str(addr)
                 break
         else:
-            raise Fatal("Windivert method requires proxy to listen on non loopback address")
-
-        self.proxy_port = port
+            raise Fatal("Windivert method requires proxy to listen on a non loopback address")
 
         subnet_addresses = []
         for (_, mask, exclude, network_addr, fport, lport) in subnets:
@@ -329,10 +326,11 @@ class Method(BaseMethod):
         self.network_config[family] = {
             "subnets": subnet_addresses,
             "nslist": nslist,
+            "proxy_addr": (proxy_ip, proxy_port)
         }
 
     def wait_for_firewall_ready(self):
-        debug2(f"network_config={self.network_config} proxy_addr={self.proxy_addr}")
+        debug2(f"network_config={self.network_config}")
         self.conntrack = ConnTrack(f"sshuttle-windivert-{os.getppid()}", WINDIVERT_MAX_CONNECTIONS)
         methods = (self._egress_divert, self._ingress_divert, self._connection_gc)
         ready_events = []
@@ -380,6 +378,7 @@ class Method(BaseMethod):
         return False
 
     def _egress_divert(self, ready_cb):
+        """divert outgoing packets to proxy"""
         proto = IPProtocol.TCP
         filter = f"outbound and {proto.filter}"
 
@@ -391,20 +390,21 @@ class Method(BaseMethod):
                 ip_net = ip_network(cidr)
                 first_ip = ip_net.network_address
                 last_ip = ip_net.broadcast_address
-                subnet_filters.append(f"(ip.DstAddr>={first_ip} and ip.DstAddr<={last_ip})")
-            family_filters.append(f"{af.filter} and ({' or '.join(subnet_filters)}) ")
+                subnet_filters.append(f"({af.filter}.DstAddr>={first_ip} and {af.filter}.DstAddr<={last_ip})")
+            proxy_ip, proxy_port = c["proxy_addr"]
+            proxy_guard_filter = f'({af.filter}.DstAddr!={proxy_ip} or tcp.DstPort!={proxy_port})'
+            family_filters.append(f"{af.filter} and ({' or '.join(subnet_filters)}) and {proxy_guard_filter}")
 
         filter = f"{filter} and ({' or '.join(family_filters)})"
 
-        debug1(f"[OUTBOUND] {filter=}")
+        debug1(f"[EGRESS] {filter=}")
         with pydivert.WinDivert(filter, layer=pydivert.Layer.NETWORK, flags=pydivert.Flag.DEFAULT) as w:
             ready_cb()
-            proxy_port = self.proxy_port
-            proxy_addr_ipv4 = self.proxy_addr[IPFamily.IPv4]
-            proxy_addr_ipv6 = self.proxy_addr[IPFamily.IPv6]
+            proxy_ipv4 = self.network_config[IPFamily.IPv4]["proxy_addr"] if IPFamily.IPv4 in self.network_config else None
+            proxy_ipv6 = self.network_config[IPFamily.IPv6]["proxy_addr"] if IPFamily.IPv6 in self.network_config else None
             verbose = get_verbose_level()
             for pkt in w:
-                verbose >= 3 and debug3(">>> " + repr_pkt(pkt))
+                verbose >= 3 and debug3("[EGRESS] " + repr_pkt(pkt))
                 if pkt.tcp.syn and not pkt.tcp.ack:
                     # SYN sent (start of 3-way handshake connection establishment from our side, we wait for SYN+ACK)
                     self.conntrack.add(
@@ -423,11 +423,10 @@ class Method(BaseMethod):
                     self.conntrack.remove(IPProtocol.TCP, pkt.src_addr, pkt.src_port)
 
                 # DNAT
-                if pkt.ipv4 and proxy_addr_ipv4:
-                    pkt.dst_addr = proxy_addr_ipv4
-                if pkt.ipv6 and proxy_addr_ipv6:
-                    pkt.dst_addr = proxy_addr_ipv6
-                pkt.tcp.dst_port = proxy_port
+                if pkt.ipv4 and proxy_ipv4:
+                    pkt.dst_addr, pkt.tcp.dst_port = proxy_ipv4
+                if pkt.ipv6 and proxy_ipv6:
+                    pkt.dst_addr, pkt.tcp.dst_port = proxy_ipv6
 
                 # XXX: If we set loopback proxy address (DNAT), then we should do SNAT as well
                 #  by setting src_addr to loopback address.
@@ -435,30 +434,28 @@ class Method(BaseMethod):
                 #   as they packet has to cross public to private address space.
                 # See: https://github.com/basil00/Divert/issues/82
                 # Managing SNAT is more trickier, as we have to restore the original source IP address for reply packets.
-                # >>> pkt.dst_addr = proxy_addr_ipv4
+                # >>> pkt.dst_addr = proxy_ipv4
                 w.send(pkt, recalculate_checksum=True)
 
     def _ingress_divert(self, ready_cb):
+        """handles incoming packets from proxy"""
         proto = IPProtocol.TCP
-        direction = "inbound"  # only when proxy address is not loopback address (Useful for testing)
-        ip_filters = []
-        for addr in (ip_address(a) for a in self.proxy_addr.values() if a):
-            if addr.is_loopback:  # Windivert treats all loopback traffic as outbound
-                direction = "outbound"
-            if addr.version == 4:
-                ip_filters.append(f"ip.SrcAddr=={addr}")
-            else:
-                # ip_checks.append(f"ip.SrcAddr=={hex(int(addr))}") # only Windivert >=2 supports this
-                ip_filters.append(f"ipv6.SrcAddr=={addr}")
-        if not ip_filters:
-            raise Fatal("At least ipv4 or ipv6 address is expected")
-        filter = f"{direction} and {proto.filter} and ({' or '.join(ip_filters)}) and tcp.SrcPort=={self.proxy_port}"
+        # Windivert treats all local process traffic as outbound, regardless of origin external/loopback iface
+        direction = "outbound"
+        proxy_addr_filters = []
+        for af, c in self.network_config.items():
+            proxy_ip, proxy_port = c["proxy_addr"]
+            # "ip.SrcAddr=={hex(int(proxy_ip))}" # only Windivert >=2 supports this
+            proxy_addr_filters.append(f"{af.filter}.SrcAddr=={proxy_ip} and tcp.SrcPort=={proxy_port}")
+        if not proxy_addr_filters:
+            raise Fatal("At least one ipv4 or ipv6 address is expected")
+        filter = f"{direction} and {proto.filter} and ({' or '.join(proxy_addr_filters)})"
         debug1(f"[INGRESS] {filter=}")
         with pydivert.WinDivert(filter, layer=pydivert.Layer.NETWORK, flags=pydivert.Flag.DEFAULT) as w:
             ready_cb()
             verbose = get_verbose_level()
             for pkt in w:
-                verbose >= 3 and debug3("<<< " + repr_pkt(pkt))
+                verbose >= 3 and debug3("[INGRESS] " + repr_pkt(pkt))
                 if pkt.tcp.syn and pkt.tcp.ack:
                     # SYN+ACK received (connection established)
                     conn = self.conntrack.update(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port, ConnState.TCP_ESTABLISHED)
