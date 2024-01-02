@@ -1,13 +1,39 @@
 #!/usr/bin/env bash
 set -e
 
-tool=${1?:"tool argument missing. should be one of iperf3,ping,curl,ab"}
-node=${2?:"node argument missing. should be 'node-1' , 'node-2' etc"}
-shift 2
+args=()
+while [[ $# -gt 0 ]]; do
+    arg=$1
+    shift
+    case "$arg" in
+    -6)
+        ipv6_only=true
+        continue
+        ;;
+    -*) ;;
+    *)
+        if [[ -z $tool ]]; then
+            tool=$arg
+            continue
+        elif [[ -z $node ]]; then
+            node=$arg
+            continue
+        fi
+        ;;
+    esac
+    args+=("$arg")
+done
+
+tool=${tool?:"tool argument missing. should be one of iperf3,ping,curl,ab"}
+node=${node?:"node argument missing. should be 'node-1' , 'node-2' etc"}
 
 if [[ $node == node-* ]]; then
     index=${node#node-}
-    host="10.55.$index.77"
+    if [[ $ipv6_only == true ]]; then
+        host="2001:0DB8::55$index"
+    else
+        host="10.55.$index.77"
+    fi
 else
     host=$node
 fi
@@ -26,22 +52,26 @@ function with_set_x() {
 
 case "$tool" in
 ping)
-    with_set_x exec ping -W $connect_timeout_sec "$@" "$host"
+    with_set_x exec ping -W $connect_timeout_sec "${args[@]}" "$host"
     ;;
 iperf3)
     port=5001
-    with_set_x exec iperf3 --client "$host" --port=$port --connect-timeout=$((connect_timeout_sec * 1000)) "$@"
+    with_set_x exec iperf3 --client "$host" --port=$port --connect-timeout=$((connect_timeout_sec * 1000)) "${args[@]}"
     ;;
 curl)
     port=8080
-    with_set_x exec curl "http://$host:$port/" -v --connect-timeout $connect_timeout_sec "$@"
+    if [[ $host = *:* ]]; then
+        host="[$host]"
+        args+=(--ipv6)
+    fi
+    with_set_x exec curl "http://$host:$port/" -v --connect-timeout $connect_timeout_sec "${args[@]}"
     ;;
 ab)
     port=8080
-    if [[ " $*" != *" -n "* && " $*" != *" -c "* ]]; then
-        set -- -n 500 -c 50 "$@"
+    if [[ " ${args[*]}" != *" -n "* && " ${args[*]}" != *" -c "* ]]; then
+        args+=(-n 500 -c 50 "${args[@]}")
     fi
-    with_set_x exec ab -s $connect_timeout_sec "$@" "http://$host:$port/"
+    with_set_x exec ab -s $connect_timeout_sec "${args[@]}" "http://$host:$port/"
     ;;
 *)
     echo "Unknown tool: $tool" >&2
