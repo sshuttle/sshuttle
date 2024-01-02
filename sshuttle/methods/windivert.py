@@ -71,7 +71,15 @@ class ConnState(IntEnum):
 
 
 def repr_pkt(p):
-    r = f"{p.direction.name} {p.src_addr}:{p.src_port}->{p.dst_addr}:{p.dst_port}"
+    try:
+        direction = p.direction.name
+        if p.is_loopback:
+            direction += "/lo"
+    except AttributeError:  # windiver > 2.0
+        direction = 'OUT' if p.address.Outbound == 1 else 'IN'
+        if p.address.Loopback == 1:
+            direction += '/lo'
+    r = f"{direction} {p.src_addr}:{p.src_port}->{p.dst_addr}:{p.dst_port}"
     if p.tcp:
         t = p.tcp
         r += f" {len(t.payload)}B ("
@@ -389,7 +397,7 @@ class Method(BaseMethod):
         filter = f"{filter} and ({' or '.join(family_filters)})"
 
         debug1(f"[OUTBOUND] {filter=}")
-        with pydivert.WinDivert(filter) as w:
+        with pydivert.WinDivert(filter, layer=pydivert.Layer.NETWORK, flags=pydivert.Flag.DEFAULT) as w:
             ready_cb()
             proxy_port = self.proxy_port
             proxy_addr_ipv4 = self.proxy_addr[IPFamily.IPv4]
@@ -428,7 +436,6 @@ class Method(BaseMethod):
                 # See: https://github.com/basil00/Divert/issues/82
                 # Managing SNAT is more trickier, as we have to restore the original source IP address for reply packets.
                 # >>> pkt.dst_addr = proxy_addr_ipv4
-
                 w.send(pkt, recalculate_checksum=True)
 
     def _ingress_divert(self, ready_cb):
@@ -447,7 +454,7 @@ class Method(BaseMethod):
             raise Fatal("At least ipv4 or ipv6 address is expected")
         filter = f"{direction} and {proto.filter} and ({' or '.join(ip_filters)}) and tcp.SrcPort=={self.proxy_port}"
         debug1(f"[INGRESS] {filter=}")
-        with pydivert.WinDivert(filter) as w:
+        with pydivert.WinDivert(filter, layer=pydivert.Layer.NETWORK, flags=pydivert.Flag.DEFAULT) as w:
             ready_cb()
             verbose = get_verbose_level()
             for pkt in w:
