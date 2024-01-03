@@ -9,7 +9,7 @@ import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
 from sshuttle.options import parser, parse_ipport
-from sshuttle.helpers import family_ip_tuple, log, Fatal
+from sshuttle.helpers import family_ip_tuple, log, Fatal, start_stdout_stderr_flush_thread
 from sshuttle.sudoers import sudoers
 
 
@@ -19,6 +19,8 @@ def main():
     else:
         env_args = []
     args = [*env_args, *sys.argv[1:]]
+
+    start_stdout_stderr_flush_thread()
 
     opt = parser.parse_args(args)
 
