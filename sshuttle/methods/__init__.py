@@ -50,6 +50,7 @@ class BaseMethod(object):
         result.udp = False
         result.dns = True
         result.user = False
+        result.group = False
         return result
 
     @staticmethod
@@ -89,10 +90,10 @@ class BaseMethod(object):
                     (key, self.name))
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, tmark):
+                       user, group, tmark):
         raise NotImplementedError()
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, group):
         raise NotImplementedError()
 
     @staticmethod

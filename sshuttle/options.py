@@ -383,6 +383,12 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--group",
+    help="""
+    apply all the rules only to this linux group
+    """
+)
+parser.add_argument(
     "--firewall",
     action="store_true",
     help="""

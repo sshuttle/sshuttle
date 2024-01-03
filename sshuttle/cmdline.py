@@ -1,5 +1,8 @@
+import os
 import re
+import shlex
 import socket
+import sys
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
@@ -11,10 +14,15 @@ from sshuttle.sudoers import sudoers
 
 
 def main():
+    if 'SSHUTTLE_ARGS' in os.environ:
+        env_args = shlex.split(os.environ['SSHUTTLE_ARGS'])
+    else:
+        env_args = []
+    args = [*env_args, *sys.argv[1:]]
 
     start_stdout_stderr_flush_thread()
 
-    opt = parser.parse_args()
+    opt = parser.parse_args(args)
 
     if opt.sudoers_no_modify:
         # sudoers() calls exit() when it completes
@@ -107,6 +115,7 @@ def main():
                                       opt.to_ns,
                                       opt.pidfile,
                                       opt.user,
+                                      opt.group,
                                       opt.sudo_pythonpath,
                                       opt.tmark)
 

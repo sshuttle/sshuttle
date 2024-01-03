@@ -21,6 +21,10 @@ try:
     from pwd import getpwnam
 except ImportError:
     getpwnam = None
+try:
+    from grp import getgrnam
+except ImportError:
+    getgrnam = None
 
 import socket
 
@@ -298,10 +302,28 @@ class FirewallClient:
                        '%r returned %d' % (self.argv, rv))
                 continue
 
+            # Normally, READY will be the first text on the first
+            # line. However, if an administrator replaced sudo with a
+            # shell script that echos a message to stdout and then
+            # runs sudo, READY won't be on the first line. To
+            # workaround this problem, we read a limited number of
+            # lines until we encounter "READY". Store all of the text
+            # we skipped in case we need it for an error message.
+            #
+            # A proper way to print a sudo warning message is to use
+            # sudo's lecture feature. sshuttle works correctly without
+            # this hack if sudo's lecture feature is used instead.
+            skipped_text = line
+            for i in range(100):
+                if line[0:5] == b'READY':
+                    break
+                line = self.pfile.readline()
+                skipped_text += line
+
             if line[0:5] != b'READY':
                 debug1('Unable to start firewall manager. '
                        'Expected READY, got %r. '
-                       'Command=%r' % (line, self.argv))
+                       'Command=%r' % (skipped_text, self.argv))
                 continue
 
             method_name = line[6:-1]
@@ -315,7 +337,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark):
+              user, group, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -325,6 +347,7 @@ class FirewallClient:
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
         self.user = user
+        self.group = group
         self.tmark = tmark
 
     def check(self):
@@ -363,9 +386,14 @@ class FirewallClient:
             user = bytes(self.user, 'utf-8')
         else:
             user = b'%d' % self.user
-
-        self.pfile.write(b'GO %d %s %s %d\n' %
-                         (udp, user, bytes(self.tmark, 'ascii'), os.getpid()))
+        if self.group is None:
+            group = b'-'
+        elif isinstance(self.group, str):
+            group = bytes(self.group, 'utf-8')
+        else:
+            group = b'%d' % self.group
+        self.pfile.write(b'GO %d %s %s %s %d\n' %
+                         (udp, user, group, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -726,7 +754,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark):
+         user, group, sudo_pythonpath, tmark):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -828,6 +856,15 @@ def main(listenip_v6, listenip_v4,
         except KeyError:
             raise Fatal("User %s does not exist." % user)
     required.user = False if user is None else True
+
+    if group is not None:
+        if getgrnam is None:
+            raise Fatal("Routing by group not available on this system.")
+        try:
+            group = getgrnam(group).gr_gid
+        except KeyError:
+            raise Fatal("Group %s does not exist." % user)
+    required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
         print("WARNING: IPv6 subnets were ignored because IPv6 is disabled "
@@ -1058,7 +1095,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark)
+             required.udp, user, group, tmark)
 
     # start the client process
     try:
