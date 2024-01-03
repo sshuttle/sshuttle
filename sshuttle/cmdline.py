@@ -9,7 +9,7 @@ import sshuttle.firewall as firewall
 import sshuttle.hostwatch as hostwatch
 import sshuttle.ssyslog as ssyslog
 from sshuttle.options import parser, parse_ipport
-from sshuttle.helpers import family_ip_tuple, log, Fatal
+from sshuttle.helpers import family_ip_tuple, log, Fatal, start_stdout_stderr_flush_thread
 from sshuttle.sudoers import sudoers
 
 
