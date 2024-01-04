@@ -28,6 +28,15 @@ except ImportError:
 
 import socket
 
+try:
+    # Store original tty I/O attributes. This is to fix a garbled terminal when
+    # running as daemon and sudo has the use_pty option enabled.
+    import termios
+    orig_tcattr = termios.tcgetattr(0)
+    termios_available = True
+except ImportError:
+    termios_available = False
+
 _extra_fd = os.open(os.devnull, os.O_RDONLY)
 
 
@@ -70,6 +79,10 @@ def check_daemon(pidfile):
     raise Fatal("%s: sshuttle is already running (pid=%d)"
                 % (_pidname, oldpid))
 
+def _reset_terminal():
+    if termios_available:
+        # return tty I/O attributes to the original ones
+        termios.tcsetattr(0, termios.TCSANOW, orig_tcattr)
 
 def daemonize():
     # Try to open the pidfile prior to forking. If there is a problem,
@@ -82,6 +95,10 @@ def daemonize():
         # --daemon implies --syslog, all output gets redirected to
         # syslog.
         raise Fatal("failed to create/write pidfile %s" % _pidname)
+
+    # reset termios attributes to the original ones before forking and
+    # overwriting fd 0 with a null descriptor
+    _reset_terminal()
 
     # Create a daemon process with a new session id.
     if os.fork():
