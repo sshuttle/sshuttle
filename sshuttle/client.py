@@ -278,7 +278,8 @@ class FirewallClient:
 
             try:
                 debug1("Starting firewall manager with command: %r" % argv)
-                self.p = ssubprocess.Popen(argv, stdout=s1, preexec_fn=setup)
+                self.p = ssubprocess.Popen(argv, stdout=s1, stdin=s1,
+                                           preexec_fn=setup)
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
             except OSError as e:
                 # This exception will occur if the program isn't
