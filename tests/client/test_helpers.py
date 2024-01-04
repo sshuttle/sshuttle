@@ -24,19 +24,19 @@ def test_log(mock_stderr, mock_stdout):
         call.flush(),
     ]
     assert mock_stderr.mock_calls == [
-        call.write('prefix: message\r\n'),
+        call.write('prefix: message\n'),
         call.flush(),
-        call.write('prefix: abc\r\n'),
+        call.write('prefix: abc\n'),
         call.flush(),
-        call.write('prefix: message 1\r\n'),
+        call.write('prefix: message 1\n'),
         call.flush(),
-        call.write('prefix: message 2\r\n'),
-        call.write('    line2\r\n'),
-        call.write('    line3\r\n'),
+        call.write('prefix: message 2\n'),
+        call.write('    line2\n'),
+        call.write('    line3\n'),
         call.flush(),
-        call.write('prefix: message 3\r\n'),
-        call.write('    line2\r\n'),
-        call.write('    line3\r\n'),
+        call.write('prefix: message 3\n'),
+        call.write('    line2\n'),
+        call.write('    line3\n'),
         call.flush(),
     ]
 
@@ -51,7 +51,7 @@ def test_debug1(mock_stderr, mock_stdout):
         call.flush(),
     ]
     assert mock_stderr.mock_calls == [
-        call.write('prefix: message\r\n'),
+        call.write('prefix: message\n'),
         call.flush(),
     ]
 
@@ -76,7 +76,7 @@ def test_debug2(mock_stderr, mock_stdout):
         call.flush(),
     ]
     assert mock_stderr.mock_calls == [
-        call.write('prefix: message\r\n'),
+        call.write('prefix: message\n'),
         call.flush(),
     ]
 
@@ -101,7 +101,7 @@ def test_debug3(mock_stderr, mock_stdout):
         call.flush(),
     ]
     assert mock_stderr.mock_calls == [
-        call.write('prefix: message\r\n'),
+        call.write('prefix: message\n'),
         call.flush(),
     ]
 

@@ -22,14 +22,7 @@ def log(s):
         prefix = logprefix
         s = s.rstrip("\n")
         for line in s.split("\n"):
-            # We output with \r\n instead of \n because when we use
-            # sudo with the use_pty option, the firewall process, the
-            # other processes printing to the terminal will have the
-            # \n move to the next line, but they will fail to reset
-            # cursor to the beginning of the line. Printing output
-            # with \r\n endings fixes that problem and does not appear
-            # to cause problems elsewhere.
-            sys.stderr.write(prefix + line + "\r\n")
+            sys.stderr.write(prefix + line + "\n")
             prefix = "    "
         sys.stderr.flush()
     except IOError:
