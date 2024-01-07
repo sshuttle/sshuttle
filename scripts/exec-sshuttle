@@ -58,7 +58,7 @@ else
     host=$node
 fi
 
-if [[ "${args[$((${#args[@]} - 1))]}" != *.* && "${args[$((${#args[@]} - 1))]}" != *:* ]]; then
+if [[ "${#args[@]}" -ne 0  && "${args[$((${#args[@]} - 1))]}" != *.* && "${args[$((${#args[@]} - 1))]}" != *:* ]]; then
     echo "No subnet specified. Using -N" >&2
     args+=('-N')
 fi

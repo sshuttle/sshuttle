@@ -211,8 +211,8 @@ class FirewallClient:
         self.auto_nets = []
 
         argv0 = sys.argv[0]
-        # if argv0 is a not python script, it shall be an executable.
-        # In windows it will be a .exe file and other platforms it will be a shebang script
+        # argv0 is either be a normal python file or an executable.
+        # After installed as a package, sshuttle command points to an .exe in Windows and python shebang script elsewhere.
         argvbase = (([sys.executable, sys.argv[0]] if argv0.endswith('.py') else [argv0]) +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
@@ -234,43 +234,43 @@ class FirewallClient:
                 # Because underlying ShellExecute() Windows api does not allow child process to inherit stdio.
                 # TODO(nom3ad): Try to implement another way to achieve this.
                 raise Fatal("Privilege elevation for Windows is not yet implemented. Please run from an administrator shell")
+
+            # Linux typically uses sudo; OpenBSD uses doas. However, some
+            # Linux distributions are starting to use doas.
+            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
+            doas_cmd = ['doas']
+
+            # For clarity, try to replace executable name with the
+            # full path.
+            doas_path = which("doas")
+            if doas_path:
+                doas_cmd[0] = doas_path
+            sudo_path = which("sudo")
+            if sudo_path:
+                sudo_cmd[0] = sudo_path
+
+            # sudo_pythonpath indicates if we should set the
+            # PYTHONPATH environment variable when elevating
+            # privileges. This can be adjusted with the
+            # --no-sudo-pythonpath option.
+            if sudo_pythonpath:
+                pp_prefix = ['/usr/bin/env',
+                             'PYTHONPATH=%s' %
+                             os.path.dirname(os.path.dirname(__file__))]
+                sudo_cmd = sudo_cmd + pp_prefix
+                doas_cmd = doas_cmd + pp_prefix
+
+            # Final order should be: sudo/doas command, env
+            # pythonpath, and then argvbase (sshuttle command).
+            sudo_cmd = sudo_cmd + argvbase
+            doas_cmd = doas_cmd + argvbase
+
+            # If we can find doas and not sudo or if we are on
+            # OpenBSD, try using doas first.
+            if (doas_path and not sudo_path) or platform.platform().startswith('OpenBSD'):
+                argv_tries = [doas_cmd, sudo_cmd, argvbase]
             else:
-                # Linux typically uses sudo; OpenBSD uses doas. However, some
-                # Linux distributions are starting to use doas.
-                sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
-                doas_cmd = ['doas']
-
-                # For clarity, try to replace executable name with the
-                # full path.
-                doas_path = which("doas")
-                if doas_path:
-                    doas_cmd[0] = doas_path
-                sudo_path = which("sudo")
-                if sudo_path:
-                    sudo_cmd[0] = sudo_path
-
-                # sudo_pythonpath indicates if we should set the
-                # PYTHONPATH environment variable when elevating
-                # privileges. This can be adjusted with the
-                # --no-sudo-pythonpath option.
-                if sudo_pythonpath:
-                    pp_prefix = ['/usr/bin/env',
-                                 'PYTHONPATH=%s' %
-                                 os.path.dirname(os.path.dirname(__file__))]
-                    sudo_cmd = sudo_cmd + pp_prefix
-                    doas_cmd = doas_cmd + pp_prefix
-
-                # Final order should be: sudo/doas command, env
-                # pythonpath, and then argvbase (sshuttle command).
-                sudo_cmd = sudo_cmd + argvbase
-                doas_cmd = doas_cmd + argvbase
-
-                # If we can find doas and not sudo or if we are on
-                # OpenBSD, try using doas first.
-                if (doas_path and not sudo_path) or platform.platform().startswith('OpenBSD'):
-                    argv_tries = [doas_cmd, sudo_cmd, argvbase]
-                else:
-                    argv_tries = [sudo_cmd, doas_cmd, argvbase]
+                argv_tries = [sudo_cmd, doas_cmd, argvbase]
 
         # Try all commands in argv_tries in order. If a command
         # produces an error, try the next one. If command is
@@ -874,7 +874,7 @@ def main(listenip_v6, listenip_v4,
 
     # listenip_v4 contains user specified value or it is set to "auto".
     if listenip_v4 == "auto":
-        listenip_v4 = ('127.0.0.1' if avail.loopback_port else '0.0.0.0', 0)
+        listenip_v4 = ('127.0.0.1' if avail.loopback_proxy_port else '0.0.0.0', 0)
         debug1("Using default IPv4 listen address " + listenip_v4[0])
 
     # listenip_v6 is...
@@ -885,7 +885,7 @@ def main(listenip_v6, listenip_v4,
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
         if avail.ipv6:
-            listenip_v6 = ('::1' if avail.loopback_port else '::', 0)
+            listenip_v6 = ('::1' if avail.loopback_proxy_port else '::', 0)
             debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:
             debug1("IPv6 disabled since it isn't supported by method "
