@@ -15,7 +15,7 @@ import traceback
 
 
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import debug3, log, debug1, debug2, get_verbose_level, Fatal
+from sshuttle.helpers import debug3, debug1, debug2, get_verbose_level, Fatal
 
 try:
     # https://reqrypt.org/windivert-doc.html#divert_iphdr
@@ -46,6 +46,10 @@ class IPProtocol(IntEnum):
 class IPFamily(IntEnum):
     IPv4 = socket.AF_INET
     IPv6 = socket.AF_INET6
+
+    @staticmethod
+    def from_ip_version(version):
+        return IPFamily.IPv6 if version == 4 else IPFamily.IPv4
 
     @property
     def filter(self):
@@ -280,7 +284,7 @@ class Method(BaseMethod):
     def __init__(self, name):
         super().__init__(name)
 
-    def _get_bind_addresses_for_port(self, port, family):
+    def _get_bind_address_for_port(self, port, family):
         proto = "TCPv6" if family.version == 6 else "TCP"
         for line in subprocess.check_output(["netstat", "-a", "-n", "-p", proto]).decode().splitlines():
             try:
@@ -293,7 +297,7 @@ class Method(BaseMethod):
         raise Fatal("Could not find listening address for {}/{}".format(port, proto))
 
     def setup_firewall(self, proxy_port, dnsport, nslist, family, subnets, udp, user, group, tmark):
-        log(f"{proxy_port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
+        debug2(f"{proxy_port=}, {dnsport=}, {nslist=}, {family=}, {subnets=}, {udp=}, {user=}, {tmark=}")
 
         if nslist or user or udp:
             raise NotImplementedError()
@@ -304,18 +308,21 @@ class Method(BaseMethod):
         # using loopback only proxy binding won't work with windivert.
         # See: https://github.com/basil00/Divert/issues/17#issuecomment-341100167 https://github.com/basil00/Divert/issues/82)
         # As a workaround, finding another interface ip instead. (client should not bind proxy to loopback address)
-        local_addr = self._get_bind_addresses_for_port(proxy_port, family)
-        for addr in (ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), None)):
-            if addr.version != family.version or addr.is_loopback or addr.is_link_local:
-                continue
-            if local_addr.is_unspecified or local_addr == addr:
-                proxy_ip = addr.exploded
-                debug2("Found non loopback address to connect to proxy: " + proxy_ip)
-                break
+        proxy_bind_addr = self._get_bind_address_for_port(proxy_port, family)
+        if proxy_bind_addr.is_loopback:
+            raise Fatal("Windivert method requires proxy to be reachable by a non loopback address.")
+        if not proxy_bind_addr.is_unspecified:
+            proxy_ip = proxy_bind_addr.exploded
         else:
-            raise Fatal("Windivert method requires proxy to be reachable by a non loopback address."
-                        f"No addersss found for {family.name}")
-
+            local_addresses = [ip_address(info[4][0]) for info in socket.getaddrinfo(socket.gethostname(), 0, family=family)]
+            for addr in local_addresses:
+                if not addr.is_loopback and not addr.is_link_local:
+                    proxy_ip = addr.exploded
+                    break
+            else:
+                raise Fatal("Windivert method requires proxy to be reachable by a non loopback address."
+                            f"No address found for {family.name} in {local_addresses}")
+        debug2("Found non loopback address to connect to proxy: " + proxy_ip)
         subnet_addresses = []
         for (_, mask, exclude, network_addr, fport, lport) in subnets:
             if exclude:
@@ -357,9 +364,11 @@ class Method(BaseMethod):
 
     def get_supported_features(self):
         result = super(Method, self).get_supported_features()
-        result.loopback_port = False
+        result.loopback_proxy_port = False
         result.user = False
         result.dns = False
+        # ipv6 only able to support with Windivert 2.x due to bugs in filter parsing
+        # TODO(nom3ad): Enable ipv6 once https://github.com/ffalcinelli/pydivert/pull/57 merged
         result.ipv6 = False
         return result
 
@@ -463,19 +472,20 @@ class Method(BaseMethod):
             for pkt in w:
                 verbose >= 3 and debug3("[INGRESS] " + repr_pkt(pkt))
                 if pkt.tcp.syn and pkt.tcp.ack:
-                    # SYN+ACK received (connection established)
+                    # SYN+ACK received (connection established from proxy
                     conn = self.conntrack.update(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port, ConnState.TCP_ESTABLISHED)
                 elif pkt.tcp.rst:
-                    # RST received - Abrupt connection teardown initiated by otherside. We don't expect anymore packets
+                    # RST received - Abrupt connection teardown initiated by proxy. Don't expect anymore packets
                     conn = self.conntrack.remove(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port)
                 # https://wiki.wireshark.org/TCP-4-times-close.md
                 elif pkt.tcp.fin and pkt.tcp.ack:
-                    # FIN+ACK received (Passive close by otherside. We don't expect any more packets. Otherside expects an ACK)
+                    # FIN+ACK received (Passive close by proxy. Don't expect any more packets. proxy expects an ACK)
                     conn = self.conntrack.remove(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port)
                 elif pkt.tcp.fin:
-                    # FIN received (Otherside initiated graceful close.  We expects a final ACK for a FIN packet)
+                    # FIN received (proxy initiated graceful close.  Expect a final ACK for a FIN packet)
                     conn = self.conntrack.update(IPProtocol.TCP, pkt.dst_addr, pkt.dst_port, ConnState.TCP_CLOSE_WAIT)
                 else:
+                    # data fragments and ACKs
                     conn = self.conntrack.get(socket.IPPROTO_TCP, pkt.dst_addr, pkt.dst_port)
                 if not conn:
                     verbose >= 2 and debug2("Unexpected packet: " + repr_pkt(pkt))

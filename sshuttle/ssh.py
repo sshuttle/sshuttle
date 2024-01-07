@@ -262,7 +262,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             threading.Thread(target=stream_sock_to_stdin, name='stream_sock_to_stdin',  daemon=True).start()
             return s2.makefile("rb", buffering=0), s2.makefile("wb", buffering=0)
 
-    # https://stackoverflow.com/questions/48671215/howto-workaround-of-close-fds-true-and-redirect-stdout-stderr-on-windows
+    # See: stackoverflow.com/questions/48671215/howto-workaround-of-close-fds-true-and-redirect-stdout-stderr-on-windows
     close_fds = False if sys.platform == 'win32' else True
 
     debug2("executing: %r" % argv)

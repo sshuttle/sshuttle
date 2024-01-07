@@ -46,7 +46,7 @@ class BaseMethod(object):
     @staticmethod
     def get_supported_features():
         result = Features()
-        result.loopback_port = True
+        result.loopback_proxy_port = True
         result.ipv4 = True
         result.ipv6 = False
         result.udp = False

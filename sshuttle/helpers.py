@@ -242,7 +242,7 @@ def is_admin_user():
         except Exception:
             return False
 
-    # TODO(nom3ad): for sys.platform == 'linux', support capabilities check for non-root users. (CAP_NET_ADMIN might be enough?)
+    # TODO(nom3ad): for sys.platform == 'linux', check capabilities for non-root users. (CAP_NET_ADMIN might be enough?)
     return os.getuid() == 0
 
 
