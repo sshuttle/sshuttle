@@ -3,7 +3,7 @@
 ```bash
 test-bed up -d # start containers
 
-exec-sshuttle <node> [--copy-id] [--shuttle-bin=/path/to/sshttle] [sshuttle-args...]
+exec-sshuttle <node> [--copy-id] [--sshuttle-bin=/path/to/sshuttle] [sshuttle-args...]
 
 exec-sshuttle node-1 # start sshuttle to connect to node-1
 
