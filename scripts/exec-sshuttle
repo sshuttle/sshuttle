@@ -80,5 +80,5 @@ if [[ -z $sshuttle_bin || "$sshuttle_bin" == dev ]]; then
 fi
 
 set -x
-
+$sshuttle_bin --version
 exec "${sshuttle_bin}" -r "$user@$host:$port" --ssh-cmd "$ssh_cmd" "${args[@]}"
