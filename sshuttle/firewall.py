@@ -15,7 +15,10 @@ import sshuttle.helpers as helpers
 from sshuttle.helpers import is_admin_user, log, debug1, debug2, debug3, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
-HOSTSFILE = '/etc/hosts'
+if sys.platform == 'win32':
+    HOSTSFILE = r"C:\Windows\System32\drivers\etc\hosts"
+else:
+    HOSTSFILE = '/etc/hosts'
 sshuttle_pid = None
 
 
@@ -48,12 +51,13 @@ def rewrite_etc_hosts(hostmap, port):
         f.write('%-30s %s\n' % ('%s %s' % (ip, name), APPEND))
     f.close()
 
-    if st is not None:
-        os.chown(tmpname, st.st_uid, st.st_gid)
-        os.chmod(tmpname, st.st_mode)
-    else:
-        os.chown(tmpname, 0, 0)
-        os.chmod(tmpname, 0o644)
+    if sys.platform != 'win32':
+        if st is not None:
+            os.chown(tmpname, st.st_uid, st.st_gid)
+            os.chmod(tmpname, st.st_mode)
+        else:
+            os.chown(tmpname, 0, 0)
+            os.chmod(tmpname, 0o644)
     try:
         os.rename(tmpname, HOSTSFILE)
     except OSError:
