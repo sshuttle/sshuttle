@@ -348,7 +348,7 @@ def main(method_name, syslog):
         try:
             # For some methods (eg: windivert) firewall setup will be differed / will run asynchronously.
             # Such method implements wait_for_firewall_ready() to wait until firewall is up and running.
-            method.wait_for_firewall_ready()
+            method.wait_for_firewall_ready(sshuttle_pid)
         except NotImplementedError:
             pass
 

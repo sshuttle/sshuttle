@@ -98,7 +98,7 @@ class BaseMethod(object):
     def restore_firewall(self, port, family, udp, user, group):
         raise NotImplementedError()
 
-    def wait_for_firewall_ready(self):
+    def wait_for_firewall_ready(self, sshuttle_pid):
         raise NotImplementedError()
 
     @staticmethod

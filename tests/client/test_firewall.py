@@ -157,7 +157,7 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
             None,
             None,
             '0x01'),
-        call().wait_for_firewall_ready(),
+        call().wait_for_firewall_ready(os.getpid()),
         call().restore_firewall(1024, AF_INET6, True, None, None),
         call().restore_firewall(1025, AF_INET, True, None, None),
     ]
