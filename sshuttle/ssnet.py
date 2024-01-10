@@ -77,7 +77,8 @@ def _fds(socks):
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except OSError:
+    except (OSError, socket.error):
+        # Note: In python2 socket.error != OSError (In python3, they are same)
         _, e = sys.exc_info()[:2]
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
@@ -433,7 +434,7 @@ class Mux(Handler):
         set_non_blocking_io(self.wfile.fileno())
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(self.wfile.write, self.outbuf[0])
-            self.wfile.flush()
+            # self.wfile.flush()
             debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
@@ -446,6 +447,7 @@ class Mux(Handler):
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
             read = _nb_clean(self.rfile.read, min(1048576, LATENCY_BUFFER_SIZE))
+            debug2('mux read: %r' % len(read))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)

@@ -12,13 +12,17 @@ function with_set_x() {
     } 2>/dev/null
 }
 
+function log() {
+    echo "$*" >&2
+}
+
 ./test-bed up -d
 
 benchmark() {
-    local sshuttle_bin="${1?:}"
-    local node="${2:-"node-1"}"
-    echo -e "\n======== Benchmarking sshuttle: $sshuttle_bin  ========"
-    with_set_x ./exec-sshuttle "$node" --sshuttle-bin="$sshuttle_bin" --listen 55771 &
+    log -e "\n======== Benchmarking sshuttle | Args: [$*]  ========"
+    local node=$1
+    shift
+    with_set_x ./exec-sshuttle "$node" --listen 55771 "$@" &
     sshuttle_pid=$!
     trap 'kill -0 $sshuttle_pid &>/dev/null && kill -15 $sshuttle_pid' EXIT
     while ! nc -z localhost 55771; do sleep 0.1; done
@@ -28,9 +32,9 @@ benchmark() {
     wait $sshuttle_pid || true
 }
 
-if [[ "$1" ]]; then
-    benchmark "$1"
+if [[ $# -gt 0 ]]; then
+    benchmark "${@}"
 else
-    benchmark "${SSHUTTLE_BIN:-sshuttle}" node-1
-    benchmark dev node-1
+    benchmark node-1 --sshuttle-bin="${SSHUTTLE_BIN:-sshuttle}"
+    benchmark node-1 --sshuttle-bin=dev
 fi

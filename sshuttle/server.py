@@ -5,6 +5,7 @@ import traceback
 import time
 import sys
 import os
+import io
 
 
 import sshuttle.ssnet as ssnet
@@ -281,7 +282,7 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         sys.stdout.flush()
 
         handlers = []
-        mux = Mux(sys.stdin.buffer, sys.stdout.buffer)
+        mux = Mux(io.FileIO(0, mode='r'), io.FileIO(1, mode='w'))
         handlers.append(mux)
 
         debug1('auto-nets:' + str(auto_nets))

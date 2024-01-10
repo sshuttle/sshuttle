@@ -18,7 +18,7 @@ function with_set_x() {
 
 function build() {
     # podman build -t ghcr.io/sshuttle/sshuttle-testbed .
-    with_set_x docker build -t ghcr.io/sshuttle/sshuttle-testbed -f Containerfile .
+    with_set_x docker build --progress=plain -t ghcr.io/sshuttle/sshuttle-testbed -f Containerfile .
 }
 
 function compose() {
