@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -e
 
+
+function with_set_x() {
+    set -x
+    "$@"
+    {
+        ec=$?
+        set +x
+        return $ec
+    } 2>/dev/null
+}
+
+function log() {
+    echo "$*" >&2
+}
+
+
 args=()
 while [[ $# -gt 0 ]]; do
     arg=$1
@@ -40,16 +56,6 @@ fi
 
 connect_timeout_sec=3
 
-function with_set_x() {
-    set -x
-    "$@"
-    {
-        ec=$?
-        set +x
-        return $ec
-    } 2>/dev/null
-}
-
 case "$tool" in
 ping)
     with_set_x exec ping -W $connect_timeout_sec "${args[@]}" "$host"
@@ -74,7 +80,7 @@ ab)
     with_set_x exec ab -s $connect_timeout_sec "${args[@]}" "http://$host:$port/"
     ;;
 *)
-    echo "Unknown tool: $tool" >&2
+    log "Unknown tool: $tool"
     exit 2
     ;;
 esac

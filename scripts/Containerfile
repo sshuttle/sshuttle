@@ -1,15 +1,40 @@
-FROM docker.io/linuxserver/openssh-server:latest
 # https://hub.docker.com/r/linuxserver/openssh-server/
+ARG BASE_IMAGE=docker.io/linuxserver/openssh-server:version-9.3_p2-r1
 
-RUN apk add --no-cache bash python3 nginx iperf3
+FROM ${BASE_IMAGE} as pyenv
 
-# suppress linuxserver.io logo printing
-RUN  sed -i '1 a exec &>/dev/null' /etc/s6-overlay/s6-rc.d/init-adduser/run
+# https://github.com/pyenv/pyenv/wiki#suggested-build-environment
+RUN apk add --no-cache build-base git libffi-dev openssl-dev bzip2-dev zlib-dev readline-dev sqlite-dev
+ENV PYENV_ROOT=/pyenv
+RUN curl https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
+RUN /pyenv/bin/pyenv install 2.7
+RUN /pyenv/bin/pyenv install 3.6
+RUN /pyenv/bin/pyenv install 3.8
+RUN /pyenv/bin/pyenv install 3.10
+RUN bash -xc 'rm -rf /pyenv/{.git,plugins} /pyenv/versions/*/lib/*/{test,config,config-*linux-gnu}' && \
+    find /pyenv -type d -name __pycache__ -exec rm -rf {} + && \
+    find /pyenv -type f -name '*.py[co]' -delete
 
+FROM ${BASE_IMAGE}
+
+RUN apk add --no-cache bash nginx iperf3
+
+# pyenv setup
+ENV PYENV_ROOT=/pyenv
+ENV PATH=/pyenv/shims:/pyenv/bin:$PATH
+COPY --from=pyenv /pyenv /pyenv
+
+# OpenSSH Server variables
 ENV PUID=1000
 ENV PGID=1000
 ENV PASSWORD_ACCESS=true
 ENV USER_NAME=test
 ENV USER_PASSWORD=test
 ENV LOG_STDOUT=true
-COPY ./setup.service /etc/services.d/setup.service/run
+
+# suppress linuxserver.io logo printing, chnage sshd config
+RUN sed -i '1 a exec &>/dev/null' /etc/s6-overlay/s6-rc.d/init-adduser/run
+
+# https://www.linuxserver.io/blog/2019-09-14-customizing-our-containers
+# To customize the container and start other components 
+COPY container.setup.sh /custom-cont-init.d/setup.sh

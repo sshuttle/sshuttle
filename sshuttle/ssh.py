@@ -240,7 +240,8 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
                     fd = p.stdout.fileno()
                     for data in iter(lambda: os.read(fd, 16384), b''):
                         s1.sendall(data)
-                        # debug3(f"<<<<< p.stdout.read() {len(data)} {data[:min(32,len(data))]}...")
+                        # debug3("<<<<< p.stdout.read() %d %r...", len(data), data[:min(32, len(data))])
+
                 finally:
                     debug2("Thread 'stream_stdout_to_sock' exiting")
                     s1.close()
@@ -249,7 +250,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             def stream_sock_to_stdin():
                 try:
                     for data in iter(lambda: s1.recv(16384), b''):
-                        # debug3(f">>>>> p.stdout.write() {len(data)} {data[:min(32,len(data))]}...")
+                        # debug3("<<<<< p.stdout.write() %d %r...", len(data), data[:min(32, len(data))])
                         while data:
                             n = p.stdin.write(data)
                             data = data[n:]

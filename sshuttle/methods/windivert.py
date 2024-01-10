@@ -413,15 +413,15 @@ class Method(BaseMethod):
                 first_ip = ip_net.network_address.exploded
                 last_ip = ip_net.broadcast_address.exploded
                 if first_ip == last_ip:
-                    _subney_filter = f"{af.filter}.DstAddr=={first_ip}"
+                    _subnet_filter = f"{af.filter}.DstAddr=={first_ip}"
                 else:
-                    _subney_filter = f"{af.filter}.DstAddr>={first_ip} and {af.filter}.DstAddr<={last_ip}"
+                    _subnet_filter = f"{af.filter}.DstAddr>={first_ip} and {af.filter}.DstAddr<={last_ip}"
                 if ports:
                     if ports[0] == ports[1]:
-                        _subney_filter += f" and {proto.filter}.DstPort=={ports[0]}"
+                        _subnet_filter += f" and {proto.filter}.DstPort=={ports[0]}"
                     else:
-                        _subney_filter += f" and tcp.DstPort>={ports[0]} and tcp.DstPort<={ports[1]}"
-                (subnet_exclude_filters if exclude else subnet_include_filters).append(f'({_subney_filter})')
+                        _subnet_filter += f" and tcp.DstPort>={ports[0]} and tcp.DstPort<={ports[1]}"
+                (subnet_exclude_filters if exclude else subnet_include_filters).append(f"({_subnet_filter})")
             _af_filter = f"{af.filter}"
             if subnet_include_filters:
                 _af_filter += f" and ({' or '.join(subnet_include_filters)})"
@@ -430,7 +430,7 @@ class Method(BaseMethod):
                 _af_filter += f" and (({' or '.join(subnet_exclude_filters)})? false : true)"
             proxy_ip, proxy_port = c["proxy_addr"]
             # Avoids proxy outbound traffic getting directed to itself
-            proxy_guard_filter = f'(({af.filter}.DstAddr=={proxy_ip.exploded} and tcp.DstPort=={proxy_port})? false : true)'
+            proxy_guard_filter = f"(({af.filter}.DstAddr=={proxy_ip.exploded} and tcp.DstPort=={proxy_port})? false : true)"
             _af_filter += f" and {proxy_guard_filter}"
             af_filters.append(_af_filter)
         if not af_filters:
