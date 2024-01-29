@@ -11,7 +11,7 @@ Forward all traffic::
     sshuttle -r username@sshserver 0.0.0.0/0
 
 - Use the :option:`sshuttle -r` parameter to specify a remote server.
-  One some systems, you may also need to use the :option:`sshuttle -x`
+  On some systems, you may also need to use the :option:`sshuttle -x`
   parameter to exclude sshserver or sshserver:22 so that your local
   machine can communicate directly to sshserver without it being
   redirected by sshuttle.
