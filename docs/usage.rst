@@ -87,7 +87,7 @@ A custom user or group can be set with the
 option. Valid values for this vary based on how your system is configured.
 Values such as usernames, groups prepended with `%` and sudoers user 
 aliases will work. See the sudoers manual for more information on valid
-user-specific actions. The option must be used with `--sudoers-no-modify`::
+user-specified actions. The option must be used with `--sudoers-no-modify`::
 
   sshuttle --sudoers-no-modify --sudoers-user mike
   sshuttle --sudoers-no-modify --sudoers-user %sudo
