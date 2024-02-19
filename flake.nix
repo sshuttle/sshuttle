@@ -14,6 +14,7 @@
       let
         p2n = import poetry2nix { inherit pkgs; };
         overrides = p2n.defaultPoetryOverrides.extend (self: super: {
+          nh3 = super.nh3.override { preferWheel = true; };
           bump2version = super.bump2version.overridePythonAttrs (old: {
             buildInputs = (old.buildInputs or [ ]) ++ [ super.setuptools ];
           });
