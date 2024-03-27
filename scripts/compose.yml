@@ -1,0 +1,34 @@
+name: sshuttle-testbed
+
+services:
+  node-1:
+    image: ghcr.io/sshuttle/sshuttle-testbed
+    container_name: sshuttle-testbed-node-1
+    hostname: node-1
+    cap_add:
+      - "NET_ADMIN"
+    environment:
+      - ADD_IP_ADDRESSES=10.55.1.77/24
+    networks:
+      default:
+        ipv6_address: 2001:0DB8::551
+  node-2:
+    image: ghcr.io/sshuttle/sshuttle-testbed
+    container_name: sshuttle-testbed-node-2
+    hostname: node-2
+    cap_add:
+      - "NET_ADMIN"
+    environment:
+      - ADD_IP_ADDRESSES=10.55.2.77/32
+    networks:
+      default:
+        ipv6_address: 2001:0DB8::552
+
+networks:
+  default:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+       config:
+         - subnet: 2001:0DB8::/112
+    # internal: true

@@ -3,6 +3,10 @@ import socket
 import errno
 import os
 
+
+if sys.platform != "win32":
+    import fcntl
+
 logprefix = ''
 verbose = 0
 
@@ -11,10 +15,17 @@ def b(s):
     return s.encode("ASCII")
 
 
+def get_verbose_level():
+    return verbose
+
+
 def log(s):
     global logprefix
     try:
         sys.stdout.flush()
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
+        pass
+    try:
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
@@ -25,7 +36,7 @@ def log(s):
             sys.stderr.write(prefix + line + "\n")
             prefix = "    "
         sys.stderr.flush()
-    except IOError:
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.
         pass
@@ -220,3 +231,47 @@ def which(file, mode=os.F_OK | os.X_OK):
     else:
         debug2("which() could not find '%s' in %s" % (file, path))
     return rv
+
+
+def is_admin_user():
+    if sys.platform == 'win32':
+        # https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script/41930586#41930586
+        import ctypes
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except Exception:
+            return False
+
+    # TODO(nom3ad): for sys.platform == 'linux', check capabilities for non-root users. (CAP_NET_ADMIN might be enough?)
+    return os.getuid() == 0
+
+
+def set_non_blocking_io(fd):
+    if sys.platform != "win32":
+        try:
+            os.set_blocking(fd, False)
+        except AttributeError:
+            # python < 3.5
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    else:
+        _sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
+        _sock.setblocking(False)
+
+
+class RWPair:
+    def __init__(self, r, w):
+        self.r = r
+        self.w = w
+        self.read = r.read
+        self.readline = r.readline
+        self.write = w.write
+        self.flush = w.flush
+
+    def close(self):
+        for f in self.r, self.w:
+            try:
+                f.close()
+            except Exception:
+                pass

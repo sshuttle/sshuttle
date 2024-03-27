@@ -65,8 +65,7 @@ Requires:
 Windows
 ~~~~~~~
 
-Not officially supported, however can be made to work with Vagrant. Requires
-cmd.exe with Administrator access. See :doc:`windows` for more information.
+Experimental built-in support available. See :doc:`windows` for more information.
 
 
 Server side Requirements

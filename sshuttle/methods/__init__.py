@@ -1,6 +1,7 @@
 import importlib
 import socket
 import struct
+import sys
 import errno
 import ipaddress
 from sshuttle.helpers import Fatal, debug3
@@ -45,6 +46,7 @@ class BaseMethod(object):
     @staticmethod
     def get_supported_features():
         result = Features()
+        result.loopback_proxy_port = True
         result.ipv4 = True
         result.ipv6 = False
         result.udp = False
@@ -96,6 +98,9 @@ class BaseMethod(object):
     def restore_firewall(self, port, family, udp, user, group):
         raise NotImplementedError()
 
+    def wait_for_firewall_ready(self, sshuttle_pid):
+        raise NotImplementedError()
+
     @staticmethod
     def firewall_command(line):
         return False
@@ -109,7 +114,7 @@ def get_method(method_name):
 def get_auto_method():
     debug3("Selecting a method automatically...")
     # Try these methods, in order:
-    methods_to_try = ["nat", "nft", "pf", "ipfw"]
+    methods_to_try = ["nat", "nft", "pf", "ipfw"] if sys.platform != "win32" else ["windivert"]
     for m in methods_to_try:
         method = get_method(m)
         if method.is_supported():

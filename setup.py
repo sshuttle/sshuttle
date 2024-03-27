@@ -22,7 +22,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sshuttle",
-    version='1.1.2',
+    version='1.2.0',
     url='https://github.com/sshuttle/sshuttle',
     author='Brian May',
     author_email='brian@linuxpenguins.xyz',
@@ -50,6 +50,7 @@ setup(
     },
     python_requires='>=3.8',
     install_requires=[
+        "pydivert; os_name=='nt'"
     ],
     tests_require=[
         'pytest',

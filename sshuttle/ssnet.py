@@ -4,9 +4,8 @@ import socket
 import errno
 import select
 import os
-import fcntl
 
-from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal
+from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, set_non_blocking_io
 
 MAX_CHANNEL = 65535
 LATENCY_BUFFER_SIZE = 32768
@@ -78,7 +77,8 @@ def _fds(socks):
 def _nb_clean(func, *args):
     try:
         return func(*args)
-    except OSError:
+    except (OSError, socket.error):
+        # Note: In python2 socket.error != OSError (In python3, they are same)
         _, e = sys.exc_info()[:2]
         if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
             raise
@@ -213,7 +213,7 @@ class SockWrapper:
             return 0  # still connecting
         self.wsock.setblocking(False)
         try:
-            return _nb_clean(os.write, self.wsock.fileno(), buf)
+            return _nb_clean(self.wsock.send, buf)
         except OSError:
             _, e = sys.exc_info()[:2]
             if e.errno == errno.EPIPE:
@@ -236,7 +236,7 @@ class SockWrapper:
             return
         self.rsock.setblocking(False)
         try:
-            return _nb_clean(os.read, self.rsock.fileno(), 65536)
+            return _nb_clean(self.rsock.recv, 65536)
         except OSError:
             _, e = sys.exc_info()[:2]
             self.seterr('uread: %s' % e)
@@ -431,15 +431,10 @@ class Mux(Handler):
                 callback(cmd, data)
 
     def flush(self):
-        try:
-            os.set_blocking(self.wfile.fileno(), False)
-        except AttributeError:
-            # python < 3.5
-            flags = fcntl.fcntl(self.wfile.fileno(), fcntl.F_GETFL)
-            flags |= os.O_NONBLOCK
-            fcntl.fcntl(self.wfile.fileno(), fcntl.F_SETFL, flags)
+        set_non_blocking_io(self.wfile.fileno())
         if self.outbuf and self.outbuf[0]:
-            wrote = _nb_clean(os.write, self.wfile.fileno(), self.outbuf[0])
+            wrote = _nb_clean(self.wfile.write, self.outbuf[0])
+            # self.wfile.flush()
             debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
@@ -447,18 +442,12 @@ class Mux(Handler):
             self.outbuf[0:1] = []
 
     def fill(self):
-        try:
-            os.set_blocking(self.rfile.fileno(), False)
-        except AttributeError:
-            # python < 3.5
-            flags = fcntl.fcntl(self.rfile.fileno(), fcntl.F_GETFL)
-            flags |= os.O_NONBLOCK
-            fcntl.fcntl(self.rfile.fileno(), fcntl.F_SETFL, flags)
+        set_non_blocking_io(self.rfile.fileno())
         try:
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
-            read = _nb_clean(os.read, self.rfile.fileno(),
-                             min(1048576, LATENCY_BUFFER_SIZE))
+            read = _nb_clean(self.rfile.read, min(1048576, LATENCY_BUFFER_SIZE))
+            debug2('mux read: %r' % len(read))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
