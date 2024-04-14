@@ -12,7 +12,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import sshuttle.helpers as helpers
-from sshuttle.helpers import debug2, which, get_path, Fatal
+from sshuttle.helpers import debug2, which, get_path, SocketRWShim, Fatal
 
 
 def get_module_source(name):
@@ -226,42 +226,14 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
         #   Either to use sockets as stdio for subprocess. Or to use pipes but with a select() alternative
         #   https://stackoverflow.com/questions/4993119/redirect-io-of-process-to-windows-socket
 
-        (s1, s2) = socket.socketpair()
         pstdin = ssubprocess.PIPE
         pstdout = ssubprocess.PIPE
 
         preexec_fn = None
 
         def get_server_io():
-            import threading
-
-            def stream_stdout_to_sock():
-                try:
-                    fd = p.stdout.fileno()
-                    for data in iter(lambda: os.read(fd, 16384), b''):
-                        s1.sendall(data)
-                        # debug3("<<<<< p.stdout.read() %d %r...", len(data), data[:min(32, len(data))])
-
-                finally:
-                    debug2("Thread 'stream_stdout_to_sock' exiting")
-                    s1.close()
-                    p.terminate()
-
-            def stream_sock_to_stdin():
-                try:
-                    for data in iter(lambda: s1.recv(16384), b''):
-                        # debug3("<<<<< p.stdout.write() %d %r...", len(data), data[:min(32, len(data))])
-                        while data:
-                            n = p.stdin.write(data)
-                            data = data[n:]
-                finally:
-                    debug2("Thread 'stream_sock_to_stdin' exiting")
-                    s1.close()
-                    p.terminate()
-
-            threading.Thread(target=stream_stdout_to_sock,  name='stream_stdout_to_sock', daemon=True).start()
-            threading.Thread(target=stream_sock_to_stdin, name='stream_sock_to_stdin',  daemon=True).start()
-            return s2.makefile("rb", buffering=0), s2.makefile("wb", buffering=0)
+            shim = SocketRWShim(p.stdout, p.stdin, on_end=lambda: p.terminate())
+            return shim.makefiles()
 
     # See: stackoverflow.com/questions/48671215/howto-workaround-of-close-fds-true-and-redirect-stdout-stderr-on-windows
     close_fds = False if sys.platform == 'win32' else True

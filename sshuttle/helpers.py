@@ -2,7 +2,8 @@ import sys
 import socket
 import errno
 import os
-
+import threading
+import traceback
 
 if sys.platform != "win32":
     import fcntl
@@ -275,3 +276,47 @@ class RWPair:
                 f.close()
             except Exception:
                 pass
+
+
+class SocketRWShim:
+    __slots__ = ('_r', '_w', '_on_end', '_s1', '_s2', '_t1', '_t2')
+
+    def __init__(self, r, w, on_end=None) -> None:
+        self._r = r
+        self._w = w
+        self._on_end = on_end
+
+        self._s1, self._s2 = socket.socketpair()
+        debug3("[SocketShim] r=%r w=%r | s1=%r s2=%r" % (self._r, self._w, self._s1, self._s2))
+
+        def stream_reader_to_sock():
+            try:
+                for data in iter(lambda:  self._r.read(16384), b''):
+                    self._s1.sendall(data)
+                    # debug3("[SocketRWShim] <<<<< r.read() %d %r..." % (len(data), data[:min(32, len(data))]))
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+            finally:
+                debug2("[SocketRWShim] Thread 'stream_reader_to_sock' exiting")
+                self._s1.close()
+                self._on_end and self._on_end()
+
+        def stream_sock_to_writer():
+            try:
+                for data in iter(lambda: self._s1.recv(16384), b''):
+                    while data:
+                        n = self._w.write(data)
+                        data = data[n:]
+                    # debug3("[SocketRWShim] <<<<< w.write() %d %r..." % (len(data), data[:min(32, len(data))]))
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+            finally:
+                debug2("[SocketRWShim] Thread 'stream_sock_to_writer' exiting")
+                self._s1.close()
+                self._on_end and self._on_end()
+
+        self._t1 = threading.Thread(target=stream_reader_to_sock,  name='stream_reader_to_sock', daemon=True).start()
+        self._t2 = threading.Thread(target=stream_sock_to_writer, name='stream_sock_to_writer',  daemon=True).start()
+
+    def makefiles(self):
+        return self._s2.makefile("rb", buffering=0), self._s2.makefile("wb", buffering=0)
