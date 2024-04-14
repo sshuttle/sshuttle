@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+ export MSYS_NO_PATHCONV=1
+ 
 function with_set_x() {
     set -x
     "$@"
@@ -18,75 +20,109 @@ function log() {
 ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 ssh_copy_id=false
 args=()
+subnet_args=()
 while [[ $# -gt 0 ]]; do
     arg=$1
     shift
     case "$arg" in
-    -v)
-        ssh_cmd+='-v'
+    -v|-vv*)
+        ssh_cmd+=" -v"
+        args+=("$arg")
         ;;
     -r)
-        args+=("$arg" "$1")
+        args+=("-r" "$1")
         shift
-        continue
         ;;
     --copy-id)
         ssh_copy_id=true
-        continue
         ;;
     --server-py=*)
         server_pyenv_ver="${arg#*=}"
-        continue
         ;;
     --client-py=*)
         client_pyenv_ver="${arg#*=}"
-        continue
         ;;
     -6)
         ipv6_only=true
-        continue
         ;;
     --sshuttle-bin=*)
         sshuttle_bin="${arg#*=}"
-        continue
         ;;
-    -*) ;;
+    -N|*/*)
+        subnet_args+=("$arg")
+    ;;
+    -*) 
+        args+=("$arg")
+    ;;
     *)
-        if [[ -z "$node" ]]; then
-            node=$arg
-            continue
+        if  [[ -z "$target" ]]; then
+            target=$arg
+        else
+            args+=("$arg")
         fi
         ;;
     esac
-    args+=("$arg")
 done
+if [[ ${#subnet_args[@]} -eq 0 ]]; then
+    subnet_args=("-N")
+fi
 
-port="2222"
-user="test:test"
-
-if [[ $node == node-* ]]; then
-    pycmd="/pyenv/shims/python"
-    ssh_cmd+=" -o SetEnv=PYENV_VERSION=${server_pyenv_ver:-'3'}"
-    args=("--python=$pycmd" "${args[@]}")
-    host=$("$(dirname "$0")/test-bed" get-ip "$node")
-    index=${node#node-}
+if [[ $target == node-* ]]; then
+    log "Target is a a test-bed node"
+    port="2222"
+    user_part="test:test"
+    host=$("$(dirname "$0")/test-bed" get-ip "$target")
+    index=${target#node-}
     if [[ $ipv6_only == true ]]; then
         args+=("2001:0DB8::/112")
     else
         args+=("10.55.$index.0/24")
     fi
-else
-    host=$node
+    target="$user_part@$host:$port"
+    if ! command -v sshpass >/dev/null; then
+        log "sshpass is not found. You might have to manually enter ssh password: 'test'"
+    fi
+    if [[ -z $server_pyenv_ver ]]; then
+        log "server-py argumwnt is not specified. Setting it to 3.8"
+        server_pyenv_ver="3.8"
+    fi
 fi
 
-if ! command -v sshpass >/dev/null; then
-    log "sshpass is not found. You might have to manually enter ssh password: 'test'"
-    user=${user%:*}
+if [[ -n $server_pyenv_ver ]]; then
+    log "Would pass PYENV_VERRSION=$server_pyenv_ver to server. pyenv is required on server to make it work"
+    pycmd="/pyenv/shims/python"
+    ssh_cmd+=" -o SetEnv=PYENV_VERSION=${server_pyenv_ver:-'3'}"
+    args=("--python=$pycmd" "${args[@]}")
 fi
 
 if [[ $ssh_copy_id == true ]]; then
     log "Trying to make it passwordless"
-    with_set_x ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$port" "$user@$host"
+    if [[ $target == *@* ]]; then
+        user_part="${target%%@*}"
+        host_part="${target#*@}"
+    else
+        user_part="$(whoami)"
+        host_part="$target"
+    fi
+    if [[ $host_part == *:* ]]; then
+        host="${host_part%:*}"
+        port="${host_part#*:}"
+    else
+        host="$host_part"
+        port="22"
+    fi
+    if [[ $user_part == *:* ]]; then
+        user="${user_part%:*}"
+        password="${user_part#*:}"
+    else
+        user="$user_part"
+        password=""
+    fi
+    cmd=(ssh-copy-id -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p "$port" "$user@$host")
+    if [[ -n $password  ]] && command -v sshpass >/dev/null; then
+        cmd=(sshpass -p "$password" "${cmd[@]}")
+    fi
+    with_set_x "${cmd[@]}"
 fi
 
 if [[ -z $sshuttle_bin || "$sshuttle_bin" == dev ]]; then
@@ -115,9 +151,9 @@ if [[ " ${args[*]} " != *" --ssh-cmd "* ]]; then
 fi
 
 if [[ " ${args[*]} " != *" -r "* ]]; then
-    args=("-r" "$user@$host:$port" "${args[@]}")
+    args=("-r" "$target" "${args[@]}")
 fi
 
 set -x
 "${sshuttle_cmd[@]}" --version
-exec "${sshuttle_cmd[@]}" "${args[@]}"
+exec "${sshuttle_cmd[@]}" "${args[@]}" "${subnet_args[@]}"
