@@ -281,7 +281,7 @@ class RWPair:
 class SocketRWShim:
     __slots__ = ('_r', '_w', '_on_end', '_s1', '_s2', '_t1', '_t2')
 
-    def __init__(self, r, w, on_end=None) -> None:
+    def __init__(self, r, w, on_end=None):
         self._r = r
         self._w = w
         self._on_end = on_end
