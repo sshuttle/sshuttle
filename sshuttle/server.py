@@ -14,7 +14,7 @@ import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
-    resolvconf_random_nameserver, which, get_env
+    resolvconf_random_nameserver, which, get_env, SocketRWShim
 
 
 def _ipmatch(ipstr):
@@ -79,6 +79,20 @@ def _route_iproute(line):
     return ipw, int(mask)
 
 
+def _route_windows(line):
+    if " On-link " not in line:
+        return None, None
+    dest, net_mask = re.split(r'\s+', line.strip())[:2]
+    if net_mask == "255.255.255.255":
+        return None, None
+    for p in ('127.', '0.', '224.', '169.254.'):
+        if dest.startswith(p):
+            return None, None
+    ipw = _ipmatch(dest)
+    mask = _maskbits(_ipmatch(net_mask))
+    return ipw, mask
+
+
 def _list_routes(argv, extract_route):
     # FIXME: IPv4 only
     p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, env=get_env())
@@ -101,14 +115,17 @@ def _list_routes(argv, extract_route):
 
 
 def list_routes():
-    if which('ip'):
-        routes = _list_routes(['ip', 'route'], _route_iproute)
-    elif which('netstat'):
-        routes = _list_routes(['netstat', '-rn'], _route_netstat)
+    if sys.platform == 'win32':
+        routes = _list_routes(['route', 'PRINT', '-4'], _route_windows)
     else:
-        log('WARNING: Neither "ip" nor "netstat" were found on the server. '
-            '--auto-nets feature will not work.')
-        routes = []
+        if which('ip'):
+            routes = _list_routes(['ip', 'route'], _route_iproute)
+        elif which('netstat'):
+            routes = _list_routes(['netstat', '-rn'], _route_netstat)
+        else:
+            log('WARNING: Neither "ip" nor "netstat" were found on the server. '
+                '--auto-nets feature will not work.')
+            routes = []
 
     for (family, ip, width) in routes:
         if not ip.startswith('0.') and not ip.startswith('127.'):
@@ -282,7 +299,16 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         sys.stdout.flush()
 
         handlers = []
-        mux = Mux(io.FileIO(0, mode='r'), io.FileIO(1, mode='w'))
+        # get unbuffered stdin and stdout in binary mode. Equivalent to stdin.buffer/stdout.buffer (Only available in Python 3)
+        r, w = io.FileIO(0, mode='r'), io.FileIO(1, mode='w')
+        if sys.platform == 'win32':
+            def _deferred_exit():
+                time.sleep(1)  # give enough time to write logs to stderr
+                os._exit(23)
+            shim = SocketRWShim(r, w, on_end=_deferred_exit)
+            mux = Mux(*shim.makefiles())
+        else:
+            mux = Mux(r, w)
         handlers.append(mux)
 
         debug1('auto-nets:' + str(auto_nets))

@@ -168,6 +168,8 @@ class SockWrapper:
                 debug3('%r: fixed connect result: %s' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
+            elif sys.platform == 'win32' and e.args[0] == errno.WSAEWOULDBLOCK:
+                pass  # not connected yet
             elif e.args[0] == 0:
                 # connected successfully (weird Linux bug?)
                 # Sometimes Linux seems to return EINVAL when it isn't
@@ -382,11 +384,13 @@ class Mux(Handler):
         debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
                % (channel, cmd_to_name.get(cmd, hex(cmd)),
                   len(data), self.fullness))
+        # debug3('>>> data: %r' % data)
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
         debug2('<  channel=%d cmd=%s len=%d'
                % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
+        # debug3('<<< data: %r' % data)
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
