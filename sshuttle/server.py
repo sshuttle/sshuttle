@@ -14,7 +14,7 @@ import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
 from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
-    resolvconf_random_nameserver, which, get_env, SocketRWShim
+    get_random_nameserver, which, get_env, SocketRWShim
 
 
 def _ipmatch(ipstr):
@@ -199,7 +199,7 @@ class DnsProxy(Handler):
         self.tries += 1
 
         if self.to_nameserver is None:
-            _, peer = resolvconf_random_nameserver(False)
+            _, peer = get_random_nameserver()
             port = 53
         else:
             peer = self.to_ns_peer
