@@ -3,7 +3,9 @@ import socket
 import errno
 import os
 import threading
+import subprocess
 import traceback
+import re
 
 if sys.platform != "win32":
     import fcntl
@@ -114,18 +116,43 @@ def resolvconf_nameservers(systemd_resolved):
     return nsservers
 
 
-def resolvconf_random_nameserver(systemd_resolved):
+def windows_nameservers():
+    out = subprocess.check_output(["powershell", "-NonInteractive", "-NoProfile", "-Command", "Get-DnsClientServerAddress"],
+                                  encoding="utf-8")
+    servers = set()
+    for line in out.splitlines():
+        if line.startswith("Loopback "):
+            continue
+        m = re.search(r'{.+}', line)
+        if not m:
+            continue
+        for s in m.group().strip('{}').split(','):
+            s = s.strip()
+            if s.startswith('fec0:0:0:ffff'):
+                continue
+            servers.add(s)
+    debug2("Found DNS servers: %s" % servers)
+    return [(socket.AF_INET6 if ':' in s else socket.AF_INET, s) for s in servers]
+
+
+def get_random_nameserver():
     """Return a random nameserver selected from servers produced by
-    resolvconf_nameservers(). See documentation for
-    resolvconf_nameservers() for a description of the parameter.
+    resolvconf_nameservers()/windows_nameservers()
     """
-    lines = resolvconf_nameservers(systemd_resolved)
-    if lines:
-        if len(lines) > 1:
+    if sys.platform == "win32":
+        if globals().get('_nameservers') is None:
+            ns_list = windows_nameservers()
+            globals()['_nameservers'] = ns_list
+        else:
+            ns_list = globals()['_nameservers']
+    else:
+        ns_list = resolvconf_nameservers(systemd_resolved=False)
+    if ns_list:
+        if len(ns_list) > 1:
             # don't import this unless we really need it
             import random
-            random.shuffle(lines)
-        return lines[0]
+            random.shuffle(ns_list)
+        return ns_list[0]
     else:
         return (socket.AF_INET, '127.0.0.1')
 
