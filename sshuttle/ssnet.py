@@ -168,21 +168,25 @@ class SockWrapper:
                 debug3('%r: fixed connect result: %s' % (self, e))
             if e.args[0] in [errno.EINPROGRESS, errno.EALREADY]:
                 pass  # not connected yet
-            elif sys.platform == 'win32' and e.args[0] == errno.WSAEWOULDBLOCK:
+            elif sys.platform == 'win32' and e.args[0] == errno.WSAEWOULDBLOCK:  # 10035
                 pass  # not connected yet
             elif e.args[0] == 0:
-                # connected successfully (weird Linux bug?)
-                # Sometimes Linux seems to return EINVAL when it isn't
-                # invalid.  This *may* be caused by a race condition
-                # between connect() and getsockopt(SO_ERROR) (ie. it
-                # finishes connecting in between the two, so there is no
-                # longer an error).  However, I'm not sure of that.
-                #
-                # I did get at least one report that the problem went away
-                # when we added this, however.
-                self.connect_to = None
+                if sys.platform == 'win32':
+                    # On Windows "real" error of EINVAL could be 0, when socket is in connecting state
+                    pass
+                else:
+                    # connected successfully (weird Linux bug?)
+                    # Sometimes Linux seems to return EINVAL when it isn't
+                    # invalid.  This *may* be caused by a race condition
+                    # between connect() and getsockopt(SO_ERROR) (ie. it
+                    # finishes connecting in between the two, so there is no
+                    # longer an error).  However, I'm not sure of that.
+                    #
+                    # I did get at least one report that the problem went away
+                    # when we added this, however.
+                    self.connect_to = None
             elif e.args[0] == errno.EISCONN:
-                # connected successfully (BSD)
+                # connected successfully (BSD + Windows)
                 self.connect_to = None
             elif e.args[0] in NET_ERRS + [errno.EACCES, errno.EPERM]:
                 # a "normal" kind of error
