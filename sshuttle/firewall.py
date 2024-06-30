@@ -7,13 +7,18 @@ import os
 import platform
 import traceback
 import subprocess as ssubprocess
+import base64
+import io
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
-from sshuttle.helpers import log, debug1, debug2, Fatal
+from sshuttle.helpers import is_admin_user, log, debug1, debug2, debug3, Fatal
 from sshuttle.methods import get_auto_method, get_method
 
-HOSTSFILE = '/etc/hosts'
+if sys.platform == 'win32':
+    HOSTSFILE = r"C:\Windows\System32\drivers\etc\hosts"
+else:
+    HOSTSFILE = '/etc/hosts'
 sshuttle_pid = None
 
 
@@ -46,12 +51,13 @@ def rewrite_etc_hosts(hostmap, port):
         f.write('%-30s %s\n' % ('%s %s' % (ip, name), APPEND))
     f.close()
 
-    if st is not None:
-        os.chown(tmpname, st.st_uid, st.st_gid)
-        os.chmod(tmpname, st.st_mode)
-    else:
-        os.chown(tmpname, 0, 0)
-        os.chmod(tmpname, 0o644)
+    if sys.platform != 'win32':
+        if st is not None:
+            os.chown(tmpname, st.st_uid, st.st_gid)
+            os.chmod(tmpname, st.st_mode)
+        else:
+            os.chown(tmpname, 0, 0)
+            os.chmod(tmpname, 0o644)
     try:
         os.rename(tmpname, HOSTSFILE)
     except OSError:
@@ -82,14 +88,17 @@ def firewall_exit(signum, frame):
     # the typical exit process as described above.
     global sshuttle_pid
     if sshuttle_pid:
-        debug1("Relaying SIGINT to sshuttle process %d\n" % sshuttle_pid)
-        os.kill(sshuttle_pid, signal.SIGINT)
+        debug1("Relaying interupt signal to sshuttle process %d" % sshuttle_pid)
+        if sys.platform == 'win32':
+            sig = signal.CTRL_C_EVENT
+        else:
+            sig = signal.SIGINT
+        os.kill(sshuttle_pid, sig)
 
 
-# Isolate function that needs to be replaced for tests
-def setup_daemon():
-    if os.getuid() != 0:
-        raise Fatal('You must be root (or enable su/sudo) to set the firewall')
+def _setup_daemon_for_unix_like():
+    if not is_admin_user():
+        raise Fatal('You must have root privileges (or enable su/sudo) to set the firewall')
 
     # don't disappear if our controlling terminal or stdout/stderr
     # disappears; we still have to clean up.
@@ -110,7 +119,34 @@ def setup_daemon():
         # setsid() fails if sudo is configured with the use_pty option.
         pass
 
-    return sys.stdin, sys.stdout
+    return sys.stdin.buffer, sys.stdout.buffer
+
+
+def _setup_daemon_for_windows():
+    if not is_admin_user():
+        raise Fatal('You must be administrator to set the firewall')
+
+    signal.signal(signal.SIGTERM, firewall_exit)
+    signal.signal(signal.SIGINT, firewall_exit)
+
+    com_chan = os.environ.get('SSHUTTLE_FW_COM_CHANNEL')
+    if com_chan == 'stdio':
+        debug3('Using inherited stdio for communicating with sshuttle client process')
+    else:
+        debug3('Using shared socket for communicating with sshuttle client process')
+        socket_share_data = base64.b64decode(com_chan)
+        sock = socket.fromshare(socket_share_data)  # type: socket.socket
+        sys.stdin = io.TextIOWrapper(sock.makefile('rb', buffering=0))
+        sys.stdout = io.TextIOWrapper(sock.makefile('wb', buffering=0), write_through=True)
+        sock.close()
+    return sys.stdin.buffer, sys.stdout.buffer
+
+
+# Isolate function that needs to be replaced for tests
+if sys.platform == 'win32':
+    setup_daemon = _setup_daemon_for_windows
+else:
+    setup_daemon = _setup_daemon_for_unix_like
 
 
 # Note that we're sorting in a very particular order:
@@ -184,28 +220,42 @@ def main(method_name, syslog):
                     "PATH." % method_name)
 
     debug1('ready method name %s.' % method.name)
-    stdout.write('READY %s\n' % method.name)
+    stdout.write(('READY %s\n' % method.name).encode('ASCII'))
     stdout.flush()
 
+    def _read_next_string_line():
+        try:
+            line = stdin.readline(128)
+            if not line:
+                return  # parent probably exited
+            return line.decode('ASCII').strip()
+        except IOError as e:
+            # On windows, ConnectionResetError is thrown when parent process closes it's socket pair end
+            debug3('read from stdin failed: %s' % (e,))
+            return
     # we wait until we get some input before creating the rules.  That way,
     # sshuttle can launch us as early as possible (and get sudo password
     # authentication as early in the startup process as possible).
-    line = stdin.readline(128)
-    if not line:
-        return  # parent died; nothing to do
+    try:
+        line = _read_next_string_line()
+        if not line:
+            return  # parent probably exited
+    except IOError as e:
+        # On windows, ConnectionResetError is thrown when parent process closes it's socket pair end
+        debug3('read from stdin failed: %s' % (e,))
+        return
 
     subnets = []
-    if line != 'ROUTES\n':
+    if line != 'ROUTES':
         raise Fatal('expected ROUTES but got %r' % line)
     while 1:
-        line = stdin.readline(128)
+        line = _read_next_string_line()
         if not line:
             raise Fatal('expected route but got %r' % line)
-        elif line.startswith("NSLIST\n"):
+        elif line.startswith("NSLIST"):
             break
         try:
-            (family, width, exclude, ip, fport, lport) = \
-                line.strip().split(',', 5)
+            (family, width, exclude, ip, fport, lport) = line.split(',', 5)
         except Exception:
             raise Fatal('expected route or NSLIST but got %r' % line)
         subnets.append((
@@ -218,16 +268,16 @@ def main(method_name, syslog):
     debug2('Got subnets: %r' % subnets)
 
     nslist = []
-    if line != 'NSLIST\n':
+    if line != 'NSLIST':
         raise Fatal('expected NSLIST but got %r' % line)
     while 1:
-        line = stdin.readline(128)
+        line = _read_next_string_line()
         if not line:
             raise Fatal('expected nslist but got %r' % line)
         elif line.startswith("PORTS "):
             break
         try:
-            (family, ip) = line.strip().split(',', 1)
+            (family, ip) = line.split(',', 1)
         except Exception:
             raise Fatal('expected nslist or PORTS but got %r' % line)
         nslist.append((int(family), ip))
@@ -257,15 +307,13 @@ def main(method_name, syslog):
     debug2('Got ports: %d,%d,%d,%d'
            % (port_v6, port_v4, dnsport_v6, dnsport_v4))
 
-    line = stdin.readline(128)
-    if not line:
-        raise Fatal('expected GO but got %r' % line)
-    elif not line.startswith("GO "):
+    line = _read_next_string_line()
+    if not line or not line.startswith("GO "):
         raise Fatal('expected GO but got %r' % line)
 
     _, _, args = line.partition(" ")
     global sshuttle_pid
-    udp, user, group, tmark, sshuttle_pid = args.strip().split(" ", 4)
+    udp, user, group, tmark, sshuttle_pid = args.split(" ", 4)
     udp = bool(int(udp))
     sshuttle_pid = int(sshuttle_pid)
     if user == '-':
@@ -297,23 +345,32 @@ def main(method_name, syslog):
                 socket.AF_INET, subnets_v4, udp,
                 user, group, tmark)
 
-        flush_systemd_dns_cache()
-        stdout.write('STARTED\n')
+        try:
+            # For some methods (eg: windivert) firewall setup will be differed / will run asynchronously.
+            # Such method implements wait_for_firewall_ready() to wait until firewall is up and running.
+            method.wait_for_firewall_ready(sshuttle_pid)
+        except NotImplementedError:
+            pass
+
+        if sys.platform == 'linux':
+            flush_systemd_dns_cache()
 
         try:
+            stdout.write(b'STARTED\n')
             stdout.flush()
-        except IOError:
-            # the parent process died for some reason; he's surely been loud
-            # enough, so no reason to report another error
+        except IOError as e:  # the parent process probably died
+            debug3('write to stdout failed: %s' % (e,))
             return
 
         # Now we wait until EOF or any other kind of exception.  We need
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
         while 1:
-            line = stdin.readline(128)
+            line = _read_next_string_line()
+            if not line:
+                return
             if line.startswith('HOST '):
-                (name, ip) = line[5:].strip().split(',', 1)
+                (name, ip) = line[5:].split(',', 1)
                 hostmap[name] = ip
                 debug2('setting up /etc/hosts.')
                 rewrite_etc_hosts(hostmap, port_v6 or port_v4)
@@ -360,11 +417,12 @@ def main(method_name, syslog):
             except Exception:
                 debug2('An error occurred, ignoring it.')
 
-        try:
-            flush_systemd_dns_cache()
-        except Exception:
+        if sys.platform == 'linux':
             try:
-                debug1("Error trying to flush systemd dns cache.")
-                debug1(traceback.format_exc())
+                flush_systemd_dns_cache()
             except Exception:
-                debug2("An error occurred, ignoring it.")
+                try:
+                    debug1("Error trying to flush systemd dns cache.")
+                    debug1(traceback.format_exc())
+                except Exception:
+                    debug2("An error occurred, ignoring it.")

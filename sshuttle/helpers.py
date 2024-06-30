@@ -2,6 +2,13 @@ import sys
 import socket
 import errno
 import os
+import threading
+import subprocess
+import traceback
+import re
+
+if sys.platform != "win32":
+    import fcntl
 
 logprefix = ''
 verbose = 0
@@ -11,10 +18,17 @@ def b(s):
     return s.encode("ASCII")
 
 
+def get_verbose_level():
+    return verbose
+
+
 def log(s):
     global logprefix
     try:
         sys.stdout.flush()
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
+        pass
+    try:
         # Put newline at end of string if line doesn't have one.
         if not s.endswith("\n"):
             s = s+"\n"
@@ -25,7 +39,7 @@ def log(s):
             sys.stderr.write(prefix + line + "\n")
             prefix = "    "
         sys.stderr.flush()
-    except IOError:
+    except (IOError, ValueError):  # ValueError ~ I/O operation on closed file
         # this could happen if stderr gets forcibly disconnected, eg. because
         # our tty closes.  That sucks, but it's no reason to abort the program.
         pass
@@ -102,18 +116,43 @@ def resolvconf_nameservers(systemd_resolved):
     return nsservers
 
 
-def resolvconf_random_nameserver(systemd_resolved):
+def windows_nameservers():
+    out = subprocess.check_output(["powershell", "-NonInteractive", "-NoProfile", "-Command", "Get-DnsClientServerAddress"],
+                                  encoding="utf-8")
+    servers = set()
+    for line in out.splitlines():
+        if line.startswith("Loopback "):
+            continue
+        m = re.search(r'{.+}', line)
+        if not m:
+            continue
+        for s in m.group().strip('{}').split(','):
+            s = s.strip()
+            if s.startswith('fec0:0:0:ffff'):
+                continue
+            servers.add(s)
+    debug2("Found DNS servers: %s" % servers)
+    return [(socket.AF_INET6 if ':' in s else socket.AF_INET, s) for s in servers]
+
+
+def get_random_nameserver():
     """Return a random nameserver selected from servers produced by
-    resolvconf_nameservers(). See documentation for
-    resolvconf_nameservers() for a description of the parameter.
+    resolvconf_nameservers()/windows_nameservers()
     """
-    lines = resolvconf_nameservers(systemd_resolved)
-    if lines:
-        if len(lines) > 1:
+    if sys.platform == "win32":
+        if globals().get('_nameservers') is None:
+            ns_list = windows_nameservers()
+            globals()['_nameservers'] = ns_list
+        else:
+            ns_list = globals()['_nameservers']
+    else:
+        ns_list = resolvconf_nameservers(systemd_resolved=False)
+    if ns_list:
+        if len(ns_list) > 1:
             # don't import this unless we really need it
             import random
-            random.shuffle(lines)
-        return lines[0]
+            random.shuffle(ns_list)
+        return ns_list[0]
     else:
         return (socket.AF_INET, '127.0.0.1')
 
@@ -220,3 +259,91 @@ def which(file, mode=os.F_OK | os.X_OK):
     else:
         debug2("which() could not find '%s' in %s" % (file, path))
     return rv
+
+
+def is_admin_user():
+    if sys.platform == 'win32':
+        # https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script/41930586#41930586
+        import ctypes
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except Exception:
+            return False
+
+    # TODO(nom3ad): for sys.platform == 'linux', check capabilities for non-root users. (CAP_NET_ADMIN might be enough?)
+    return os.getuid() == 0
+
+
+def set_non_blocking_io(fd):
+    if sys.platform != "win32":
+        try:
+            os.set_blocking(fd, False)
+        except AttributeError:
+            # python < 3.5
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            flags |= os.O_NONBLOCK
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+    else:
+        _sock = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
+        _sock.setblocking(False)
+
+
+class RWPair:
+    def __init__(self, r, w):
+        self.r = r
+        self.w = w
+        self.read = r.read
+        self.readline = r.readline
+        self.write = w.write
+        self.flush = w.flush
+
+    def close(self):
+        for f in self.r, self.w:
+            try:
+                f.close()
+            except Exception:
+                pass
+
+
+class SocketRWShim:
+    __slots__ = ('_r', '_w', '_on_end', '_s1', '_s2', '_t1', '_t2')
+
+    def __init__(self, r, w, on_end=None):
+        self._r = r
+        self._w = w
+        self._on_end = on_end
+
+        self._s1, self._s2 = socket.socketpair()
+        debug3("[SocketShim] r=%r w=%r | s1=%r s2=%r" % (self._r, self._w, self._s1, self._s2))
+
+        def stream_reader_to_sock():
+            try:
+                for data in iter(lambda:  self._r.read(16384), b''):
+                    self._s1.sendall(data)
+                    # debug3("[SocketRWShim] <<<<< r.read() %d %r..." % (len(data), data[:min(32, len(data))]))
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+            finally:
+                debug2("[SocketRWShim] Thread 'stream_reader_to_sock' exiting")
+                self._s1.close()
+                self._on_end and self._on_end()
+
+        def stream_sock_to_writer():
+            try:
+                for data in iter(lambda: self._s1.recv(16384), b''):
+                    while data:
+                        n = self._w.write(data)
+                        data = data[n:]
+                    # debug3("[SocketRWShim] <<<<< w.write() %d %r..." % (len(data), data[:min(32, len(data))]))
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+            finally:
+                debug2("[SocketRWShim] Thread 'stream_sock_to_writer' exiting")
+                self._s1.close()
+                self._on_end and self._on_end()
+
+        self._t1 = threading.Thread(target=stream_reader_to_sock,  name='stream_reader_to_sock', daemon=True).start()
+        self._t2 = threading.Thread(target=stream_sock_to_writer, name='stream_sock_to_writer',  daemon=True).start()
+
+    def makefiles(self):
+        return self._s2.makefile("rb", buffering=0), self._s2.makefile("wb", buffering=0)

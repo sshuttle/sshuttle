@@ -5,6 +5,7 @@ import time
 import subprocess as ssubprocess
 import os
 import sys
+import base64
 import platform
 
 import sshuttle.helpers as helpers
@@ -14,7 +15,7 @@ import sshuttle.ssyslog as ssyslog
 import sshuttle.sdnotify as sdnotify
 from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
-    resolvconf_nameservers, which
+    resolvconf_nameservers, which, is_admin_user, RWPair
 from sshuttle.methods import get_method, Features
 from sshuttle import __version__
 try:
@@ -209,7 +210,10 @@ class FirewallClient:
     def __init__(self, method_name, sudo_pythonpath):
         self.auto_nets = []
 
-        argvbase = ([sys.executable, sys.argv[0]] +
+        argv0 = sys.argv[0]
+        # argv0 is either be a normal python file or an executable.
+        # After installed as a package, sshuttle command points to an .exe in Windows and python shebang script elsewhere.
+        argvbase = (([sys.executable, sys.argv[0]] if argv0.endswith('.py') else [argv0]) +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
                     ['--firewall'])
@@ -219,9 +223,18 @@ class FirewallClient:
         # A list of commands that we can try to run to start the firewall.
         argv_tries = []
 
-        if os.getuid() == 0:  # No need to elevate privileges
+        if is_admin_user():  # No need to elevate privileges
             argv_tries.append(argvbase)
         else:
+            if sys.platform == 'win32':
+                # runas_path = which("runas")
+                # if runas_path:
+                #   argv_tries.append([runas_path , '/noprofile', '/user:Administrator',  'python'])
+                # XXX: Attempt to elevate privilege using 'runas' in windows seems not working.
+                # Because underlying ShellExecute() Windows api does not allow child process to inherit stdio.
+                # TODO(nom3ad): Try to implement another way to achieve this.
+                raise Fatal("Privilege elevation for Windows is not yet implemented. Please run from an administrator shell")
+
             # Linux typically uses sudo; OpenBSD uses doas. However, some
             # Linux distributions are starting to use doas.
             sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
@@ -254,8 +267,7 @@ class FirewallClient:
 
             # If we can find doas and not sudo or if we are on
             # OpenBSD, try using doas first.
-            if (doas_path and not sudo_path) or \
-               platform.platform().startswith('OpenBSD'):
+            if (doas_path and not sudo_path) or platform.platform().startswith('OpenBSD'):
                 argv_tries = [doas_cmd, sudo_cmd, argvbase]
             else:
                 argv_tries = [sudo_cmd, doas_cmd, argvbase]
@@ -265,21 +277,58 @@ class FirewallClient:
         # successful, set 'success' variable and break.
         success = False
         for argv in argv_tries:
-            # we can't use stdin/stdout=subprocess.PIPE here, as we
-            # normally would, because stupid Linux 'su' requires that
-            # stdin be attached to a tty. Instead, attach a
-            # *bidirectional* socket to its stdout, and use that for
-            # talking in both directions.
-            (s1, s2) = socket.socketpair()
 
-            def setup():
-                # run in the child process
-                s2.close()
+            if sys.platform != 'win32':
+                # we can't use stdin/stdout=subprocess.PIPE here, as we
+                # normally would, because stupid Linux 'su' requires that
+                # stdin be attached to a tty. Instead, attach a
+                # *bidirectional* socket to its stdout, and use that for
+                # talking in both directions.
+                (s1, s2) = socket.socketpair()
+                pstdout = s1
+                pstdin = s1
+                penv = None
 
+                def preexec_fn():
+                    # run in the child process
+                    s2.close()
+
+                def get_pfile():
+                    s1.close()
+                    return s2.makefile('rwb')
+
+            else:
+                # In Windows CPython, BSD sockets are not supported as subprocess stdio.
+                # if client (and firewall) processes is running as admin user, pipe based stdio can be used for communication.
+                # But if firewall process is spwaned in elevated mode by non-admin client process, access to stdio is lost.
+                # To work around this, we can use a socketpair.
+                # But socket need to be "shared" to child process as it can't be directly set as stdio.
+                can_use_stdio = is_admin_user()
+
+                preexec_fn = None
+                penv = os.environ.copy()
+                if can_use_stdio:
+                    pstdout = ssubprocess.PIPE
+                    pstdin = ssubprocess.PIPE
+
+                    def get_pfile():
+                        return RWPair(self.p.stdout, self.p.stdin)
+                    penv['SSHUTTLE_FW_COM_CHANNEL'] = 'stdio'
+                else:
+                    pstdout = None
+                    pstdin = None
+                    (s1, s2) = socket.socketpair()
+                    socket_share_data = s1.share(self.p.pid)
+                    socket_share_data_b64 = base64.b64encode(socket_share_data)
+                    penv['SSHUTTLE_FW_COM_CHANNEL'] = socket_share_data_b64
+
+                    def get_pfile():
+                        s1.close()
+                        return s2.makefile('rwb')
             try:
                 debug1("Starting firewall manager with command: %r" % argv)
-                self.p = ssubprocess.Popen(argv, stdout=s1, stdin=s1,
-                                           preexec_fn=setup)
+                self.p = ssubprocess.Popen(argv, stdout=pstdout, stdin=pstdin, env=penv,
+                                           preexec_fn=preexec_fn)
                 # No env: Talking to `FirewallClient.start`, which has no i18n.
             except OSError as e:
                 # This exception will occur if the program isn't
@@ -287,11 +336,14 @@ class FirewallClient:
                 debug1('Unable to start firewall manager. Popen failed. '
                        'Command=%r Exception=%s' % (argv, e))
                 continue
-
             self.argv = argv
-            s1.close()
-            self.pfile = s2.makefile('rwb')
-            line = self.pfile.readline()
+            self.pfile = get_pfile()
+
+            try:
+                line = self.pfile.readline()
+            except IOError:
+                # happens when firewall subprocess exists
+                line = ''
 
             rv = self.p.poll()   # Check if process is still running
             if rv:
@@ -334,7 +386,7 @@ class FirewallClient:
             break
 
         if not success:
-            raise Fatal("All attempts to elevate privileges failed.")
+            raise Fatal("All attempts to run firewall client process with elevated privileges were failed.")
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
@@ -551,7 +603,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     debug1('Connecting to server...')
 
     try:
-        (serverproc, serversock) = ssh.connect(
+        (serverproc, rfile, wfile) = ssh.connect(
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             options=dict(latency_control=latency_control,
@@ -561,24 +613,25 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          auto_nets=auto_nets))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
+            debug3('Error: EPIPE: ' + repr(e))
             raise Fatal("failed to establish ssh session (1)")
         else:
             raise
-    mux = Mux(serversock.makefile("rb"), serversock.makefile("wb"))
+    mux = Mux(rfile, wfile)
     handlers.append(mux)
 
     expected = b'SSHUTTLE0001'
-
     try:
         v = 'x'
         while v and v != b'\0':
-            v = serversock.recv(1)
+            v = rfile.read(1)
         v = 'x'
         while v and v != b'\0':
-            v = serversock.recv(1)
-        initstring = serversock.recv(len(expected))
+            v = rfile.read(1)
+        initstring = rfile.read(len(expected))
     except socket.error as e:
         if e.args[0] == errno.ECONNRESET:
+            debug3('Error: ECONNRESET ' + repr(e))
             raise Fatal("failed to establish ssh session (2)")
         else:
             raise
@@ -820,7 +873,8 @@ def main(listenip_v6, listenip_v4,
 
     # listenip_v4 contains user specified value or it is set to "auto".
     if listenip_v4 == "auto":
-        listenip_v4 = ('127.0.0.1', 0)
+        listenip_v4 = ('127.0.0.1' if avail.loopback_proxy_port else '0.0.0.0', 0)
+        debug1("Using default IPv4 listen address " + listenip_v4[0])
 
     # listenip_v6 is...
     #    None when IPv6 is disabled.
@@ -830,8 +884,8 @@ def main(listenip_v6, listenip_v4,
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
         if avail.ipv6:
-            debug1("IPv6 enabled: Using default IPv6 listen address ::1")
-            listenip_v6 = ('::1', 0)
+            listenip_v6 = ('::1' if avail.loopback_proxy_port else '::', 0)
+            debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:
             debug1("IPv6 disabled since it isn't supported by method "
                    "%s." % fw.method.name)
