@@ -115,6 +115,7 @@ def main():
                                       opt.user,
                                       opt.group,
                                       opt.sudo_pythonpath,
+                                      opt.add_cmd_delimiter,
                                       opt.tmark)
 
             if return_code == 0:

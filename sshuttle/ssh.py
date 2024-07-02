@@ -84,7 +84,7 @@ def parse_hostport(rhostport):
     return username, password, port, host
 
 
-def connect(ssh_cmd, rhostport, python, stderr, options):
+def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
     username, password, port, host = parse_hostport(rhostport)
     if username:
         rhost = "{}@{}".format(username, host)
@@ -183,13 +183,15 @@ def connect(ssh_cmd, rhostport, python, stderr, options):
         if password is not None:
             os.environ['SSHPASS'] = str(password)
             argv = (["sshpass", "-e"] + sshl +
-                    portl +
-                    [rhost, '--', pycmd])
+                    portl + [rhost])
 
         else:
-            argv = (sshl +
-                    portl +
-                    [rhost, '--', pycmd])
+            argv = (sshl + portl + [rhost])
+
+        if add_cmd_delimiter:
+            argv += ['--', pycmd]
+        else:
+            argv += [pycmd]
 
     # Our which() function searches for programs in get_path()
     # directories (which include PATH). This step isn't strictly
