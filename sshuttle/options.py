@@ -302,6 +302,14 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-cmd-delimiter",
+    action="store_false",
+    dest="add_cmd_delimiter",
+    help="""
+    do not add a double dash before the python command
+    """
+)
+parser.add_argument(
     "--seed-hosts",
     metavar="HOSTNAME[,HOSTNAME]",
     default=[],
