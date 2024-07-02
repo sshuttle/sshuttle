@@ -181,6 +181,13 @@ Options
     in a non-standard location or you want to provide extra
     options to the ssh command, for example, ``-e 'ssh -v'``.
 
+.. option:: --no-cmd-delimiter
+
+    Do not add a double dash (--) delimiter before invoking Python on
+    the remote host. This option is useful when the ssh command used
+    to connect is a custom command that does not interpret this
+    delimiter correctly.
+
 .. option:: --seed-hosts
 
     A comma-separated list of hostnames to use to

@@ -539,7 +539,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver):
+          to_nameserver, add_cmd_delimiter):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -554,6 +554,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
         (serverproc, serversock) = ssh.connect(
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
+            add_cmd_delimiter=add_cmd_delimiter,
             options=dict(latency_control=latency_control,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
@@ -755,7 +756,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, group, sudo_pythonpath, tmark):
+         user, group, sudo_pythonpath, add_cmd_delimiter, tmark):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -1103,7 +1104,7 @@ def main(listenip_v6, listenip_v4,
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver)
+                     daemon, to_nameserver, add_cmd_delimiter)
     finally:
         try:
             if daemon:
