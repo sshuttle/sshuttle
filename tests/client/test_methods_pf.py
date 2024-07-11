@@ -411,8 +411,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         '0x01')
 
     assert mock_ioctl.mock_calls == [
-        call(mock_pf_get_dev(), 0xcd60441a, ANY),
-        call(mock_pf_get_dev(), 0xcd60441a, ANY),
+        call(mock_pf_get_dev(), 0xcd50441a, ANY),
+        call(mock_pf_get_dev(), 0xcd50441a, ANY),
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
@@ -461,8 +461,8 @@ def test_setup_firewall_openbsd(mock_pf_get_dev, mock_ioctl, mock_pfctl):
         None,
         '0x01')
     assert mock_ioctl.mock_calls == [
-        call(mock_pf_get_dev(), 0xcd60441a, ANY),
-        call(mock_pf_get_dev(), 0xcd60441a, ANY),
+        call(mock_pf_get_dev(), 0xcd50441a, ANY),
+        call(mock_pf_get_dev(), 0xcd50441a, ANY),
     ]
     assert mock_pfctl.mock_calls == [
         call('-s Interfaces -i lo -v'),
