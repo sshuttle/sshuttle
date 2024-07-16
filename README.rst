@@ -4,7 +4,7 @@ sshuttle: where transparent proxy meets VPN meets ssh
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
-- Your client machine (or router) is Linux, FreeBSD, or MacOS.
+- Your client machine (or router) is Linux, FreeBSD, MacOS or Windows.
 
 - You have access to a remote network via ssh.
 
@@ -108,6 +108,10 @@ It is also possible to install into a virtualenv as a non-root user.
 
       nix-env -iA nixpkgs.sshuttle
 
+- Windows::
+Use PyPI 
+
+      pip install sshuttle
 
 Documentation
 -------------
