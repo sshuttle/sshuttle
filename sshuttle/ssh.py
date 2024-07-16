@@ -84,7 +84,7 @@ def parse_hostport(rhostport):
     return username, password, port, host
 
 
-def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
+def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, remote_shell, options):
     username, password, port, host = parse_hostport(rhostport)
     if username:
         rhost = "{}@{}".format(username, host)
@@ -134,52 +134,59 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, options):
             portl = ["-p", str(port)]
         else:
             portl = []
-        if python:
-            pycmd = '"%s" -c "%s"' % (python, pyscript)
-        else:
-            # By default, we run the following code in a shell.
-            # However, with restricted shells and other unusual
-            # situations, there can be trouble. See the RESTRICTED
-            # SHELL section in "man bash" for more information. The
-            # code makes many assumptions:
-            #
-            # (1) That /bin/sh exists and that we can call it.
-            # Restricted shells often do *not* allow you to run
-            # programs specified with an absolute path like /bin/sh.
-            # Either way, if there is trouble with this, it should
-            # return error code 127.
-            #
-            # (2) python3 or python exists in the PATH and is
-            # executable. If they aren't, then exec won't work (see (4)
-            # below).
-            #
-            # (3) In /bin/sh, that we can redirect stderr in order to
-            # hide the version that "python3 -V" might print (some
-            # restricted shells don't allow redirection, see
-            # RESTRICTED SHELL section in 'man bash'). However, if we
-            # are in a restricted shell, we'd likely have trouble with
-            # assumption (1) above.
-            #
-            # (4) The 'exec' command should work except if we failed
-            # to exec python because it doesn't exist or isn't
-            # executable OR if exec isn't allowed (some restricted
-            # shells don't allow exec). If the exec succeeded, it will
-            # not return and not get to the "exit 97" command. If exec
-            # does return, we exit with code 97.
-            #
-            # Specifying the exact python program to run with --python
-            # avoids many of the issues above. However, if
-            # you have a restricted shell on remote, you may only be
-            # able to run python if it is in your PATH (and you can't
-            # run programs specified with an absolute path). In that
-            # case, sshuttle might not work at all since it is not
-            # possible to run python on the remote machine---even if
-            # it is present.
-            devnull = '/dev/null'
-            pycmd = ("P=python3; $P -V 2>%s || P=python; "
-                     "exec \"$P\" -c %s; exit 97") % \
-                (devnull, quote(pyscript))
-            pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
+        if remote_shell == "cmd":
+            pycmd = '"%s" -c "%s"' % (python or 'python', pyscript)
+        elif remote_shell == "powershell":
+            for c in ('\'', ' ', ';', '(', ')', ','):
+                pyscript = pyscript.replace(c, '`' + c)
+            pycmd = '%s -c %s' % (python or 'python', pyscript)
+        else:  # posix shell expected
+            if python:
+                pycmd = '"%s" -c "%s"' % (python, pyscript)
+            else:
+                # By default, we run the following code in a shell.
+                # However, with restricted shells and other unusual
+                # situations, there can be trouble. See the RESTRICTED
+                # SHELL section in "man bash" for more information. The
+                # code makes many assumptions:
+                #
+                # (1) That /bin/sh exists and that we can call it.
+                # Restricted shells often do *not* allow you to run
+                # programs specified with an absolute path like /bin/sh.
+                # Either way, if there is trouble with this, it should
+                # return error code 127.
+                #
+                # (2) python3 or python exists in the PATH and is
+                # executable. If they aren't, then exec won't work (see (4)
+                # below).
+                #
+                # (3) In /bin/sh, that we can redirect stderr in order to
+                # hide the version that "python3 -V" might print (some
+                # restricted shells don't allow redirection, see
+                # RESTRICTED SHELL section in 'man bash'). However, if we
+                # are in a restricted shell, we'd likely have trouble with
+                # assumption (1) above.
+                #
+                # (4) The 'exec' command should work except if we failed
+                # to exec python because it doesn't exist or isn't
+                # executable OR if exec isn't allowed (some restricted
+                # shells don't allow exec). If the exec succeeded, it will
+                # not return and not get to the "exit 97" command. If exec
+                # does return, we exit with code 97.
+                #
+                # Specifying the exact python program to run with --python
+                # avoids many of the issues above. However, if
+                # you have a restricted shell on remote, you may only be
+                # able to run python if it is in your PATH (and you can't
+                # run programs specified with an absolute path). In that
+                # case, sshuttle might not work at all since it is not
+                # possible to run python on the remote machine---even if
+                # it is present.
+                devnull = '/dev/null'
+                pycmd = ("P=python3; $P -V 2>%s || P=python; "
+                         "exec \"$P\" -c %s; exit 97") % \
+                    (devnull, quote(pyscript))
+                pycmd = ("/bin/sh -c {}".format(quote(pycmd)))
 
         if password is not None:
             os.environ['SSHPASS'] = str(password)

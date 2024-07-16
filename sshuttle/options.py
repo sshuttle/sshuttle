@@ -316,6 +316,14 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--remote-shell",
+    metavar="PROGRAM",
+    help="""
+    alternate remote shell program instead of defacto posix shell.
+    For Windows targets it would be either `cmd` or `powershell` unless something like git-bash is in use.
+    """
+)
+parser.add_argument(
     "--seed-hosts",
     metavar="HOSTNAME[,HOSTNAME]",
     default=[],

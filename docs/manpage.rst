@@ -181,6 +181,11 @@ Options
     in a non-standard location or you want to provide extra
     options to the ssh command, for example, ``-e 'ssh -v'``.
 
+.. option:: --remote-shell
+
+    For Windows targets, specify configured remote shell program alternative to defacto posix shell.
+    It would be either ``cmd`` or ``powershell`` unless something like git-bash is in use.
+
 .. option:: --no-cmd-delimiter
 
     Do not add a double dash (--) delimiter before invoking Python on
