@@ -294,7 +294,7 @@ class Method(BaseMethod):
 
     def _get_bind_address_for_port(self, port, family):
         proto = "TCPv6" if family.version == 6 else "TCP"
-        for line in subprocess.check_output(["netstat", "-a", "-n", "-p", proto]).decode().splitlines():
+        for line in subprocess.check_output(["netstat", "-a", "-n", "-p", proto]).decode(errors='ignore').splitlines():
             try:
                 _, local_addr, _, state, *_ = re.split(r"\s+", line.strip())
             except ValueError:
