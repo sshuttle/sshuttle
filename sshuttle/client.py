@@ -211,8 +211,8 @@ class FirewallClient:
         self.auto_nets = []
 
         argv0 = sys.argv[0]
-        # argv0 is either be a normal python file or an executable.
-        # After installed as a package, sshuttle command points to an .exe in Windows and python shebang script elsewhere.
+        # argv0 is either be a normal Python file or an executable.
+        # After installed as a package, sshuttle command points to an .exe in Windows and Python shebang script elsewhere.
         argvbase = (([sys.executable, sys.argv[0]] if argv0.endswith('.py') else [argv0]) +
                     ['-v'] * (helpers.verbose or 0) +
                     ['--method', method_name] +
@@ -591,7 +591,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver, add_cmd_delimiter):
+          to_nameserver, add_cmd_delimiter, remote_shell):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -607,6 +607,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             ssh_cmd, remotename, python,
             stderr=ssyslog._p and ssyslog._p.stdin,
             add_cmd_delimiter=add_cmd_delimiter,
+            remote_shell=remote_shell,
             options=dict(latency_control=latency_control,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
@@ -809,7 +810,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, group, sudo_pythonpath, add_cmd_delimiter, tmark):
+         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -1158,7 +1159,7 @@ def main(listenip_v6, listenip_v4,
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver, add_cmd_delimiter)
+                     daemon, to_nameserver, add_cmd_delimiter, remote_shell)
     finally:
         try:
             if daemon:
