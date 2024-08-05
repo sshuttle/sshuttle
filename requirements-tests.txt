@@ -1,5 +1,5 @@
 -r requirements.txt
 pytest==8.3.2
 pytest-cov==5.0.0
-flake8==7.1.0
+flake8==7.1.1
 bump2version==1.0.1
