@@ -2,7 +2,6 @@ import io
 import socket
 from socket import AF_INET, AF_INET6
 import errno
-import time
 
 from unittest.mock import patch, call
 import sshuttle.helpers
