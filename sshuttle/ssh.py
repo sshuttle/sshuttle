@@ -115,8 +115,8 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, remote_shell,
     pyscript = r"""
                 import sys, os;
                 verbosity=%d;
-                stdin = os.fdopen(0, 'rb');
-                exec(compile(stdin.read(%d), 'assembler.py', 'exec'));
+                stdin = os.fdopen(0, "rb");
+                exec(compile(stdin.read(%d), "assembler.py", "exec"));
                 sys.exit(98);
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
