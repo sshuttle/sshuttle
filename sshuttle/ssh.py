@@ -115,8 +115,8 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, remote_shell,
     pyscript = r"""
                 import sys, os;
                 verbosity=%d;
-                stdin = os.fdopen(0, "rb");
-                exec(compile(stdin.read(%d), "assembler.py", "exec"));
+                stdin = os.fdopen(0, 'rb');
+                exec(compile(stdin.read(%d), 'assembler.py', 'exec'));
                 sys.exit(98);
                 """ % (helpers.verbose or 0, len(content))
     pyscript = re.sub(r'\s+', ' ', pyscript.strip())
@@ -142,7 +142,7 @@ def connect(ssh_cmd, rhostport, python, stderr, add_cmd_delimiter, remote_shell,
             pycmd = '%s -c %s' % (python or 'python', pyscript)
         else:  # posix shell expected
             if python:
-                pycmd = "%s -c \"%s\"" % (python, pyscript)
+                pycmd = '"%s" -c "%s"' % (python, pyscript)
             else:
                 # By default, we run the following code in a shell.
                 # However, with restricted shells and other unusual
