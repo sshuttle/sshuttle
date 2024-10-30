@@ -11,7 +11,7 @@ python = "^3.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.1"
-pytest-cov = ">=4.1,<6.0"
+pytest-cov = ">=4.1,<7.0"
 flake8 = "^7.0.0"
 pyflakes = "^3.2.0"
 bump2version = "^1.0.1"
