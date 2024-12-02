@@ -15,7 +15,7 @@ pytest-cov = ">=4.1,<7.0"
 flake8 = "^7.0.0"
 pyflakes = "^3.2.0"
 bump2version = "^1.0.1"
-twine = "^5.0.0"
+twine = ">=5,<7"
 
 [build-system]
 requires = ["poetry-core"]
