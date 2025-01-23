@@ -189,7 +189,7 @@ def test_parse_namespace():
         '@my.long_namespace.with.multiple.dots',
         'my.Namespace.With.Mixed.Case',
     ]
-    
+
     for namespace in valid_namespaces:
         assert sshuttle.options.parse_namespace(namespace) == namespace
 
