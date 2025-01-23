@@ -39,10 +39,11 @@ def main():
 
     try:
         namespace = getattr(opt, 'namespace', None)
-        if namespace:
+        namespace_pid = getattr(opt, 'namespace_pid', None)
+        if namespace or namespace_pid:
             prefix = helpers.logprefix
             helpers.logprefix = 'ns: '
-            enter_namespace(namespace)
+            enter_namespace(namespace, namespace_pid)
             helpers.logprefix = prefix
 
         if opt.firewall:

@@ -474,5 +474,12 @@ if sys.platform == 'linux':
     parser.add_argument(
         '--namespace',
         type=parse_namespace,
-        help="Run it inside of a namespace."
+        help="Run inside of a net namespace with the given name."
+    )
+    parser.add_argument(
+        '--namespace-pid',
+        type=int,
+        help="""
+        Run inside the net namespace used by the process with
+        the given pid."""
     )
