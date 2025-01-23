@@ -176,3 +176,33 @@ def test_parse_subnetport_host_with_port(mock_getaddrinfo):
             (socket.AF_INET6, '2404:6800:4004:821::2001', 128, 80, 90),
             (socket.AF_INET, '142.251.42.129', 32, 80, 90),
         ])
+
+
+def test_parse_namespace():
+    valid_namespaces = [
+        'my_namespace',
+        'my.namespace',
+        'my_namespace_with_underscore',
+        'MyNamespace',
+        '@my_namespace',
+        'my.long_namespace.with.multiple.dots',
+        '@my.long_namespace.with.multiple.dots',
+        'my.Namespace.With.Mixed.Case',
+    ]
+    
+    for namespace in valid_namespaces:
+        assert sshuttle.options.parse_namespace(namespace) == namespace
+
+    invalid_namespaces = [
+        '',
+        '123namespace',
+        'my-namespace',
+        'my_namespace!',
+        '.my_namespace',
+        'my_namespace.',
+        'my..namespace',
+    ]
+
+    for namespace in invalid_namespaces:
+        with pytest.raises(Fatal, match="'.*' is not a valid namespace name."):
+            sshuttle.options.parse_namespace(namespace)

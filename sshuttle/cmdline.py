@@ -11,6 +11,7 @@ import sshuttle.ssyslog as ssyslog
 from sshuttle.options import parser, parse_ipport
 from sshuttle.helpers import family_ip_tuple, log, Fatal
 from sshuttle.sudoers import sudoers
+from sshuttle.namespace import enter_namespace
 
 
 def main():
@@ -37,6 +38,13 @@ def main():
     helpers.verbose = opt.verbose
 
     try:
+        namespace = getattr(opt, 'namespace', None)
+        if namespace:
+            prefix = helpers.logprefix
+            helpers.logprefix = 'ns: '
+            enter_namespace(namespace)
+            helpers.logprefix = prefix
+
         if opt.firewall:
             if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
