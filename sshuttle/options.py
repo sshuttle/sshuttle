@@ -471,12 +471,15 @@ parser.add_argument(
 )
 
 if sys.platform == 'linux':
-    parser.add_argument(
+    net_ns_group = parser.add_mutually_exclusive_group(
+        required=False)
+
+    net_ns_group.add_argument(
         '--namespace',
         type=parse_namespace,
         help="Run inside of a net namespace with the given name."
     )
-    parser.add_argument(
+    net_ns_group.add_argument(
         '--namespace-pid',
         type=int,
         help="""
