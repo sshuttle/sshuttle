@@ -38,6 +38,8 @@ def main():
     helpers.verbose = opt.verbose
 
     try:
+        # Since namespace and namespace-pid options are only available
+        # in linux, we must check if it exists with getattr
         namespace = getattr(opt, 'namespace', None)
         namespace_pid = getattr(opt, 'namespace_pid', None)
         if namespace or namespace_pid:
