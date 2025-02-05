@@ -3,7 +3,7 @@
 ```bash
 test-bed up -d # start containers
 
-exec-sshuttle <node-id> [--copy-id] [--server-py=2.7|3.6|3.8] [--client-py=2.7|3.6|3.8] [--sshuttle-bin=/path/to/sshuttle] [sshuttle-args...]
+exec-sshuttle <node-id> [--copy-id] [--server-py=2.7|3.10] [--client-py=2.7|3.10] [--sshuttle-bin=/path/to/sshuttle] [sshuttle-args...]
     # --copy-id  -> optionally do ssh-copy-id to make it passwordless for future runs
     # --sshuttle-bin -> use another sshuttle binary instead of one from dev setup
     # --server-py  -> Python version to use in server. (manged by pyenv)
