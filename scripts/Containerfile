@@ -7,9 +7,6 @@ FROM ${BASE_IMAGE} as pyenv
 RUN apk add --no-cache build-base git libffi-dev openssl-dev bzip2-dev zlib-dev readline-dev sqlite-dev
 ENV PYENV_ROOT=/pyenv
 RUN curl https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
-RUN /pyenv/bin/pyenv install 2.7
-RUN /pyenv/bin/pyenv install 3.6
-RUN /pyenv/bin/pyenv install 3.8
 RUN /pyenv/bin/pyenv install 3.10
 RUN bash -xc 'rm -rf /pyenv/{.git,plugins} /pyenv/versions/*/lib/*/{test,config,config-*linux-gnu}' && \
     find /pyenv -type d -name __pycache__ -exec rm -rf {} + && \
