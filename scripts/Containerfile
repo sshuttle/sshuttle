@@ -8,6 +8,8 @@ RUN apk add --no-cache build-base git libffi-dev openssl-dev bzip2-dev zlib-dev 
 ENV PYENV_ROOT=/pyenv
 RUN curl https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyenv-installer | bash
 RUN /pyenv/bin/pyenv install 3.10
+RUN /pyenv/bin/pyenv install 3.11
+RUN /pyenv/bin/pyenv install 3.12
 RUN bash -xc 'rm -rf /pyenv/{.git,plugins} /pyenv/versions/*/lib/*/{test,config,config-*linux-gnu}' && \
     find /pyenv -type d -name __pycache__ -exec rm -rf {} + && \
     find /pyenv -type f -name '*.py[co]' -delete
