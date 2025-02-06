@@ -4,6 +4,12 @@ build:
   os: ubuntu-20.04
   tools:
     python: "3.9"
+  jobs:
+    post_create_environment:
+      - pip install poetry
+      - poetry config virtualenvs.create false
+    post_install:
+      - poetry install --with docs
 
 sphinx:
   configuration: docs/conf.py
