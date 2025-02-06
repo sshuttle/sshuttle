@@ -17,20 +17,30 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-
+        poetry-version: ["main"]
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+    - name: Run image
+      uses: abatilo/actions-poetry@v3
+      with:
+        poetry-version: ${{ matrix.poetry-version }}
+    - name: Setup a local virtual environment (if no poetry.toml file)
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements-tests.txt
+        poetry config virtualenvs.create true --local
+        poetry config virtualenvs.in-project true --local
+    - uses: actions/cache@v3
+      name: Define a cache for the virtual environment based on the dependencies lock file
+      with:
+        path: ./.venv
+        key: venv-${{ hashFiles('poetry.lock') }}
+    - name: Install the project dependencies
+      run: poetry install
     - name: Lint with flake8
       run: |
-        flake8 sshuttle tests --count --show-source --statistics
-    - name: Test with pytest
-      run: |
-        PYTHONPATH=$PWD pytest
+        poetry run flake8 sshuttle tests --count --show-source --statistics
+    - name: Run the automated tests
+      run: poetry run pytest -v
