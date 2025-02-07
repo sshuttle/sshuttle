@@ -21,7 +21,7 @@ jobs:
   upload-pypi:
     name: Upload to pypi
     needs: [release-please]
-    # if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: pypi
