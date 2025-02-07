@@ -27,5 +27,4 @@ jobs:
         uses: code-specialist/pypi-poetry-publish@v1
         with:
           ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PUBLISH_REGISTRY: "https://test.pypi.org/simple/"
           PUBLISH_REGISTRY_PASSWORD: ${{ secrets.PYPI_TOKEN }}
