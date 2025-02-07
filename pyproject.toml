@@ -5,6 +5,18 @@ description = "Transparent proxy server that works as a poor man's VPN. Forwards
 authors = ["Brian May <brian@linuxpenguins.xyz>"]
 license = "LGPL-2.1"
 readme = "README.rst"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Networking",
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
