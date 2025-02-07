@@ -106,7 +106,7 @@ It is also possible to install into a virtualenv as a non-root user.
 
 - Nix::
 
-      nix-env -iA nixpkgs.sshuttle
+      nix-shell -p sshuttle
 
 - Windows::
 
