@@ -109,7 +109,6 @@ It is also possible to install into a virtualenv as a non-root user.
       nix-env -iA nixpkgs.sshuttle
 
 - Windows::
-Use PyPI 
 
       pip install sshuttle
 
