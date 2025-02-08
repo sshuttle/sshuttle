@@ -20,7 +20,7 @@ def ipt_chain_exists(family, table, name):
     argv = [cmd, '-w', '-t', table, '-nL']
     try:
         output = ssubprocess.check_output(argv, env=get_env())
-        for line in output.decode('ASCII').split('\n'):
+        for line in output.decode('ASCII', errors='replace').split('\n'):
             if line.startswith('Chain %s ' % name):
                 return True
     except ssubprocess.CalledProcessError as e:
