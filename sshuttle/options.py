@@ -137,6 +137,15 @@ def parse_list(lst):
     return re.split(r'[\s,]+', lst.strip()) if lst else []
 
 
+def parse_namespace(namespace):
+    try:
+        assert re.fullmatch(
+            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace)
+        return namespace
+    except AssertionError:
+        raise Fatal("%r is not a valid namespace name." % namespace)
+
+
 class Concat(Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
@@ -460,3 +469,20 @@ parser.add_argument(
     hexadecimal (default '0x01')
     """
 )
+
+if sys.platform == 'linux':
+    net_ns_group = parser.add_mutually_exclusive_group(
+        required=False)
+
+    net_ns_group.add_argument(
+        '--namespace',
+        type=parse_namespace,
+        help="Run inside of a net namespace with the given name."
+    )
+    net_ns_group.add_argument(
+        '--namespace-pid',
+        type=int,
+        help="""
+        Run inside the net namespace used by the process with
+        the given pid."""
+    )
