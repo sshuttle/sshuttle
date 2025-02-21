@@ -56,7 +56,7 @@ def parse_hostport(rhostport):
         # Fix #410 bad username error detect
         if ":" in username:
             # this will even allow for the username to be empty
-            username, password = username.split(":")
+            username, password = username.split(":", 1)
 
     if ":" in host:
         # IPv6 address and/or got a port specified
