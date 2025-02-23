@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0](https://github.com/sshuttle/sshuttle/compare/v1.2.0...v1.3.0) (2025-02-23)
+
+
+### Features
+
+* switch to a network namespace on Linux ([8a123d9](https://github.com/sshuttle/sshuttle/commit/8a123d9762b84f168a8ca8c75f73e590954e122d))
+
+
+### Bug Fixes
+
+* prevent UnicodeDecodeError parsing iptables rule with comments ([cbe3d1e](https://github.com/sshuttle/sshuttle/commit/cbe3d1e402cac9d3fbc818fe0cb8a87be2e94348))
+* remove temp build hack ([1f5e6ce](https://github.com/sshuttle/sshuttle/commit/1f5e6cea703db33761fb1c3f999b9624cf3bc7ad))
+* support ':' sign in password ([7fa927e](https://github.com/sshuttle/sshuttle/commit/7fa927ef8ceea6b1b2848ca433b8b3e3b63f0509))
+
+
+### Documentation
+
+* replace nix-env with nix-shell ([340ccc7](https://github.com/sshuttle/sshuttle/commit/340ccc705ebd9499f14f799fcef0b5d2a8055fb4))
+* update installation instructions ([a2d405a](https://github.com/sshuttle/sshuttle/commit/a2d405a6a7f9d1a301311a109f8411f2fe8deb37))
+
 ## [1.2.0](https://github.com/sshuttle/sshuttle/compare/v1.1.2...v1.2.0) (2025-02-07)
 
 
