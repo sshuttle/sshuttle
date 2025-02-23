@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sshuttle"
-version = "1.2.0"
+version = "1.3.0"
 description = "Transparent proxy server that works as a poor man's VPN. Forwards over ssh. Doesn't require admin. Works with Linux and MacOS. Supports DNS tunneling."
 authors = ["Brian May <brian@linuxpenguins.xyz>"]
 license = "LGPL-2.1"
