@@ -1,9 +1,13 @@
-[tool.poetry]
+[project]
+authors = [
+    {name = "Brian May", email = "brian@linuxpenguins.xyz"},
+]
+license = {text = "LGPL-2.1"}
+requires-python = "<4.0,>=3.9"
+dependencies = []
 name = "sshuttle"
 version = "1.3.0"
 description = "Transparent proxy server that works as a poor man's VPN. Forwards over ssh. Doesn't require admin. Works with Linux and MacOS. Supports DNS tunneling."
-authors = ["Brian May <brian@linuxpenguins.xyz>"]
-license = "LGPL-2.1"
 readme = "README.rst"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -18,27 +22,31 @@ classifiers = [
     "Topic :: System :: Networking",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.0.1"
-pytest-cov = ">=4.1,<7.0"
-flake8 = "^7.0.0"
-pyflakes = "^3.2.0"
-bump2version = "^1.0.1"
-twine = ">=5,<7"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 sshuttle = "sshuttle.cmdline:main"
 
-[tool.poetry.group.docs]
-optional = true
+[dependency-groups]
+dev = [
+    "pytest<9.0.0,>=8.0.1",
+    "pytest-cov<7.0,>=4.1",
+    "flake8<8.0.0,>=7.0.0",
+    "pyflakes<4.0.0,>=3.2.0",
+    "bump2version<2.0.0,>=1.0.1",
+    "twine<7,>=5",
+]
+docs = [
+    "sphinx==8.1.3; python_version ~= \"3.10\"",
+    "furo==2024.8.6",
+]
 
-[tool.poetry.group.docs.dependencies]
-sphinx = { version = "8.1.3", python = ">=3.10,<4.0" }
-furo = "2024.8.6"
+[tool.uv]
+default-groups = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.jj"
+]
