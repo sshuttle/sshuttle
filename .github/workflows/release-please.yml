@@ -22,16 +22,11 @@ jobs:
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           release-type: python
 
-  upload-pypi:
-    name: Upload to pypi
+  build-pypi:
+    name: Build for pypi
     needs: [release-please]
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/sshuttle
-    permissions:
-      id-token: write
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.12
@@ -55,5 +50,26 @@ jobs:
       run: poetry install
     - name: Package project
       run: poetry build
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  upload-pypi:
+    name: Upload to pypi
+    needs: [build-pypi]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sshuttle
+    permissions:
+      id-token: write
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
