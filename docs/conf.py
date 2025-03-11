@@ -16,7 +16,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.abspath('..'))
-import sshuttle.version  # NOQA
+import sshuttle  # NOQA
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -56,7 +56,7 @@ copyright = '2016, Brian May'
 # built documents.
 #
 # The full version, including alpha/beta/rc tags.
-release = sshuttle.version.version
+release = sshuttle.__version__
 # The short X.Y version.
 version = '.'.join(release.split('.')[:2])
 
