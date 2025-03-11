@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/sshuttle/sshuttle/compare/v1.3.0...v1.3.1) (2025-03-11)
+
+
+### Bug Fixes
+
+* correct bad version number at runtime ([7b66253](https://github.com/sshuttle/sshuttle/commit/7b662536ba92d724ed8f86a32a21282fea66047c))
+
 ## [1.3.0](https://github.com/sshuttle/sshuttle/compare/v1.2.0...v1.3.0) (2025-02-23)
 
 
