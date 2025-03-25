@@ -71,6 +71,9 @@
               chardet.setuptools = [ ];
               colorlog.setuptools = [ ];
               python-debian.setuptools = [ ];
+              pluggy.setuptools = [ ];
+              pathspec.flit-core = [ ];
+              packaging.flit-core = [ ];
             };
 
           in
