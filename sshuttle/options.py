@@ -247,7 +247,7 @@ parser.add_argument(
 if sys.platform == 'win32':
     method_choices = ["auto", "windivert"]
 else:
-    method_choices = ["auto", "nat", "tproxy", "pf", "ipfw"]
+    method_choices = ["auto", "nft", "nat", "tproxy", "pf", "ipfw"]
 
 parser.add_argument(
     "--method",
