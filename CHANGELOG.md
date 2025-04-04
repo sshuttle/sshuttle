@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/sshuttle/sshuttle/compare/v1.3.1...v1.3.2) (2025-04-04)
+
+
+### Bug Fixes
+
+* Updates sudoers config according to executable ([934fac9](https://github.com/sshuttle/sshuttle/commit/934fac9d6c0f86223e3e7120148d346d9b20c9d0))
+
 ## [1.3.1](https://github.com/sshuttle/sshuttle/compare/v1.3.0...v1.3.1) (2025-03-25)
 
 
