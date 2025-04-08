@@ -50,4 +50,4 @@ from sshuttle.server import main  # noqa: E402
 
 main(options.latency_control, options.latency_buffer_size,
      options.auto_hosts, options.to_nameserver,
-     options.auto_nets)
+     options.auto_nets, options.localhost_detector)
