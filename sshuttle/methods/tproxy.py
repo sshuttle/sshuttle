@@ -3,7 +3,7 @@ from sshuttle.firewall import subnet_weight
 from sshuttle.helpers import family_to_string
 from sshuttle.linux import ipt, ipt_chain_exists
 from sshuttle.methods import BaseMethod
-from sshuttle.helpers import debug1, debug2, debug3, Fatal, which
+from sshuttle.helpers import debug1, debug2, debug3, Fatal, which, islocal
 
 import socket
 import os
@@ -84,6 +84,9 @@ class Method(BaseMethod):
             debug1(
                 "-- ignored UDP to %r: "
                 "couldn't determine source IP address\n" % (dstip,))
+            return
+        if srcip[1] == sock.getsockname()[1] and islocal(dstip[0], sock.family):
+            sock.sendto(data, dstip)
             return
         sender = socket.socket(sock.family, socket.SOCK_DGRAM)
         sender.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
