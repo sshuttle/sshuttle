@@ -23,7 +23,6 @@ def get_verbose_level():
 
 
 def log(s):
-    global logprefix
     try:
         sys.stdout.flush()
     except (IOError, ValueError):  # ValueError ~ I/O operation on closed file

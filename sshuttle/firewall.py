@@ -86,7 +86,6 @@ def firewall_exit(signum, frame):
     # and they try to exit by pressing Ctrl+C. Here, we forward the
     # Ctrl+C/SIGINT to the main sshuttle process which should trigger
     # the typical exit process as described above.
-    global sshuttle_pid
     if sshuttle_pid:
         debug1("Relaying interupt signal to sshuttle process %d" % sshuttle_pid)
         if sys.platform == 'win32':
