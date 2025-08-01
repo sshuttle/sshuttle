@@ -616,7 +616,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             debug3('Error: EPIPE: ' + repr(e))
-            raise Fatal("failed to establish ssh session (1)")
+            raise Fatal("SSH connection lost: broken pipe (server may have terminated unexpectedly)")
         else:
             raise
     mux = Mux(rfile, wfile)
