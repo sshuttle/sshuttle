@@ -80,11 +80,13 @@ def _nb_clean(func, *args):
     except (OSError, socket.error):
         # Note: In python2 socket.error != OSError (In python3, they are same)
         _, e = sys.exc_info()[:2]
-        if e.errno not in (errno.EWOULDBLOCK, errno.EAGAIN):
-            raise
-        else:
+        if e.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
             debug3('%s: err was: %s' % (func.__name__, e))
             return None
+        else:
+            # Re-raise other errors (including EPIPE) so they can be handled
+            # by the calling function appropriately
+            raise
 
 
 def _try_peername(sock):
@@ -220,7 +222,7 @@ class SockWrapper:
         self.wsock.setblocking(False)
         try:
             return _nb_clean(self.wsock.send, buf)
-        except OSError:
+        except (OSError, socket.error):
             _, e = sys.exc_info()[:2]
             if e.errno == errno.EPIPE:
                 debug1('%r: uwrite: got EPIPE' % self)
@@ -243,10 +245,15 @@ class SockWrapper:
         self.rsock.setblocking(False)
         try:
             return _nb_clean(self.rsock.recv, 65536)
-        except OSError:
+        except (OSError, socket.error):
             _, e = sys.exc_info()[:2]
-            self.seterr('uread: %s' % e)
-            return b('')  # unexpected error... we'll call it EOF
+            if e.errno == errno.EPIPE:
+                debug1('%r: uread: got EPIPE' % self)
+                self.noread()
+                return b('')  # treat broken pipe as EOF
+            else:
+                self.seterr('uread: %s' % e)
+                return b('')  # unexpected error... we'll call it EOF
 
     def fill(self):
         if self.buf:
