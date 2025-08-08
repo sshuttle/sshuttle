@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.2](https://github.com/sshuttle/sshuttle/compare/v1.3.1...v1.3.2) (2025-08-08)
+
+
+### Bug Fixes
+
+* improve broken pipe (EPIPE) error handling in socket operations ([47c5afe](https://github.com/sshuttle/sshuttle/commit/47c5afe3f5e65d84894b617803e3272a0987f641))
+* improve broken pipe (EPIPE) error handling in socket operations ([514847e](https://github.com/sshuttle/sshuttle/commit/514847e7d86f65be7315f390e20987a9352840ca))
+* Updates sudoers config according to executable ([934fac9](https://github.com/sshuttle/sshuttle/commit/934fac9d6c0f86223e3e7120148d346d9b20c9d0))
+
 ## [1.3.1](https://github.com/sshuttle/sshuttle/compare/v1.3.0...v1.3.1) (2025-03-25)
 
 
