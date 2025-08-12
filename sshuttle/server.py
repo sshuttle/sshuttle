@@ -80,17 +80,18 @@ def _route_iproute(line):
 
 
 def _route_windows(line):
-    if " On-link " not in line:
+    parts = re.split(r'\s+', line.strip())
+    if len(parts) < 4:
         return None, None
-    dest, net_mask = re.split(r'\s+', line.strip())[:2]
-    if net_mask == "255.255.255.255":
+    prefix = parts[3]
+    dest, mask = prefix.split('/')
+    if mask == "32":
         return None, None
     for p in ('127.', '0.', '224.', '169.254.'):
         if dest.startswith(p):
             return None, None
     ipw = _ipmatch(dest)
-    mask = _maskbits(_ipmatch(net_mask))
-    return ipw, mask
+    return ipw, int(mask)
 
 
 def _list_routes(argv, extract_route):
@@ -100,7 +101,7 @@ def _list_routes(argv, extract_route):
     for line in p.stdout:
         if not line.strip():
             continue
-        ipw, mask = extract_route(line.decode("ASCII"))
+        ipw, mask = extract_route(line.decode("ASCII", errors='ignore'))
         if not ipw:
             continue
         width = min(ipw[1], mask)
@@ -116,7 +117,7 @@ def _list_routes(argv, extract_route):
 
 def list_routes():
     if sys.platform == 'win32':
-        routes = _list_routes(['route', 'PRINT', '-4'], _route_windows)
+        routes = _list_routes(['netsh', 'interface', 'ipv4', 'show', 'route'], _route_windows)
     else:
         if which('ip'):
             routes = _list_routes(['ip', 'route'], _route_iproute)
