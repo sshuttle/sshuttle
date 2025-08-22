@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v1.3.3) (2025-08-22)
+
+
+### Bug Fixes
+
+* route PRINT -4 to_ascii [windows] ([cb9c0f3](https://github.com/sshuttle/sshuttle/commit/cb9c0f3548c0af9cf224e069aca596c2f1308c22))
+
 ## [1.3.2](https://github.com/sshuttle/sshuttle/compare/v1.3.1...v1.3.2) (2025-08-08)
 
 
