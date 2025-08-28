@@ -18,9 +18,17 @@ echo "Bringing up test-bed (building image if needed)..."
 # Determine node-1 IP to use for scp and ssh
 node_ip=$("$here/test-bed" get-ip node-1)
 
+# Prepare passwordless SSH: generate ephemeral key and install on node-1
+keydir="$(mktemp -d)"
+keyfile="$keydir/id_ed25519"
+ssh-keygen -t ed25519 -N '' -f "$keyfile" -q
+container_name="sshuttle-testbed-node-1"
+echo "Installing our pubkey into $container_name authorized_keys for user 'test'"
+docker exec -u root "$container_name" sh -lc 'install -d -m 700 -o test -g test /home/test/.ssh && touch /home/test/.ssh/authorized_keys && chown test:test /home/test/.ssh/authorized_keys && chmod 600 /home/test/.ssh/authorized_keys'
+docker exec -i "$container_name" sh -lc 'cat >> /home/test/.ssh/authorized_keys' <"$keyfile.pub"
+
 # Copy server.yaml into container and place at /etc/sshuttle/server.yaml
 # Use docker cp for simplicity
-container_name="sshuttle-testbed-node-1"
 echo "Ensuring /etc/sshuttle exists inside container"
 docker exec -u root "$container_name" mkdir -p /etc/sshuttle
 
@@ -34,6 +42,7 @@ docker exec -u root "$container_name" sh -lc 'mkdir -p /var/log/sshuttle && chow
 # Use profile and route a known subnet. We'll test allowed and blocked flows against the profile.
 
 set -x
+SSH_AUTH_SOCK='' XDG_RUNTIME_DIR='' \
 "$here/exec-sshuttle" node-1 --profile "$profile_name" -v -v \
   --sshuttle-bin=dev -- "10.55.0.0/16" &
 shuttle_pid=$!

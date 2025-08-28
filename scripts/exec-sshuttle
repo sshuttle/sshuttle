@@ -80,7 +80,7 @@ if [[ $target == node-* ]]; then
     fi
     target="$user_part@$host:$port"
     if ! command -v sshpass >/dev/null; then
-        log "sshpass is not found. You might have to manually enter ssh password: 'test'"
+        log "sshpass is not found. Falling back to key-based auth if available."
     fi
     if [[ -z $server_pyenv_ver ]]; then
         log "server-py argumwnt is not specified. Setting it to 3.8"
