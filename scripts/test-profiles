@@ -39,11 +39,13 @@ echo "Ensuring log directory exists and is writable inside container"
 docker exec -u root "$container_name" sh -lc 'mkdir -p /var/log/sshuttle && chown test:test /var/log/sshuttle'
 
 # Start sshuttle from host, connecting to node-1 as server
-# Use profile and route a known subnet. We'll test allowed and blocked flows against the profile.
+# Use profile and route a known subnet. We'll test allowed flows and check logs.
 
 set -x
+ssh_cmd_override="ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i $keyfile"
 SSH_AUTH_SOCK='' XDG_RUNTIME_DIR='' \
 "$here/exec-sshuttle" node-1 --profile "$profile_name" -v -v \
+  --ssh-cmd "$ssh_cmd_override" \
   --sshuttle-bin=dev -- "10.55.0.0/16" &
 shuttle_pid=$!
 set +x
