@@ -21,11 +21,14 @@ node_ip=$("$here/test-bed" get-ip node-1)
 # Copy server.yaml into container and place at /etc/sshuttle/server.yaml
 # Use docker cp for simplicity
 container_name="sshuttle-testbed-node-1"
+echo "Ensuring /etc/sshuttle exists inside container"
+docker exec -u root "$container_name" mkdir -p /etc/sshuttle
+
 echo "Installing server.yaml into $container_name:/etc/sshuttle/server.yaml"
 docker cp "$server_yaml" "$container_name:/etc/sshuttle/server.yaml"
 
-echo "Ensuring log directory exists inside container"
-docker exec -u root "$container_name" mkdir -p /var/log/sshuttle
+echo "Ensuring log directory exists and is writable inside container"
+docker exec -u root "$container_name" sh -lc 'mkdir -p /var/log/sshuttle && chown test:test /var/log/sshuttle'
 
 # Start sshuttle from host, connecting to node-1 as server
 # Use profile and route a known subnet. We'll test allowed and blocked flows against the profile.
