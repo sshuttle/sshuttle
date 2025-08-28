@@ -1,18 +1,21 @@
-# Example sshuttle server YAML configuration
+# Example sshuttle server YAML configuration (valid JSON is also valid YAML)
 # Place at /etc/sshuttle/server.yaml (or ~/.config/sshuttle/server.yaml)
-
-profiles:
-  default:
-    # Only allow this subnet by default, as requested
-    allow_nets:
-      - 10.4.188.128/25
-    # Allow ports lists or ranges (strings). Empty => default deny.
-    allow_tcp_ports: ["22", "80-81", "443"]
-    allow_udp_ports: ["53"]
-    # Force DNS to this nameserver. Optional.
-    dns_nameserver: 10.4.188.53
-    # Where to append JSONL logs per connection. Ensure writable by server user.
-    log_path: /var/log/sshuttle/default.jsonl
-
-default_profile: default
+{
+  "profiles": {
+    "default": {
+      "allow_nets": ["10.4.188.128/25"],
+      "allow_tcp_ports": ["22", "80-81", "443"],
+      "allow_udp_ports": ["53"],
+      "dns_nameserver": "10.4.188.53",
+      "log_path": "/var/log/sshuttle/default.jsonl"
+    },
+    "testing": {
+      "allow_nets": ["10.55.0.0/16"],
+      "allow_tcp_ports": ["8080"],
+      "allow_udp_ports": ["53"],
+      "log_path": "/var/log/sshuttle/default.jsonl"
+    }
+  },
+  "default_profile": "default"
+}
 
