@@ -12,8 +12,8 @@ server_yaml="$root/docs/examples/server.yaml"
 profile_name="testing"
 log_path="/var/log/sshuttle/default.jsonl"
 
-echo "Bringing up test-bed..."
-"$here/test-bed" up -d
+echo "Bringing up test-bed (building image if needed)..."
+"$here/test-bed" up -d --build
 
 # Determine node-1 IP to use for scp and ssh
 node_ip=$("$here/test-bed" get-ip node-1)
