@@ -73,6 +73,15 @@ if [[ $target == node-* ]]; then
     user_part="test:test"
     host=$("$(dirname "$0")/test-bed" get-ip "$target")
     index=${target#node-}
+    # If sshpass is not available, prefer key-based auth and drop the password part
+    if ! command -v sshpass >/dev/null; then
+        user_part="test"
+    fi
+    # On macOS/desktop Docker, connecting to container IP may fail; prefer published port
+    if [[ "$target" == "node-1" ]]; then
+        host="127.0.0.1"
+        port="2222"
+    fi
     if [[ $ipv6_only == true ]]; then
         args+=("2001:0DB8::/112")
     else
