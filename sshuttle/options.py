@@ -317,6 +317,13 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--profile",
+    metavar="NAME",
+    help="""
+    server-side profile name to request; the server decides which profile to apply
+    """
+)
+parser.add_argument(
     "--no-cmd-delimiter",
     action="store_false",
     dest="add_cmd_delimiter",

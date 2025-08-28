@@ -612,7 +612,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
-                         auto_nets=auto_nets))
+                         auto_nets=auto_nets,
+                         profile=options.profile if hasattr(options, 'profile') else None))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             debug3('Error: EPIPE: ' + repr(e))
