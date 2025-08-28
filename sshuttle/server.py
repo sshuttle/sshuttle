@@ -129,21 +129,29 @@ def _select_profile(requested_name):
 def _log_event(profile, proto, action, src, dst, reason=None):
     if not profile.log_path:
         return
-    rec = {
-        'ts': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-        'user': _current_user(),
-        'profile': profile.name,
-        'proto': proto,
-        'action': action,
-        'src_ip': src[0] if src else None,
-        'src_port': src[1] if src else None,
-        'dst_ip': dst[0] if dst else None,
-        'dst_port': dst[1] if dst else None,
-        'reason': reason,
-    }
+    # syslog-like single-line format similar to iptables: key=value pairs
+    ts = time.strftime('%b %d %H:%M:%S', time.localtime())
+    pid = os.getpid()
+    user = _current_user()
+    src_ip = src[0] if src else '-'
+    src_port = src[1] if src else '-'
+    dst_ip = dst[0] if dst else '-'
+    dst_port = dst[1] if dst else '-'
+    parts = [
+        f"{ts} sshuttle[{pid}]:",
+        f"action={action.upper()}",
+        f"proto={proto.upper()}",
+        f"user={user}",
+        f"profile={profile.name}",
+        f"src={src_ip}", f"spt={src_port}",
+        f"dst={dst_ip}", f"dpt={dst_port}",
+    ]
+    if reason:
+        parts.append(f"reason=\"{reason}\"")
+    line = ' '.join(parts)
     try:
         with open(profile.log_path, 'a') as f:
-            f.write(json.dumps(rec) + '\n')
+            f.write(line + '\n')
     except Exception as e:
         log('WARNING: failed to write log %r: %r' % (profile.log_path, e))
 
