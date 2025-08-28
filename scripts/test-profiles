@@ -51,9 +51,9 @@ set +x
 echo "Waiting a few seconds for sshuttle to connect..."
 sleep 5
 
-# Test allowed: curl to node-2 (10.55.2.77:8080) which should be within 10.55.0.0/16
+# Test allowed: iperf3 to node-2:5001 (allowed per testing profile)
 set -x
-"$here/exec-tool" curl node-2 || true
+"$here/exec-tool" iperf3 node-2 || true
 set +x
 
 # Show log entries
