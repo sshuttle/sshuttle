@@ -96,8 +96,8 @@ if [[ $target == node-* ]]; then
         log "sshpass is not found. Falling back to key-based auth if available."
     fi
     if [[ -z $server_pyenv_ver ]]; then
-        log "server-py argumwnt is not specified. Setting it to 3.8"
-        server_pyenv_ver="3.8"
+        log "server-py not specified; defaulting to 3.12 for test-bed"
+        server_pyenv_ver="3.12"
     fi
 fi
 

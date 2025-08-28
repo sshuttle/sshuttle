@@ -48,6 +48,7 @@ set -x
 export SSH_IDENTITY_FILE="$keyfile"
 SSH_AUTH_SOCK='' XDG_RUNTIME_DIR='' \
 "$here/exec-sshuttle" node-1 --profile "$profile_name" -v -v \
+  --server-py=3.12 \
   --sshuttle-bin=dev -- "10.55.0.0/16" &
 shuttle_pid=$!
 set +x
@@ -55,9 +56,13 @@ set +x
 echo "Waiting a few seconds for sshuttle to connect..."
 sleep 5
 
-# Test allowed: iperf3 to node-2:5001 (allowed per testing profile)
+# Test allowed: prefer iperf3 if present; else curl to nginx:8080 on node-2
 set -x
-"$here/exec-tool" iperf3 node-2 || true
+if command -v iperf3 >/dev/null; then
+  "$here/exec-tool" iperf3 node-2 || true
+else
+  "$here/exec-tool" curl node-2 || true
+fi
 set +x
 
 # Show log entries
