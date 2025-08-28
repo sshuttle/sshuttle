@@ -24,8 +24,11 @@ keyfile="$keydir/id_ed25519"
 ssh-keygen -t ed25519 -N '' -f "$keyfile" -q
 container_name="sshuttle-testbed-node-1"
 echo "Installing our pubkey into $container_name authorized_keys for user 'test'"
-docker exec -u root "$container_name" sh -lc 'install -d -m 700 -o test -g test /home/test/.ssh && touch /home/test/.ssh/authorized_keys && chown test:test /home/test/.ssh/authorized_keys && chmod 600 /home/test/.ssh/authorized_keys'
-docker exec -i "$container_name" sh -lc 'cat >> /home/test/.ssh/authorized_keys' <"$keyfile.pub"
+# Some linuxserver/openssh-server variants use /config as HOME; install to both locations
+for home in /home/test /config; do
+  docker exec -u root "$container_name" sh -lc "install -d -m 700 -o test -g test $home/.ssh && touch $home/.ssh/authorized_keys && chown test:test $home/.ssh/authorized_keys && chmod 600 $home/.ssh/authorized_keys"
+  docker exec -i "$container_name" sh -lc "cat >> $home/.ssh/authorized_keys" <"$keyfile.pub"
+done
 
 # Copy server.yaml into container and place at /etc/sshuttle/server.yaml
 # Use docker cp for simplicity
