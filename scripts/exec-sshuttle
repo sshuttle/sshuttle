@@ -18,6 +18,10 @@ function log() {
 }
 
 ssh_cmd='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+# Allow tests to inject identity file without messing with arg ordering
+if [[ -n "${SSH_IDENTITY_FILE:-}" ]]; then
+    ssh_cmd+=" -i ${SSH_IDENTITY_FILE}"
+fi
 ssh_copy_id=false
 args=()
 subnet_args=()
