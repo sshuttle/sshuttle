@@ -524,8 +524,11 @@ def onaccept_tcp(listener, method, mux, handlers):
         log('warning: too many open channels.  Discarded connection.')
         sock.close()
         return
-    mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
-             (sock.family, dstip[0].encode("ASCII"), dstip[1]))
+    # Send extended connect payload including source tuple for server-side logging/policy
+    mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d,%s,%d' %
+             (sock.family,
+              srcip[0].encode("ASCII"), srcip[1],
+              dstip[0].encode("ASCII"), dstip[1]))
     outwrap = MuxWrapper(mux, chan)
     handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     expire_connections(time.time(), mux)
