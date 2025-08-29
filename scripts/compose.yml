@@ -9,6 +9,8 @@ services:
       - "NET_ADMIN"
     environment:
       - ADD_IP_ADDRESSES=10.55.1.77/24
+    ports:
+      - "2222:2222"
     networks:
       default:
         ipv6_address: 2001:0DB8::551

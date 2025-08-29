@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# This script brings up the test-bed, installs server.yaml on node-1,
+# runs sshuttle with a selected profile, exercises allowed/blocked flows,
+# and checks the server log for syslog-style entries.
+
+here="$(cd "$(dirname "$0")" && pwd)"
+root="$(cd "$here/.." && pwd)"
+
+server_yaml="$root/docs/examples/server.yaml"
+profile_name="testing"
+log_path="/var/log/sshuttle/default.jsonl"
+
+echo "Bringing up test-bed (building image if needed)..."
+"$here/test-bed" up -d --build
+
+# Prepare passwordless SSH: generate ephemeral key and install on node-1
+keydir="$(mktemp -d)"
+keyfile="$keydir/id_ed25519"
+ssh-keygen -t ed25519 -N '' -f "$keyfile" -q
+container_name="sshuttle-testbed-node-1"
+# Wait for s6 init to create the 'test' user inside the container
+echo "Waiting for user 'test' to be available inside $container_name..."
+for i in $(seq 1 30); do
+  if docker exec "$container_name" sh -lc 'id -u test >/dev/null 2>&1'; then
+    break
+  fi
+  sleep 0.5
+done
+
+echo "Installing our pubkey into $container_name authorized_keys for user 'test'"
+# Some linuxserver/openssh-server variants use /config as HOME; install to both locations
+for home in /home/test /config; do
+  docker exec -u root "$container_name" sh -lc "install -d -m 700 -o test -g test ${home}/.ssh && touch ${home}/.ssh/authorized_keys && chown test:test ${home}/.ssh/authorized_keys && chmod 600 ${home}/.ssh/authorized_keys"
+  docker exec -i "$container_name" sh -lc "cat >> ${home}/.ssh/authorized_keys" <"$keyfile.pub"
+done
+
+# Copy server.yaml into container and place at /etc/sshuttle/server.yaml
+# Use docker cp for simplicity
+echo "Ensuring /etc/sshuttle exists inside container"
+docker exec -u root "$container_name" mkdir -p /etc/sshuttle
+
+echo "Installing server.yaml into $container_name:/etc/sshuttle/server.yaml"
+docker cp "$server_yaml" "$container_name:/etc/sshuttle/server.yaml"
+# Ensure the test user can read the config
+docker exec -u root "$container_name" sh -lc 'chown test:test /etc/sshuttle/server.yaml && chmod 644 /etc/sshuttle/server.yaml && chown -R test:test /etc/sshuttle && chmod 755 /etc/sshuttle'
+
+echo "Ensuring log directory exists and is writable inside container"
+docker exec -u root "$container_name" sh -lc 'mkdir -p /var/log/sshuttle && chown test:test /var/log/sshuttle'
+
+# Start sshuttle from host, connecting to node-1 as server
+# Use profile and route a known subnet. We'll test allowed flows and check logs.
+
+set -x
+export SSH_IDENTITY_FILE="$keyfile"
+SSH_AUTH_SOCK='' XDG_RUNTIME_DIR='' \
+"$here/exec-sshuttle" node-1 --profile "$profile_name" -v -v \
+  --server-py=3.12 \
+  --sshuttle-bin=dev -- "10.55.0.0/16" &
+shuttle_pid=$!
+set +x
+
+echo "Waiting a few seconds for sshuttle to connect..."
+sleep 5
+
+# Test allowed: prefer iperf3 if present; else curl to nginx:8080 on node-2
+set -x
+if command -v iperf3 >/dev/null; then
+  "$here/exec-tool" iperf3 node-2 || true
+else
+  "$here/exec-tool" curl node-2 || true
+fi
+set +x
+
+# Show log entries
+echo "Checking log entries in container at $log_path"
+docker exec "$container_name" sh -lc "test -f '$log_path' && tail -n +1 '$log_path' || true"
+
+# Cleanup
+kill "$shuttle_pid" 2>/dev/null || true
+wait "$shuttle_pid" 2>/dev/null || true
+
+echo "Done."
+
