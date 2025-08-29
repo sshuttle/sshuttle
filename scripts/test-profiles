@@ -20,6 +20,15 @@ keydir="$(mktemp -d)"
 keyfile="$keydir/id_ed25519"
 ssh-keygen -t ed25519 -N '' -f "$keyfile" -q
 container_name="sshuttle-testbed-node-1"
+# Wait for s6 init to create the 'test' user inside the container
+echo "Waiting for user 'test' to be available inside $container_name..."
+for i in $(seq 1 30); do
+  if docker exec "$container_name" sh -lc 'id -u test >/dev/null 2>&1'; then
+    break
+  fi
+  sleep 0.5
+done
+
 echo "Installing our pubkey into $container_name authorized_keys for user 'test'"
 # Some linuxserver/openssh-server variants use /config as HOME; install to both locations
 for home in /home/test /config; do
