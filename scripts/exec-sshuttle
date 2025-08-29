@@ -9,7 +9,7 @@ function with_set_x() {
     {
         ec=$?
         set +x
-        return $ec
+        return ${ec}
     } 2>/dev/null
 }
 
@@ -26,7 +26,7 @@ ssh_copy_id=false
 args=()
 subnet_args=()
 while [[ $# -gt 0 ]]; do
-    arg=$1
+    arg="$1"
     shift
     case "$arg" in
     -v|-vv*)
@@ -59,8 +59,8 @@ while [[ $# -gt 0 ]]; do
         args+=("$arg")
     ;;
     *)
-        if  [[ -z "$target" ]]; then
-            target=$arg
+        if  [[ -z "${target:-}" ]]; then
+            target="$arg"
         else
             args+=("$arg")
         fi
@@ -76,7 +76,7 @@ if [[ $target == node-* ]]; then
     port="2222"
     user_part="test:test"
     host=$("$(dirname "$0")/test-bed" get-ip "$target")
-    index=${target#node-}
+    index="${target#node-}"
     # If sshpass is not available, prefer key-based auth and drop the password part
     if ! command -v sshpass >/dev/null; then
         user_part="test"
@@ -86,14 +86,14 @@ if [[ $target == node-* ]]; then
         host="127.0.0.1"
         port="2222"
     fi
-    if [[ $ipv6_only == true ]]; then
+    if [[ ${ipv6_only:-} == true ]]; then
         args+=("2001:0DB8::/112")
     else
-        args+=("10.55.$index.0/24")
+        args+=("10.55.${index}.0/24")
     fi
     target="$user_part@$host:$port"
     if ! command -v sshpass >/dev/null; then
-        log "sshpass is not found. Falling back to key-based auth if available."
+        log "sshpass not found; falling back to key-based auth if available."
     fi
     if [[ -z $server_pyenv_ver ]]; then
         log "server-py not specified; defaulting to 3.12 for test-bed"
@@ -141,13 +141,16 @@ fi
 if [[ -z $sshuttle_bin || "$sshuttle_bin" == dev ]]; then
     cd "$(dirname "$0")/.."
     export PYTHONPATH="."
-    if [[ -n $client_pyenv_ver ]]; then
-        log "Using pyenv version: $client_pyenv_ver"
-        command -v pyenv &>/dev/null || log "You have to install pyenv to use --client-py" && exit 1
-        sshuttle_cmd=(/usr/bin/env PYENV_VERSION="$client_pyenv_ver" pyenv exec python -m sshuttle)
+    if [[ -n ${client_pyenv_ver:-} ]]; then
+        log "Using pyenv version: ${client_pyenv_ver}"
+        if ! command -v pyenv >/dev/null 2>&1; then
+            log "You have to install pyenv to use --client-py"
+            exit 1
+        fi
+        sshuttle_cmd=(/usr/bin/env PYENV_VERSION="${client_pyenv_ver}" pyenv exec python -m sshuttle)
     else
-        log "Using best python version availble"
-        if [ -x "$(command -v python3)" ] &&
+        log "Using best python version available"
+        if [[ -x "$(command -v python3)" ]] &&
             python3 -c "import sys; sys.exit(not sys.version_info > (3, 5))"; then
             sshuttle_cmd=(python3 -m sshuttle)
         else
@@ -155,16 +158,19 @@ if [[ -z $sshuttle_bin || "$sshuttle_bin" == dev ]]; then
         fi
     fi
 else
-    [[ -n $client_pyenv_ver ]] && log "Can't specify --client-py when --sshuttle-bin is specified" && exit 1
-    sshuttle_cmd=("$sshuttle_bin")
+    if [[ -n ${client_pyenv_ver:-} ]]; then
+        log "Can't specify --client-py when --sshuttle-bin is specified"
+        exit 1
+    fi
+    sshuttle_cmd=("${sshuttle_bin}")
 fi
 
 if [[ " ${args[*]} " != *" --ssh-cmd "* ]]; then
-    args=("--ssh-cmd" "$ssh_cmd" "${args[@]}")
+    args=("--ssh-cmd" "${ssh_cmd}" "${args[@]}")
 fi
 
 if [[ " ${args[*]} " != *" -r "* ]]; then
-    args=("-r" "$target" "${args[@]}")
+    args=("-r" "${target}" "${args[@]}")
 fi
 
 set -x
