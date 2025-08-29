@@ -15,9 +15,6 @@ log_path="/var/log/sshuttle/default.jsonl"
 echo "Bringing up test-bed (building image if needed)..."
 "$here/test-bed" up -d --build
 
-# Determine node-1 IP to use for scp and ssh
-node_ip=$("$here/test-bed" get-ip node-1)
-
 # Prepare passwordless SSH: generate ephemeral key and install on node-1
 keydir="$(mktemp -d)"
 keyfile="$keydir/id_ed25519"
@@ -36,13 +33,9 @@ echo "Ensuring /etc/sshuttle exists inside container"
 docker exec -u root "$container_name" mkdir -p /etc/sshuttle
 
 echo "Installing server.yaml into $container_name:/etc/sshuttle/server.yaml"
-# Strip YAML comments so JSON parser can accept it if PyYAML is unavailable
-clean_cfg="$(mktemp)"
-grep -v '^[[:space:]]*#' "$server_yaml" >"$clean_cfg"
-docker cp "$clean_cfg" "$container_name:/etc/sshuttle/server.yaml"
+docker cp "$server_yaml" "$container_name:/etc/sshuttle/server.yaml"
 # Ensure the test user can read the config
 docker exec -u root "$container_name" sh -lc 'chown test:test /etc/sshuttle/server.yaml && chmod 644 /etc/sshuttle/server.yaml && chown -R test:test /etc/sshuttle && chmod 755 /etc/sshuttle'
-rm -f "$clean_cfg"
 
 echo "Ensuring log directory exists and is writable inside container"
 docker exec -u root "$container_name" sh -lc 'mkdir -p /var/log/sshuttle && chown test:test /var/log/sshuttle'
