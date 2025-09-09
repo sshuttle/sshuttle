@@ -163,6 +163,13 @@ Options
     ``0/0 -x 1.2.3.0/24`` to forward everything except the
     local subnet over the VPN, for example.
 
+
+.. option:: --profile=<name>
+
+   Request a server-side profile by name. The profile is selected on the
+   server using its configuration file (see Server Profiles). If not provided,
+   the server will use its configured default profile.
+
 .. option:: -X <file>, --exclude-from=<file>
 
     Exclude the subnets specified in a file, one subnet per
@@ -291,6 +298,59 @@ Options
     (NOT RECOMMENDED: See note about security in --sudoers-no-modify
     documentation above). Only works with the --sudoers-no-modify
     option.
+
+Server Profiles
+---------------
+
+Server-side profiles allow the remote sshuttle server to enforce default-deny
+access control based on a YAML configuration file. Place the configuration at
+``/etc/sshuttle/server.yaml`` or ``~/.config/sshuttle/server.yaml``. JSON is
+also accepted since it is a subset of YAML.
+
+Configuration format
+^^^^^^^^^^^^^^^^^^^^
+
+The top-level contains ``profiles`` and an optional ``default_profile``:
+
+::
+
+  {
+    "profiles": {
+      "default": {
+        "allow_nets": [],
+        "allow_tcp_ports": ["22", "80-81", "443"],
+        "allow_udp_ports": ["53"],
+        "log_path": "/var/log/sshuttle/default.jsonl"
+      }
+    },
+    "default_profile": "default",
+    "profiles_enabled": true
+  }
+
+Notes:
+- If ``allow_nets`` is empty or omitted, the server defaults to allowing only
+  the locally attached IPv4 networks discovered from its routing table.
+- ``allow_tcp_ports`` and ``allow_udp_ports`` accept single ports ("443") or
+  ranges ("80-81").
+- ``log_path`` writes per-connection JSONL-like single-line entries.
+- If no server configuration file exists, sshuttle operates normally without
+  profile enforcement and logs connections via standard logging on the server.
+  If a client requests a profile but no server config is present, the session
+  will fail with a clear error.
+
+Usage
+^^^^^
+
+- Client side, request a profile by name::
+
+   sshuttle --profile testing -r user@server 10.0.0.0/8
+
+- If not specified, the server selects ``default_profile``.
+
+- When profiles are enabled, each TCP (and DNS) connection is evaluated against
+  the active profile. Allowed/blocked decisions are logged to ``log_path`` if
+  configured.
+
 
 .. option:: -t <mark>, --tmark=<mark>
 
