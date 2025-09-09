@@ -3,10 +3,9 @@
 {
   "profiles": {
     "default": {
-      "allow_nets": ["10.4.188.128/25"],
+      "allow_nets": [],
       "allow_tcp_ports": ["22", "80-81", "443"],
       "allow_udp_ports": ["53"],
-      "dns_nameserver": "10.4.188.53",
       "log_path": "/var/log/sshuttle/default.jsonl"
     },
     "testing": {

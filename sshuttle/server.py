@@ -23,6 +23,53 @@ from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     get_random_nameserver, which, get_env, SocketRWShim
 
 
+def _profiles_enabled(cfg):
+    # Profiles are enabled only if a config file is found and defines profiles
+    return bool(cfg and cfg.get('profiles'))
+
+
+def _set_process_identity(profile):
+    try:
+        status = 'on' if profile is not None else 'off'
+        name = getattr(profile, 'name', '-')
+        title = f"sshuttle-server [profiles={status} name={name}]"
+        try:
+            import setproctitle  # optional
+            setproctitle.setproctitle(title)
+            return
+        except Exception:
+            pass
+        # Try Linux-specific comm (limited to 16 bytes)
+        try:
+            if sys.platform.startswith('linux'):
+                with open('/proc/self/comm', 'w') as f:
+                    f.write((title[:15] + '\n'))
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+def _log_event_syslog(profile_name, proto, action, src, dst, reason=None):
+    # Emit a single-line event via standard logging (to stderr/syslog)
+    user = _current_user()
+    src_ip = src[0] if src else '-'
+    src_port = src[1] if src else '-'
+    dst_ip = dst[0] if dst else '-'
+    dst_port = dst[1] if dst else '-'
+    parts = [
+        f"action={action.upper()}",
+        f"proto={proto.upper()}",
+        f"user={user}",
+        f"profile={profile_name or '-'}",
+        f"src={src_ip}", f"spt={src_port}",
+        f"dst={dst_ip}", f"dpt={dst_port}",
+    ]
+    if reason:
+        parts.append(f"reason=\"{reason}\"")
+    log(' '.join(parts))
+
+
 def _current_user():
     try:
         if _pwd:
@@ -32,13 +79,15 @@ def _current_user():
     return getpass.getuser()
 
 
+CONFIG_PATHS = [
+    '/etc/sshuttle/server.yaml',
+    os.path.expanduser('~/.config/sshuttle/server.yaml'),
+]
+
+
 def _load_yaml_config():
     # Try YAML first; if unavailable, accept JSON (valid YAML subset)
-    paths = [
-        '/etc/sshuttle/server.yaml',
-        os.path.expanduser('~/.config/sshuttle/server.yaml'),
-    ]
-    for p in paths:
+    for p in CONFIG_PATHS:
         if os.path.exists(p):
             try:
                 try:
@@ -87,7 +136,10 @@ def _compile_nets(nets):
 class _Profile:
     def __init__(self, name, cfg):
         self.name = name
-        self.allow_nets = _compile_nets(cfg.get('allow_nets'))
+        nets_cfg = cfg.get('allow_nets')
+        if not nets_cfg:
+            nets_cfg = [f"{ip}/{width}" for (_fam, ip, width) in list(list_routes())]
+        self.allow_nets = _compile_nets(nets_cfg)
         self.allow_tcp = _compile_ports(cfg.get('allow_tcp_ports'))
         self.allow_udp = _compile_ports(cfg.get('allow_udp_ports'))
         self.dns_nameserver = cfg.get('dns_nameserver')
@@ -103,21 +155,11 @@ class _Profile:
         return any(ip in net for net in self.allow_nets)
 
 
-def _select_profile(requested_name):
-    cfg = _load_yaml_config() or {}
-    profiles = cfg.get('profiles', {})
-    default_profile_name = cfg.get('default_profile')
-    # Built-in default if nothing configured: only 10.4.188.128/25
+def _select_profile(requested_name, cfg):
+    profiles = (cfg or {}).get('profiles', {})
+    default_profile_name = (cfg or {}).get('default_profile')
     if not profiles:
-        profiles = {
-            'default': {
-                'allow_nets': ['10.4.188.128/25'],
-                'allow_tcp_ports': [],
-                'allow_udp_ports': [],
-                'log_path': None,
-            }
-        }
-        default_profile_name = 'default'
+        return None
     name = requested_name or default_profile_name or 'default'
     if name not in profiles:
         log('WARNING: requested profile %r not found; using default %r' % (name, default_profile_name))
@@ -434,9 +476,34 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
             requested_profile = getattr(options, 'profile', None)
         except Exception:
             requested_profile = None
-        profile = _select_profile(requested_profile)
-        if profile.dns_nameserver:
-            to_nameserver = profile.dns_nameserver
+        cfg = _load_yaml_config() or {}
+        enable_profiles = _profiles_enabled(cfg)
+        if enable_profiles:
+            if requested_profile is None:
+                profile = _select_profile(None, cfg)
+                _set_process_identity(profile)
+                if profile and profile.dns_nameserver:
+                    to_nameserver = profile.dns_nameserver
+            else:
+                profile = _select_profile(requested_profile, cfg)
+                if profile is None:
+                    raise Fatal(
+                        "Server-side profiles requested by client but none are configured on target server. "
+                        f"Ensure one of these config paths exists and contains a 'profiles' section: {', '.join(CONFIG_PATHS)}"
+                    )
+                _set_process_identity(profile)
+                if profile and profile.dns_nameserver:
+                    to_nameserver = profile.dns_nameserver
+        else:
+            # No server config found: operate in normal mode (no enforcement),
+            # but if the client explicitly requested a profile then fail loudly
+            if requested_profile:
+                raise Fatal(
+                    "Server-side profiles requested by client but no server configuration found. "
+                    f"Create a YAML/JSON config at one of: {', '.join(CONFIG_PATHS)} with a 'profiles' section."
+                )
+            profile = None
+            _set_process_identity(None)
 
         debug1('latency control setting = %r' % latency_control)
         if latency_buffer_size:
@@ -514,20 +581,24 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
             if family != socket.AF_INET:
                 family = socket.AF_INET6
             dstport = int(dstport)
-            # Enforce profile rules
-            allowed = True
-            reason = None
-            if not profile.ip_allowed(dstip):
-                allowed = False
-                reason = 'dst ip not in allow_nets'
-            elif not _port_allowed(dstport, profile.allow_tcp):
-                allowed = False
-                reason = 'dst port not allowed'
-            if not allowed:
-                _log_event(profile, 'tcp', 'blocked', src, (dstip, dstport), reason)
-                mux.channels[channel] = None
-                return
-            _log_event(profile, 'tcp', 'allowed', src, (dstip, dstport))
+            # Enforce rules only if a profile is active; otherwise, pass through
+            if profile is not None:
+                allowed = True
+                reason = None
+                if not profile.ip_allowed(dstip):
+                    allowed = False
+                    reason = 'dst ip not in allow_nets'
+                elif not _port_allowed(dstport, profile.allow_tcp):
+                    allowed = False
+                    reason = 'dst port not allowed'
+                if not allowed:
+                    _log_event(profile, 'tcp', 'blocked', src, (dstip, dstport), reason)
+                    mux.channels[channel] = None
+                    return
+                _log_event(profile, 'tcp', 'allowed', src, (dstip, dstport))
+            else:
+                # No profiles configured: log via standard logging and allow
+                _log_event_syslog(None, 'tcp', 'allowed', src, (dstip, dstport))
             outwrap = ssnet.connect_dst(family, dstip, dstport)
             handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
         mux.new_channel = new_channel
@@ -551,6 +622,11 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
                 dstport = int(dstport)
                 debug2('is incoming UDP data. %r %d.' % (dstip, dstport))
                 h = udphandlers[channel]
+                # Log permit in both profiled and unprofiled modes
+                if profile is not None:
+                    _log_event(profile, 'udp', 'allowed', None, (dstip, dstport))
+                else:
+                    _log_event_syslog(None, 'udp', 'allowed', None, (dstip, dstport))
                 h.send((dstip, dstport), data)
             elif cmd == ssnet.CMD_UDP_CLOSE:
                 debug2('is incoming UDP close')
