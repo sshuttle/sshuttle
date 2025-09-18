@@ -67,8 +67,13 @@ def main():
             excludes = [item for sublist in opt.exclude for item in sublist]
 
             if not includes and not opt.auto_nets:
-                parser.error('at least one subnet, subnet file, '
-                             'or -N expected')
+                # If --profile is specified, allow omitting subnets on CLI.
+                # In that case, implicitly enable --auto-nets so the server provides
+                # its local route list and the profile enforces allowed nets/ports.
+                if getattr(opt, 'profile', None):
+                    opt.auto_nets = True
+                else:
+                    parser.error('at least one subnet, subnet file, or -N expected')
             remotename = opt.remote
             if remotename == '' or remotename == '-':
                 remotename = None
