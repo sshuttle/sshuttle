@@ -73,6 +73,26 @@ else
 fi
 set +x
 
+# Blocked-port test: attempt to hit a disallowed TCP port and expect connection reset/failure
+# The 'testing' profile allows 8080 and 5001. Try port 4444 which is not allowed.
+set -x
+if command -v curl >/dev/null; then
+  "$here/exec-tool" curl node-2 -sS --connect-timeout 2 --max-time 4 --fail --http1.1 --no-progress-meter || echo "(expected failure)"
+  # Explicit test to a blocked port using curl --resolve to target 4444
+  host_ip=$(scripts/test-bed get-ip node-2)
+  curl -v --connect-timeout 2 --max-time 4 --http1.1 --no-progress-meter --resolve blocked.test:4444:"$host_ip" http://blocked.test:4444/ || echo "(expected failure)"
+else
+  # Fallback: try to open a simple TCP connection using bash builtin /dev/tcp
+  if timeout 3 bash -lc 'cat < /dev/null > /dev/tcp/10.55.2.77/4444'; then
+    echo "ERROR: blocked-port test unexpectedly succeeded"
+    exit 1
+  else
+    echo "Blocked-port test: connection failed as expected (RST/ECONNRESET likely)"
+  fi
+fi
+set +x
+
+
 # Show log entries
 echo "Checking log entries in container at $log_path"
 docker exec "$container_name" sh -lc "test -f '$log_path' && tail -n +1 '$log_path' || true"

@@ -50,8 +50,18 @@ def _set_process_identity(profile):
         pass
 
 
+def _emit_syslog(line, priority='daemon.info'):
+    try:
+        ssubprocess.Popen(['logger', '-p', priority, '-t', 'sshuttle', '--', line],
+                          stdout=ssubprocess.DEVNULL,
+                          stderr=ssubprocess.DEVNULL)
+    except Exception:
+        # Fallback to stderr if logger is unavailable
+        log(line)
+
+
 def _log_event_syslog(profile_name, proto, action, src, dst, reason=None):
-    # Emit a single-line event via standard logging (to stderr/syslog)
+    # Emit a single-line event via OS logger to syslog
     user = _current_user()
     src_ip = src[0] if src else '-'
     src_port = src[1] if src else '-'
@@ -67,7 +77,7 @@ def _log_event_syslog(profile_name, proto, action, src, dst, reason=None):
     ]
     if reason:
         parts.append(f"reason=\"{reason}\"")
-    log(' '.join(parts))
+    _emit_syslog(' '.join(parts))
 
 
 def _current_user():
@@ -196,6 +206,13 @@ def _log_event(profile, proto, action, src, dst, reason=None):
             f.write(line + '\n')
     except Exception as e:
         log('WARNING: failed to write log %r: %r' % (profile.log_path, e))
+    # Also emit to syslog via OS logger
+    try:
+        ssubprocess.Popen(['logger', '-p', 'daemon.info', '-t', 'sshuttle', '--', line],
+                          stdout=ssubprocess.DEVNULL,
+                          stderr=ssubprocess.DEVNULL)
+    except Exception:
+        pass
 
 
 def _ipmatch(ipstr):

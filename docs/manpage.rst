@@ -168,6 +168,12 @@ Options
 
    Request a server-side profile by name. The profile is selected on the
    server using its configuration file (see Server Profiles). If not provided,
+
+   When used together with server-side profiles and no explicit subnets provided
+   on the command line, --profile implies :option:`--auto-nets` so that the
+   server provides its local routes to the client. This makes it convenient to
+   connect with a profile without specifying netblocks on the CLI.
+
    the server will use its configured default profile.
 
 .. option:: -X <file>, --exclude-from=<file>
@@ -325,6 +331,11 @@ The top-level contains ``profiles`` and an optional ``default_profile``:
     },
     "default_profile": "default",
     "profiles_enabled": true
+- Logs: In profiled mode, per-connection events are appended to the configured
+  ``log_path`` file on the server, and also emitted to syslog using the system
+  logger. In unprofiled mode (no server config), sshuttle emits single-line
+  syslog-style entries via the system logger.
+
   }
 
 Notes:
@@ -342,6 +353,18 @@ Usage
 ^^^^^
 
 - Client side, request a profile by name::
+
+Blocked TCP behavior
+^^^^^^^^^^^^^^^^^^^^
+
+When a TCP connection is blocked by the active server profile (for example,
+because the destination IP is not within ``allow_nets`` or the destination port
+is not in ``allow_tcp_ports``), the server instructs the client to reset the
+connection. The client then closes the local socket immediately so that the
+originating application observes a fast failure (RST-like behavior), rather than
+hanging or timing out.
+
+
 
    sshuttle --profile testing -r user@server 10.0.0.0/8
 
