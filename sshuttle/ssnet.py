@@ -31,6 +31,7 @@ CMD_DNS_RESPONSE = 0x420b
 CMD_UDP_OPEN = 0x420c
 CMD_UDP_DATA = 0x420d
 CMD_UDP_CLOSE = 0x420e
+CMD_TCP_RESET = 0x420f
 
 cmd_to_name = {
     CMD_EXIT: 'EXIT',
@@ -48,6 +49,7 @@ cmd_to_name = {
     CMD_UDP_OPEN: 'UDP_OPEN',
     CMD_UDP_DATA: 'UDP_DATA',
     CMD_UDP_CLOSE: 'UDP_CLOSE',
+    CMD_TCP_RESET: 'TCP_RESET',
 }
 
 
@@ -410,6 +412,12 @@ class Mux(Handler):
             self.fullness = 0
         elif cmd == CMD_EXIT:
             self.ok = False
+        elif cmd == CMD_TCP_RESET:
+            # Signal a hard reset to the corresponding local socket channel.
+            # The per-channel handler will interpret this as connection reset.
+            callback = self.channels.get(channel)
+            if callback:
+                callback(CMD_TCP_RESET, data)
         elif cmd == CMD_TCP_CONNECT:
             assert not self.channels.get(channel)
             if self.new_channel:
@@ -574,6 +582,18 @@ class MuxWrapper(SockWrapper):
             self.setnowrite()
         elif cmd == CMD_TCP_DATA:
             self.buf.append(data)
+        elif cmd == CMD_TCP_RESET:
+            # Synthesize a TCP RST to the local client by closing both directions
+            # abruptly. We achieve this by shutting down read/write without draining.
+            # The actual RST on the wire is managed by the OS when the socket
+            # receives data after close/reset conditions.
+            try:
+                # Close immediately; Proxy will detect and stop piping.
+                self.setnoread()
+                self.setnowrite()
+            finally:
+                # Remove channel mapping so future packets are ignored
+                self.mux.channels[self.channel] = None
         else:
             raise Exception('unknown command %d (%d bytes)'
                             % (cmd, len(data)))

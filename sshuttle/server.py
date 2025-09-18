@@ -593,6 +593,8 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
                     reason = 'dst port not allowed'
                 if not allowed:
                     _log_event(profile, 'tcp', 'blocked', src, (dstip, dstport), reason)
+                    # Send a TCP reset back to the client so applications fail fast
+                    mux.send(channel, ssnet.CMD_TCP_RESET, b(''))
                     mux.channels[channel] = None
                     return
                 _log_event(profile, 'tcp', 'allowed', src, (dstip, dstport))
