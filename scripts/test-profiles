@@ -83,3 +83,23 @@ wait "$shuttle_pid" 2>/dev/null || true
 
 echo "Done."
 
+# Negative test: remove server.yaml and ensure --profile fails with clear error
+if [ "${RUN_NEGATIVE_TEST:-1}" = "1" ]; then
+  echo "Running negative test: no server.yaml present; expect profile request to fail"
+  docker exec -u root "$container_name" sh -lc 'rm -f /etc/sshuttle/server.yaml'
+  set +e
+  neg_out=$(SSH_AUTH_SOCK= XDG_RUNTIME_DIR= "$here/exec-sshuttle" node-1 --profile "$profile_name" -v --server-py=3.12 --sshuttle-bin=dev -- "10.55.0.0/16" 2>&1)
+  neg_rc=$?
+  set -e
+  echo "$neg_out" | sed -n '1,200p'
+  if [ $neg_rc -eq 0 ]; then
+    echo "ERROR: negative test unexpectedly succeeded"
+    exit 1
+  fi
+  echo "$neg_out" | grep -q "Server-side profiles requested by client but no server configuration found\." || {
+    echo "ERROR: expected error message not found in output"; exit 1;
+  }
+  echo "Negative test: observed expected failure message"
+fi
+
+

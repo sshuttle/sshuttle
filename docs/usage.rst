@@ -1,3 +1,17 @@
+Server-side configuration examples
+----------------------------------
+
+See the new examples directory at the project root for ready-to-use server
+configuration samples:
+
+- examples/server-basic.yaml
+- examples/server-dns-override.yaml
+- examples/server-multi-profiles.yaml
+- examples/server.json
+
+Copy one of these to /etc/sshuttle/server.yaml (or ~/.config/sshuttle/server.yaml).
+
+
 Usage
 =====
 

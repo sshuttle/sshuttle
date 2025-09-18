@@ -1,0 +1,15 @@
+# YAML with two profiles: default and contractor
+profiles:
+  default:
+    allow_nets: ["10.0.0.0/8", "192.168.0.0/16"]
+    allow_tcp_ports: ["22", "80", "443", "8080-8090"]
+    allow_udp_ports: ["53"]
+    log_path: "/var/log/sshuttle/default.jsonl"
+  contractor:
+    allow_nets: ["10.55.0.0/16"]
+    allow_tcp_ports: ["8080"]
+    allow_udp_ports: ["53"]
+    log_path: "/var/log/sshuttle/contractor.jsonl"
+
+default_profile: default
+
