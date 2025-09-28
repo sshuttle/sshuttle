@@ -1,6 +1,7 @@
 import os
 import sys
 import getpass
+from pathlib import Path
 from uuid import uuid4
 
 
@@ -10,7 +11,7 @@ def build_config(user_name):
     argv0 = os.path.abspath(sys.argv[0])
     is_python_script = argv0.endswith('.py')
     executable = f"{sys.executable} {argv0}" if is_python_script else argv0
-    dist_packages = os.path.dirname(os.path.abspath(__file__))
+    dist_packages = str(Path(os.path.abspath(__file__)).parent.parent)
     cmd_alias = f"SSHUTTLE{uuid4().hex[-3:].upper()}"
 
     template = f"""
