@@ -79,7 +79,8 @@ set -x
 if command -v curl >/dev/null; then
   "$here/exec-tool" curl node-2 -sS --connect-timeout 2 --max-time 4 --fail --http1.1 --no-progress-meter || echo "(expected failure)"
   # Explicit test to a blocked port using curl --resolve to target 4444
-  host_ip=$(scripts/test-bed get-ip node-2)
+  # Use the 10.55.2.77 testbed IP so traffic matches the includes and is captured by sshuttle
+  host_ip="10.55.2.77"
   curl -v --connect-timeout 2 --max-time 4 --http1.1 --no-progress-meter --resolve blocked.test:4444:"$host_ip" http://blocked.test:4444/ || echo "(expected failure)"
 else
   # Fallback: try to open a simple TCP connection using bash builtin /dev/tcp
@@ -93,9 +94,17 @@ fi
 set +x
 
 
-# Show log entries
+# Show log entries for reference
 echo "Checking log entries in container at $log_path"
-docker exec "$container_name" sh -lc "test -f '$log_path' && tail -n +1 '$log_path' || true"
+docker exec "$container_name" sh -lc "test -f '$log_path' && tail -n +50 '$log_path' || true"
+# Note: We verify functional behavior (fast failure on blocked TCP). Log lines are printed
+# for operator visibility but not asserted here, since syslog aggregation can vary.
+
+# Assert that username is included in server-side logs
+if ! docker exec "$container_name" sh -lc "test -f '$log_path' && grep -q 'user=test' '$log_path'"; then
+  echo "ERROR: expected 'user=test' in server log $log_path" >&2
+  exit 1
+fi
 
 # Cleanup
 kill "$shuttle_pid" 2>/dev/null || true
