@@ -970,7 +970,7 @@ wheels = [
 
 [[package]]
 name = "python-lsp-server"
-version = "1.13.1"
+version = "1.13.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "black" },
@@ -981,9 +981,9 @@ dependencies = [
     { name = "python-lsp-jsonrpc" },
     { name = "ujson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/92/bd60cbe7d7d6c90e5e556a90497aa1892a3f779d9915026eca6e37a0b59b/python_lsp_server-1.13.1.tar.gz", hash = "sha256:bfa3d6bbca3fc3e6d0137b27cd1eabee65783a8d4314c36e1e230c603419afa3", size = 120484, upload-time = "2025-08-26T16:51:07.927Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4b/99/3b06b8792585933d0b51307379e0337088e7f7049831c15c70f36381884d/python_lsp_server-1.13.2.tar.gz", hash = "sha256:d507fc6be69861740827f4e4dffa1c9b1dec97c0ead859cfef86aa342a4c7904", size = 120665, upload-time = "2025-11-19T14:11:37.976Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/03/2884cf7bd092d8a5a71a406971fd2edf5c6171147ca2d4afb3f2a7f8c0f1/python_lsp_server-1.13.1-py3-none-any.whl", hash = "sha256:fadf45275d12a9d9a13e36717a8383cee8e7cffe8a30698d38bfb3fe71b5cdcd", size = 76748, upload-time = "2025-08-26T16:51:05.873Z" },
+    { url = "https://files.pythonhosted.org/packages/16/84/f4400dcff77bbb32717abe728bf54672d58aad57e1a6699c1beaf54ce107/python_lsp_server-1.13.2-py3-none-any.whl", hash = "sha256:695dbf25a2473494ae31b1b2eefb83341915f6f77bf96d2564da5bcbbf32f7f0", size = 76840, upload-time = "2025-11-19T14:11:35.559Z" },
 ]
 
 [[package]]
