@@ -1,0 +1,12 @@
+# Minimal YAML config: default profile, auto-discovered networks
+# Place at /etc/sshuttle/server.yaml or ~/.config/sshuttle/server.yaml
+profiles:
+  default:
+    # Empty list means "use locally attached IPv4 networks" on the server
+    allow_nets: []
+    allow_tcp_ports: ["22", "80-81", "443"]
+    allow_udp_ports: ["53"]
+    log_path: "/var/log/sshuttle/default.jsonl"
+
+default_profile: default
+
