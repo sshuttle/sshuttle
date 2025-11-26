@@ -28,7 +28,7 @@ sshuttle = "sshuttle.cmdline:main"
 [dependency-groups]
 dev = [
     "pytest<9.0.0,>=8.0.1",
-    "pytest-cov<7.0,>=4.1",
+    "pytest-cov>=4.1,<8.0",
     "flake8<8.0.0,>=7.0.0",
     "pyflakes<4.0.0,>=3.2.0",
     "bump2version<2.0.0,>=1.0.1",
