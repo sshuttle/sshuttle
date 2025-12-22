@@ -41,7 +41,7 @@ dev = [
 ]
 docs = [
     "sphinx==8.1.3; python_version ~= \"3.10\"",
-    "furo==2025.9.25",
+    "furo==2025.12.19",
 ]
 
 [tool.uv]
