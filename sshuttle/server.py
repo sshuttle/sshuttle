@@ -286,7 +286,7 @@ class UdpProxy(Handler):
 
 
 def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
-         auto_nets):
+         auto_nets, localhost_detector):
     try:
         helpers.logprefix = ' s: '
 
@@ -294,6 +294,14 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
         if latency_buffer_size:
             import sshuttle.ssnet as ssnet
             ssnet.LATENCY_BUFFER_SIZE = latency_buffer_size
+
+        # The client writes this file to the local machine. If we can see
+        # it, we delete it prior to send the synchronization header. The
+        # client can then determine if the server and client are running
+        # on the same machine by checking for the presence of the file.
+        if os.path.exists(localhost_detector):
+            debug3("Deleted the localhost_detector created by the client.\n")
+            os.remove(localhost_detector)
 
         # synchronization header
         sys.stdout.write('\0\0SSHUTTLE0001')

@@ -7,6 +7,7 @@ import os
 import sys
 import base64
 import platform
+import tempfile
 
 import sshuttle.helpers as helpers
 import sshuttle.ssnet as ssnet
@@ -602,6 +603,14 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
     handlers = []
     debug1('Connecting to server...')
 
+    # The client creates this file. If the server sees the file, it
+    # will delete it before writing SSHUTTLE0001 back to the client.
+    # If the server sees the file, then the server can deduce that it
+    # is running on the same host as the client. If the client sees
+    # that the server deleted the file, then the client can deduce
+    # that it is running on the same host as the server.
+    (_, localhost_detector) = tempfile.mkstemp(prefix="sshuttle-localhost-")
+
     try:
         (serverproc, rfile, wfile) = ssh.connect(
             ssh_cmd, remotename, python,
@@ -612,7 +621,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
-                         auto_nets=auto_nets))
+                         auto_nets=auto_nets,
+                         localhost_detector=localhost_detector))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             debug3('Error: EPIPE: ' + repr(e))
@@ -723,6 +733,25 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                     % (expected, initstring))
     log('Connected to server.')
     sys.stdout.flush()
+
+    # If the server couldn't delete our localhost_detector file, then
+    # the server is running on a different machine.
+    if os.path.exists(localhost_detector):
+        debug3("Client and server appear to be running on different machines.")
+        os.remove(localhost_detector)  # cleanup
+    else:
+        # The client and server can't run on the same machine because
+        # the firewall rules can't distinguish between data the
+        # sshuttle server sends (which shouldn't be redirected through
+        # sshuttle) and the different connections applications make
+        # (which perhaps should be redirected through sshuttle).
+        # Previously we set the TTL of the packets the server sent to
+        # distinguish between the two, but this feature was removed
+        # since running the client and server on the same machine is
+        # only useful for debugging.
+        raise Fatal("Exiting because sshuttle client and server are "
+                    "running on the same machine. The host specified "
+                    "with the -r option must be a remote host.")
 
     if daemon:
         daemonize()
