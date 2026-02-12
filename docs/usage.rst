@@ -1,3 +1,17 @@
+Server-side configuration examples
+----------------------------------
+
+See the new examples directory at the project root for ready-to-use server
+configuration samples:
+
+- examples/server-basic.yaml
+- examples/server-dns-override.yaml
+- examples/server-multi-profiles.yaml
+- examples/server.json
+
+Copy one of these to /etc/sshuttle/server.yaml (or ~/.config/sshuttle/server.yaml).
+
+
 Usage
 =====
 
@@ -82,12 +96,32 @@ To print a sudo configuration file and see a suggested way to install it, run::
 
   sshuttle --sudoers-no-modify
 
-A custom user or group can be set with the 
+A custom user or group can be set with the
 :option:`sshuttle --sudoers-no-modify --sudoers-user {user_descriptor}`
 option. Valid values for this vary based on how your system is configured.
-Values such as usernames, groups prepended with `%` and sudoers user 
+Values such as usernames, groups prepended with `%` and sudoers user
 aliases will work. See the sudoers manual for more information on valid
 user-specified actions. The option must be used with `--sudoers-no-modify`::
+
+Server-side Profiles
+--------------------
+
+Server-side profiles let the remote server enforce allowlists for destination
+networks and ports based on a YAML file. Place config at
+``/etc/sshuttle/server.yaml`` or ``~/.config/sshuttle/server.yaml``.
+
+- Request a profile by name from the client::
+
+    sshuttle --profile testing -r user@server 10.0.0.0/8
+
+- If omitted, the server uses its configured ``default_profile``.
+- If a profile's ``allow_nets`` is empty, the server will default to the locally
+  attached IPv4 networks from its routing table.
+- If the server has no profile configuration, sshuttle runs without profile
+  enforcement and logs via standard server logging. If a client requests
+  ``--profile`` but the server has no config, the connection will fail with a
+  clear error from the server.
+
 
   sshuttle --sudoers-no-modify --sudoers-user mike
   sshuttle --sudoers-no-modify --sudoers-user %sudo

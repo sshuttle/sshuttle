@@ -10,6 +10,11 @@ RUN curl https://raw.githubusercontent.com/pyenv/pyenv-installer/master/bin/pyen
 RUN /pyenv/bin/pyenv install 3.10
 RUN /pyenv/bin/pyenv install 3.11
 RUN /pyenv/bin/pyenv install 3.12
+# Install PyYAML into each runtime so server can parse YAML configs directly
+RUN bash -lc 'for v in 3.10 3.11 3.12; do \
+    env PYENV_VERSION=$v /pyenv/bin/pyenv exec python -m ensurepip || true; \
+    env PYENV_VERSION=$v /pyenv/bin/pyenv exec python -m pip install --no-cache-dir pyyaml; \
+  done'
 RUN bash -xc 'rm -rf /pyenv/{.git,plugins} /pyenv/versions/*/lib/*/{test,config,config-*linux-gnu}' && \
     find /pyenv -type d -name __pycache__ -exec rm -rf {} + && \
     find /pyenv -type f -name '*.py[co]' -delete
