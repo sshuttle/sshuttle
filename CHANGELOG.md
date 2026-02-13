@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.3](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v1.3.3) (2026-02-13)
+
+
+### Bug Fixes
+
+* Correct PYTHONPATH for --sudoers-no-modify ([#1084](https://github.com/sshuttle/sshuttle/issues/1084)) ([0284a49](https://github.com/sshuttle/sshuttle/commit/0284a49254d410d01b422c1a7ddc88a72572b263))
+* route PRINT -4 to_ascii [windows] ([cb9c0f3](https://github.com/sshuttle/sshuttle/commit/cb9c0f3548c0af9cf224e069aca596c2f1308c22))
+
 ## [1.3.2](https://github.com/sshuttle/sshuttle/compare/v1.3.1...v1.3.2) (2025-08-08)
 
 
