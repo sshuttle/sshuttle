@@ -524,8 +524,11 @@ def onaccept_tcp(listener, method, mux, handlers):
         log('warning: too many open channels.  Discarded connection.')
         sock.close()
         return
-    mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d' %
-             (sock.family, dstip[0].encode("ASCII"), dstip[1]))
+    # Send extended connect payload including source tuple for server-side logging/policy
+    mux.send(chan, ssnet.CMD_TCP_CONNECT, b'%d,%s,%d,%s,%d' %
+             (sock.family,
+              srcip[0].encode("ASCII"), srcip[1],
+              dstip[0].encode("ASCII"), dstip[1]))
     outwrap = MuxWrapper(mux, chan)
     handlers.append(Proxy(SockWrapper(sock, sock), outwrap))
     expire_connections(time.time(), mux)
@@ -591,7 +594,7 @@ def ondns(listener, method, mux, handlers):
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
-          to_nameserver, add_cmd_delimiter, remote_shell):
+          to_nameserver, add_cmd_delimiter, remote_shell, profile):
 
     helpers.logprefix = 'c : '
     debug1('Starting client with Python version %s'
@@ -612,7 +615,8 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                          latency_buffer_size=latency_buffer_size,
                          auto_hosts=auto_hosts,
                          to_nameserver=to_nameserver,
-                         auto_nets=auto_nets))
+                         auto_nets=auto_nets,
+                         profile=profile))
     except socket.error as e:
         if e.args[0] == errno.EPIPE:
             debug3('Error: EPIPE: ' + repr(e))
@@ -810,7 +814,8 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark):
+         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark,
+         profile=None):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -1159,7 +1164,7 @@ def main(listenip_v6, listenip_v4,
         return _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
                      python, latency_control, latency_buffer_size,
                      dns_listener, seed_hosts, auto_hosts, auto_nets,
-                     daemon, to_nameserver, add_cmd_delimiter, remote_shell)
+                     daemon, to_nameserver, add_cmd_delimiter, remote_shell, profile=profile)
     finally:
         try:
             if daemon:

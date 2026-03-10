@@ -1,0 +1,11 @@
+# YAML config with DNS override for the default profile
+profiles:
+  default:
+    allow_nets: []
+    allow_tcp_ports: ["22", "80-81", "443"]
+    allow_udp_ports: ["53"]
+    dns_nameserver: "1.1.1.1"
+    log_path: "/var/log/sshuttle/default.jsonl"
+
+default_profile: default
+
