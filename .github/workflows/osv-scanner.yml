@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: '19 11 * * 0'
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 permissions:
   actions: read
