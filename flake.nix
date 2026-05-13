@@ -110,6 +110,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             pkgs.uv
+            pkgs.osv-scanner
           ];
         };
       }
