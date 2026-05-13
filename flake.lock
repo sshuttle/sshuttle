@@ -20,16 +20,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1740743217,
-        "narHash": "sha256-brsCRzLqimpyhORma84c3W2xPbIidZlIc3JGIuQVSNI=",
+        "lastModified": 1778430510,
+        "narHash": "sha256-Ti+ZBvW6yrWWAg2szExVTwCd4qOJ3KlVr1tFHfyfi8Q=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "b27ba4eb322d9d2bf2dc9ada9fd59442f50c8d7c",
+        "rev": "8fd9daa3db09ced9700431c5b7ad0e8ba199b575",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-24.11",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -47,11 +47,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1740362541,
-        "narHash": "sha256-S8Mno07MspggOv/xIz5g8hB2b/C5HPiX8E+rXzKY+5U=",
+        "lastModified": 1776659114,
+        "narHash": "sha256-qapCOQmR++yZSY43dzrp3wCrkOTLpod+ONtJWBk6iKU=",
         "owner": "pyproject-nix",
         "repo": "build-system-pkgs",
-        "rev": "e151741c848ba92331af91f4e47640a1fb82be19",
+        "rev": "ffaa2161dd5d63e0e94591f86b54fc239660fb2e",
         "type": "github"
       },
       "original": {
@@ -67,11 +67,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1739758351,
-        "narHash": "sha256-Aoa4dEoC7Hf6+gFVk/SDquZTMFlmlfsgdTWuqQxzePs=",
+        "lastModified": 1776715674,
+        "narHash": "sha256-Gs1VnEkCkkRZxJQAC/Dhz0Jbfi22mFXChbtNg9w/Ybg=",
         "owner": "pyproject-nix",
         "repo": "pyproject.nix",
-        "rev": "1329712f7f9af3a8b270764ba338a455b7323811",
+        "rev": "69f57f27e52a87c54e28138a75ec741cd46663c9",
         "type": "github"
       },
       "original": {
@@ -114,11 +114,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1740497536,
-        "narHash": "sha256-K+8wsVooqhaqyxuvew3+62mgOfRLJ7whv7woqPU3Ypo=",
+        "lastModified": 1778664018,
+        "narHash": "sha256-ogNyNANNLo0SMFevIeUpbTMOL9uUDu/hXvp7JlOYbwQ=",
         "owner": "pyproject-nix",
         "repo": "uv2nix",
-        "rev": "d01fd3a141755ad5d5b93dd9fcbd76d6401f5bac",
+        "rev": "b48abe99ef639cd100c224898529370e5d935294",
         "type": "github"
       },
       "original": {
