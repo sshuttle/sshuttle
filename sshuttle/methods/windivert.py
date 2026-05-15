@@ -334,8 +334,8 @@ class Method(BaseMethod):
         subnet_addresses = []
         for (_, mask, exclude, network_addr, fport, lport) in subnets:
             if fport and lport:
-                if lport > fport:
-                    raise Fatal("lport must be less than or equal to fport")
+                if lport < fport:
+                    raise Fatal("fport must be less than or equal to lport")
                 ports = (fport, lport)
             else:
                 ports = None
