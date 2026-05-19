@@ -27,7 +27,7 @@ def main():
         # sudoers() calls exit() when it completes
         sudoers(user_name=opt.sudoers_user)
 
-    if opt.daemon:
+    if opt.daemon and opt.syslog is None:
         opt.syslog = 1
     if opt.wrap:
         import sshuttle.ssnet as ssnet
