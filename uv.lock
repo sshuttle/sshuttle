@@ -674,7 +674,7 @@ wheels = [
 
 [[package]]
 name = "jedi-language-server"
-version = "0.46.0"
+version = "0.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cattrs" },
@@ -683,9 +683,9 @@ dependencies = [
     { name = "lsprotocol" },
     { name = "pygls" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/63/2ae4466db0d5f723bb141990487a46f1add8f6449995172c7d45e6d37c66/jedi_language_server-0.46.0.tar.gz", hash = "sha256:b9ee7cce6cb2bd6fce11115906db41549d7e97b358e0818a23dca164ed0b961a", size = 34602, upload-time = "2025-10-25T20:45:40.647Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/00/0cc9fc9996f79f1935a39236f300e6b2399aed34b8170248c5108e38e652/jedi_language_server-0.47.0.tar.gz", hash = "sha256:43d9b89d07b504470544b80d76739449856a2be6565571cb362ee0681f6f0b86", size = 91714, upload-time = "2026-05-31T14:02:43.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/06/c29fe15b67db3170e057376386a7643228b6bcea35df68e884475d8a7897/jedi_language_server-0.46.0-py3-none-any.whl", hash = "sha256:c8003c33a36de9998ac1c6e13ebe3d99b11d06046ae6307d75f54c73e9358ea7", size = 33769, upload-time = "2025-10-25T20:45:39.411Z" },
+    { url = "https://files.pythonhosted.org/packages/05/e1/ad4afa632b4ea58f422391d11e86b5100b5578879af6bf04bf5aaf4beede/jedi_language_server-0.47.0-py3-none-any.whl", hash = "sha256:0e00d5af41c1a966c9ec73221e81b1af3b8c0243d29477e5441c661d5b61ec3e", size = 33844, upload-time = "2026-05-31T14:02:42.161Z" },
 ]
 
 [[package]]
