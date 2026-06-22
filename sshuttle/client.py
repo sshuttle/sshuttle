@@ -805,6 +805,40 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
             mux.check_fullness()
 
 
+def resolve_remote_hostname(remotename):
+    """
+    Resolve remote hostname to IP address(es).
+    Returns list of (family, ip) tuples.
+    """
+    if not remotename:
+        return []
+
+    # Extract hostname from formats like user@host:port
+    host_part = remotename
+    if '@' in host_part:
+        host_part = host_part.split('@', 1)[1]
+    if ':' in host_part and not host_part.startswith('['):
+        host_part = host_part.split(':', 1)[0]
+    elif host_part.startswith('['):
+        if ']:' in host_part:
+            host_part = host_part.split(']:', 1)[0][1:]
+        else:
+            host_part = host_part.rstrip(']')
+
+    resolved_ips = []
+    try:
+        addrinfo = socket.getaddrinfo(host_part, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for family, socktype, proto, canonname, sockaddr in addrinfo:
+            ip = sockaddr[0]
+            if not any(ip == resolved_ip for _, resolved_ip in resolved_ips):
+                resolved_ips.append((family, ip))
+                debug2('Resolved %s to %s (family %d)' % (host_part, ip, family))
+    except socket.gaierror as e:
+        debug1('WARNING: Could not resolve remote hostname %s: %s' % (host_part, e))
+
+    return resolved_ips
+
+
 def main(listenip_v6, listenip_v4,
          ssh_cmd, remotename, python, latency_control,
          latency_buffer_size, dns, nslist,
@@ -988,6 +1022,14 @@ def main(listenip_v6, listenip_v4,
     if required.ipv6 and \
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
+
+    # Auto-exclude remote host to prevent SSH tunnel interception
+    resolved_remote_ips = resolve_remote_hostname(remotename)
+    for family, remote_ip in resolved_remote_ips:
+        if not any(remote_ip == sex[1] for sex in subnets_exclude):
+            width = 32 if family == socket.AF_INET else 128
+            subnets_exclude.append((family, remote_ip, width, 0, 0))
+            debug1("Auto-excluding remote host %s" % remote_ip)
 
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
