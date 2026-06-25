@@ -395,6 +395,7 @@ parser.add_argument(
 parser.add_argument(
     "--syslog",
     action="store_true",
+    default=None,
     help="""
     send log messages to syslog (default if you use --daemon)
     """
