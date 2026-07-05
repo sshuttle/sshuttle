@@ -17,6 +17,7 @@ from sshuttle.ssnet import SockWrapper, Handler, Proxy, Mux, MuxWrapper
 from sshuttle.helpers import log, debug1, debug2, debug3, Fatal, islocal, \
     resolvconf_nameservers, which, is_admin_user, RWPair
 from sshuttle.methods import get_method, Features
+from sshuttle.options import parse_ipport
 from sshuttle import __version__
 try:
     from pwd import getpwnam
@@ -989,6 +990,16 @@ def main(listenip_v6, listenip_v4,
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
+    # Exclude remote server IP
+    _, _, _, host = ssh.parse_hostport(remotename)
+    if host:
+        try:
+            family, remote_ip, _ = parse_ipport(host)
+            if not any(remote_ip == sex[1] for sex in subnets_exclude):
+                subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
+        except:
+            pass
+    
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.
