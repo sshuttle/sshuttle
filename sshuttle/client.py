@@ -997,9 +997,8 @@ def main(listenip_v6, listenip_v4,
             family, remote_ip, _ = parse_ipport(host)
             if not any(remote_ip == sex[1] for sex in subnets_exclude):
                 subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
-        except:
+        except Exception:
             pass
-    
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.
