@@ -30,6 +30,30 @@ def empackage(z, name, data=None):
     return b'%s\n%d\n%s' % (name.encode("ASCII"), len(content), content)
 
 
+def parse_hostname(remotename):
+    """
+    Parse and resolve SSH remote hostname, including SSH config aliases.
+    Uses 'ssh -G' to query the effective SSH configuration.
+    Returns the resolved hostname, or the original if resolution fails.
+    """
+    _, _, _, host = parse_hostport(remotename)
+    if not host:
+        return None
+
+    try:
+        result = ssubprocess.run(
+            ['ssh', '-G', host],
+            capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if line.startswith('hostname '):
+                    return line.split(' ', 1)[1].strip()
+    except Exception:
+        pass
+
+    return host
+
+
 def parse_hostport(rhostport):
     """
     parses the given rhostport variable, looking like this:
