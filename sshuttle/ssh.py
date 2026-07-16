@@ -32,13 +32,16 @@ def empackage(z, name, data=None):
 
 def parse_hostname(remotename):
     """
-    Parse and resolve SSH remote hostname, including SSH config aliases.
+    Parse and resolve SSH remote hostname.
     Uses 'ssh -G' to query the effective SSH configuration.
-    Returns the resolved hostname, or the original if resolution fails.
+    Returns tuple of (remote_host, proxy_host) or (None, None) if resolution fails.
     """
     _, _, _, host = parse_hostport(remotename)
     if not host:
-        return None
+        return None, None
+
+    remote_host = None
+    proxy_host = None
 
     try:
         result = ssubprocess.run(
@@ -47,11 +50,16 @@ def parse_hostname(remotename):
         if result.returncode == 0:
             for line in result.stdout.split('\n'):
                 if line.startswith('hostname '):
-                    return line.split(' ', 1)[1].strip()
+                    remote_host = line.split(' ', 1)[1].strip()
+                if line.startswith('proxyjump '):
+                    proxy_raw = line.split(' ', 1)[1].strip()
+                    # Remove brackets
+                    proxy_raw = proxy_raw.replace('[', '').replace(']', '')
+                    _, _, _, proxy_host = parse_hostport(proxy_raw)
     except Exception:
         pass
 
-    return host
+    return remote_host or host, proxy_host
 
 
 def parse_hostport(rhostport):
