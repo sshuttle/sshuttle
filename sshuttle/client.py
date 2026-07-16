@@ -1005,7 +1005,7 @@ def main(listenip_v6, listenip_v4,
                 if not any(remote_ip == sex[1] for sex in subnets_exclude):
                     subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
         except Exception as e:
-            raise Fatal(f"Failed to exclude remote IP: {e}")
+            debug1(f"Failed to exclude remote IP: {e}")
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.
