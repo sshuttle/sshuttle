@@ -992,10 +992,10 @@ def main(listenip_v6, listenip_v4,
     # Exclude remote server IP
     host, proxy_host = ssh.parse_hostname(remotename)
     hosts_to_exclude = []
-    if host:
-        hosts_to_exclude.append(host)
     if proxy_host:
         hosts_to_exclude.append(proxy_host)
+    elif host:
+        hosts_to_exclude.append(host)
     for host in hosts_to_exclude:
         try:
             addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
