@@ -34,14 +34,15 @@ def parse_hostname(remotename):
     """
     Parse and resolve SSH remote hostname.
     Uses 'ssh -G' to query the effective SSH configuration.
-    Returns tuple of (remote_host, proxy_host) or (None, None) if resolution fails.
+    Returns tuple of (remote_host, proxy_host, proxy_command).
     """
     _, _, _, host = parse_hostport(remotename)
     if not host:
-        return None, None
+        return None, None, None
 
     remote_host = None
     proxy_host = None
+    proxy_command = None
 
     try:
         result = ssubprocess.run(
@@ -51,15 +52,19 @@ def parse_hostname(remotename):
             for line in result.stdout.split('\n'):
                 if line.startswith('hostname '):
                     remote_host = line.split(' ', 1)[1].strip()
-                if line.startswith('proxyjump '):
+                elif line.startswith('proxyjump '):
                     proxy_raw = line.split(' ', 1)[1].strip()
                     # Remove brackets
                     proxy_raw = proxy_raw.replace('[', '').replace(']', '')
                     _, _, _, proxy_host = parse_hostport(proxy_raw)
+                elif line.startswith('proxycommand '):
+                    command = line.split(' ', 1)[1].strip()
+                    if command.lower() != 'none':
+                        proxy_command = command
     except Exception:
         pass
 
-    return remote_host or host, proxy_host
+    return remote_host or host, proxy_host, proxy_command
 
 
 def parse_hostport(rhostport):
