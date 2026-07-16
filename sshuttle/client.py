@@ -1007,6 +1007,9 @@ def main(listenip_v6, listenip_v4,
             if addrinfo:
                 family = addrinfo[0][0]
                 remote_ip = addrinfo[0][4][0]
+                # Strip IPv6 scope suffix, e.g. fe80::1%eth0
+                if family == socket.AF_INET6:
+                    remote_ip = remote_ip.split('%', 1)[0]
                 if not any(remote_ip == sex[1] for sex in subnets_exclude):
                     subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
         except Exception as e:
