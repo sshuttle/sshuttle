@@ -1148,16 +1148,16 @@ wheels = [
 
 [[package]]
 name = "pylsp-mypy"
-version = "0.7.3"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mypy" },
     { name = "python-lsp-server" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/47/911bff79573b3a5fd9c1c05bd02540bfdb71951788f9f7f3d0a44f9a3209/pylsp_mypy-0.7.3.tar.gz", hash = "sha256:7a7d3117ea0361cae2ed00614195d36f4c157a06116c8792449e19f57319ddbf", size = 18300, upload-time = "2026-06-16T19:09:21.351Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/d3/25f5fdecdeebee9f896b45011a03657bfd7b85503659ddee20e9a97bec7e/pylsp_mypy-0.8.0.tar.gz", hash = "sha256:00d86eafa4e544ee81a73979eff1a998fbd40d4ae9c1821fe88023326a756dc2", size = 20710, upload-time = "2026-07-17T18:14:20.944Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/0a/d98eb5015926a3471b164a55d70aebc85dcd2e328bb6309cc16cf3640177/pylsp_mypy-0.7.3-py3-none-any.whl", hash = "sha256:9f0e52fa8cf4c1ab8cccf8425f192fa50a9874c20919a93ab61cc42069824785", size = 12285, upload-time = "2026-06-16T19:09:20.392Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/7d/cf5f10c51ccc1a775fb8ef558650018122a71b317d1ce761015f114c06c3/pylsp_mypy-0.8.0-py3-none-any.whl", hash = "sha256:b404e2e1b49521581c27fab05819e498bd069346fa2c06fba99eb96c7931a71a", size = 16114, upload-time = "2026-07-17T18:14:20.091Z" },
 ]
 
 [[package]]
