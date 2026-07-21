@@ -352,15 +352,14 @@ Use the following command to route all IPv4 TCP traffic through remote
 (-r) host example.com (and possibly other traffic too, depending on
 the selected --method). The 0/0 subnet, short for 0.0.0.0/0, matches
 all IPv4 addresses. The ::/0 subnet, matching all IPv6 addresses could
-be added to the example. We also exclude (-x) example.com:22 so that
-we can establish ssh connections from our local machine to the remote
-host without them being routed through sshuttle. Excluding the remote
-host may be necessary on some machines for sshuttle to work properly.
-Press Ctrl+C to exit. To also route DNS queries through sshuttle, try
-adding --dns. Add or remove -v options to see more or less
-information::
+be added to the example. The SSH connection endpoint is automatically
+excluded from forwarding. When `ProxyCommand` is configured,
+automatic exclusion is skipped; use :option:`-x` to exclude the
+required address manually. Press Ctrl+C to exit. To also route DNS
+queries through sshuttle, try adding --dns. Add or remove -v options
+to see more or less information::
 
-    $ sshuttle -r example.com -x example.com:22 0/0
+    $ sshuttle -r example.com 0/0
 
     Starting sshuttle proxy (version ...).
     [local sudo] Password:
@@ -376,8 +375,8 @@ information::
     c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
     c :   (<AddressFamily.AF_INET: 2>, '0.0.0.0', 0, 0, 0)
     c : Subnets to exclude from forwarding:
-    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 22, 22)
     c :   (<AddressFamily.AF_INET: 2>, '127.0.0.1', 32, 0, 0)
+    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 0, 0)
     c : TCP redirector listening on ('127.0.0.1', 12299).
     c : Starting client with Python version 3.9.5
     c : Connecting to server...
@@ -400,7 +399,7 @@ information::
 Connect to a remote server, with automatic hostname
 and subnet guessing::
 
-    $ sshuttle -vNHr example.com -x example.com:22
+    $ sshuttle -vNHr example.com
     Starting sshuttle proxy (version ...).
     [local sudo] Password:
     fw: Starting firewall with Python version 3.9.5
@@ -415,8 +414,8 @@ and subnet guessing::
     c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
     c : NOTE: Additional subnets to forward may be added below by --auto-nets.
     c : Subnets to exclude from forwarding:
-    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 22, 22)
     c :   (<AddressFamily.AF_INET: 2>, '127.0.0.1', 32, 0, 0)
+    c :   (<AddressFamily.AF_INET: 2>, '...', 32, 0, 0)
     c : TCP redirector listening on ('127.0.0.1', 12300).
     c : Starting client with Python version 3.9.5
     c : Connecting to server...

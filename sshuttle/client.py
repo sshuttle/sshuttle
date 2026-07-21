@@ -989,6 +989,32 @@ def main(listenip_v6, listenip_v4,
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
+    # Exclude remote server IP
+    host, proxy_host, proxy_command = ssh.parse_hostname(remotename)
+    hosts_to_exclude = []
+    if proxy_command:
+        debug1(
+            "Warning: ProxyCommand is configured; skipping automatic remote IP exclusion. "
+            "Use -x explicitly if required.\n"
+        )
+    elif proxy_host:
+        hosts_to_exclude.append(proxy_host)
+    elif host:
+        hosts_to_exclude.append(host)
+    for host in hosts_to_exclude:
+        try:
+            addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
+            for family, _, _, _, sockaddr in addrinfo:
+                remote_ip = sockaddr[0]
+
+                # Strip IPv6 scope suffix, e.g. fe80::1%eth0
+                if family == socket.AF_INET6:
+                    remote_ip = remote_ip.split('%', 1)[0]
+
+                if not any(remote_ip == sex[1] for sex in subnets_exclude):
+                    subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
+        except Exception as e:
+            debug1(f"Failed to exclude remote IP: {e}\n")
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.
