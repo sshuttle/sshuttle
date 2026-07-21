@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
         poetry-version: ["main"]
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,7 +34,7 @@ jobs:
         enable-cache: true
         cache-dependency-glob: "uv.lock"
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: uv sync --all-extras --dev --python ${{ matrix.python-version }}
     - name: Lint with flake8
       run: uv run flake8 sshuttle tests --count --show-source --statistics
     - name: Run the automated tests
