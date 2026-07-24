@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.0.0](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v2.0.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* minimum supported Python is now 3.10
+
+### Features
+
+* auto-exclude remote IP ([#1191](https://github.com/sshuttle/sshuttle/issues/1191)) ([97fe674](https://github.com/sshuttle/sshuttle/commit/97fe6746c8ccee811fcc689110d5dde92b1e2ead))
+
+
+### Bug Fixes
+
+* add retry logic to release-please workflow for transient GitHub API failures ([#1204](https://github.com/sshuttle/sshuttle/issues/1204)) ([d183c34](https://github.com/sshuttle/sshuttle/commit/d183c340c92e7b56c9deb92f4c508abd44164c9c))
+* Correct PYTHONPATH for --sudoers-no-modify ([#1084](https://github.com/sshuttle/sshuttle/issues/1084)) ([0284a49](https://github.com/sshuttle/sshuttle/commit/0284a49254d410d01b422c1a7ddc88a72572b263))
+* route PRINT -4 to_ascii [windows] ([cb9c0f3](https://github.com/sshuttle/sshuttle/commit/cb9c0f3548c0af9cf224e069aca596c2f1308c22))
+
+
+### Miscellaneous Chores
+
+* drop Python 3.9 support ([9b911c7](https://github.com/sshuttle/sshuttle/commit/9b911c789855b4d683feb0290b55b3c8bd7fa5fa))
+
 ## [1.3.2](https://github.com/sshuttle/sshuttle/compare/v1.3.1...v1.3.2) (2025-08-08)
 
 
