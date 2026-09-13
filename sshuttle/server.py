@@ -12,7 +12,8 @@ import sshuttle.ssnet as ssnet
 import sshuttle.helpers as helpers
 import sshuttle.hostwatch as hostwatch
 import subprocess as ssubprocess
-from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper
+from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper, \
+    close_later
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     get_random_nameserver, which, get_env, SocketRWShim
 
@@ -169,6 +170,12 @@ class Hostwatch:
 
 class DnsProxy(Handler):
 
+    def dispose(self):
+        # self.peers holds every socket we made, including ones whose send()
+        # failed and so never reached self.socks.
+        for sock in self.peers:
+            close_later(sock)
+
     def __init__(self, mux, chan, request, to_nameserver):
         Handler.__init__(self, [])
         self.timeout = time.time() + 30
@@ -255,6 +262,9 @@ class DnsProxy(Handler):
 
 
 class UdpProxy(Handler):
+
+    def dispose(self):
+        close_later(self.sock)
 
     def __init__(self, mux, chan, family):
         sock = socket.socket(family, socket.SOCK_DGRAM)

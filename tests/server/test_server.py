@@ -1,9 +1,11 @@
 import io
 import socket
+import time
 
 from unittest.mock import patch, Mock
 
 import sshuttle.server
+import sshuttle.ssnet as ssnet
 
 
 def test__ipmatch():
@@ -58,3 +60,44 @@ default via 192.168.1.1 dev wlan0  proto static
     assert list(routes) == [
         (socket.AF_INET, '192.168.1.0', 24)
     ]
+
+
+def _drain(timeout=5.0):
+    """Wait for ssnet's close helpers to work through the queue."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if ssnet._close_q is None or ssnet._close_q.empty():
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def test_dnsproxy_dispose_closes_every_socket_it_made():
+    """try_send() records a socket in self.peers before send(); a socket
+    whose send() failed never reaches self.socks, but still needs closing."""
+    a, b = socket.socketpair()
+    h = sshuttle.server.DnsProxy.__new__(sshuttle.server.DnsProxy)
+    h.peers = {a: 'nameserver'}
+    h.socks = []  # send() failed, so it never got here
+    h.dispose()
+    assert _drain()
+
+    deadline = time.monotonic() + 5.0
+    while a.fileno() != -1 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert a.fileno() == -1
+    b.close()
+
+
+def test_udpproxy_dispose_closes_its_socket():
+    a, b = socket.socketpair()
+    h = sshuttle.server.UdpProxy.__new__(sshuttle.server.UdpProxy)
+    h.sock = a
+    h.dispose()
+    assert _drain()
+
+    deadline = time.monotonic() + 5.0
+    while a.fileno() != -1 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert a.fileno() == -1
+    b.close()

@@ -1,6 +1,8 @@
 import sys
 import struct
+import queue
 import socket
+import threading
 import errno
 import select
 import os
@@ -8,6 +10,76 @@ import os
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, set_non_blocking_io
 
 MAX_CHANNEL = 65535
+
+# Number of helper threads used to close finished sockets.
+#
+# close() on a socket is normally instant, but it can block in the kernel for
+# many seconds on hosts where a socket-filter network extension inspects flow
+# teardown (observed on macOS with third-party endpoint-security and VPN
+# clients installed: individual close() calls blocking 9-12 seconds with the
+# process at 0% CPU).
+#
+# sshuttle's event loop is single threaded, so one blocking close() stalls
+# every other connection in the tunnel, not just the one being closed. The
+# symptom is severe: requests that normally take 0.2s intermittently take
+# 5-15s, and unrelated connections stall together in bursts because they are
+# all queued behind the same close().
+#
+# Closing on helper threads keeps the event loop responsive. The threads only
+# ever sleep in close(), so the pool size just sets how fast a backlog drains:
+# CLOSERS/latency closes per second.
+CLOSERS = 4
+
+# Cap on the number of finished sockets waiting to be closed. Each one holds
+# its fd open until a helper gets to it, so an unbounded queue trades a stalled
+# event loop for fd exhaustion under sustained churn that outruns the closers.
+# Past this many, close_later() closes inline instead: at that point the
+# backlog is pathological and stalling is the lesser failure.
+MAX_CLOSE_BACKLOG = 512
+
+_close_q = None
+
+
+def close_later(sock):
+    """Close a finished socket without blocking the event loop.
+
+    Only call this for sockets whose handler has already been dropped from
+    the poll set, so nothing will touch them again. The socket object (not
+    the fd) is queued, which keeps it referenced until the helper closes it,
+    so the interpreter cannot close the same fd twice.
+
+    If closes run slower than connection churn, the finished sockets pile up
+    in the queue and hold their fds open until a helper gets to them. The
+    queue is capped at MAX_CLOSE_BACKLOG for that reason; beyond it we close
+    inline and take the stall, rather than run the process out of fds.
+    """
+    global _close_q
+    if sock is None:
+        return
+    if _close_q is None:
+        _close_q = queue.Queue(maxsize=MAX_CLOSE_BACKLOG)
+
+        def closer():
+            while True:
+                sock = _close_q.get()
+                try:
+                    sock.close()
+                except Exception as e:
+                    debug1('error closing %r: %s' % (sock, e))
+
+        for i in range(CLOSERS):
+            threading.Thread(target=closer, name='sshuttle-closer-%d' % i,
+                             daemon=True).start()
+    try:
+        _close_q.put_nowait(sock)
+    except queue.Full:
+        debug1('close backlog full (%d); closing inline' % MAX_CLOSE_BACKLOG)
+        try:
+            sock.close()
+        except Exception as e:
+            debug1('error closing %r: %s' % (sock, e))
+
+
 LATENCY_BUFFER_SIZE = 32768
 
 SHUT_RD = 0
@@ -109,6 +181,16 @@ _swcount = 0
 
 
 class SockWrapper:
+
+    def dispose(self):
+        """Hand our sockets to the closer pool.
+
+        Only called once the wrapper's handler has been dropped from the
+        poll set, so nothing will touch them again.
+        """
+        close_later(self.rsock)
+        if self.wsock is not self.rsock:
+            close_later(self.wsock)
 
     def __init__(self, rsock, wsock, connect_to=None, peername=None):
         global _swcount
@@ -276,6 +358,9 @@ class SockWrapper:
 
 class Handler:
 
+    def dispose(self):
+        pass
+
     def __init__(self, socks=None, callback=None):
         self.ok = True
         self.socks = socks or []
@@ -298,6 +383,10 @@ class Handler:
 
 
 class Proxy(Handler):
+
+    def dispose(self):
+        self.wrap1.dispose()
+        self.wrap2.dispose()
 
     def __init__(self, wrap1, wrap2):
         Handler.__init__(self, [wrap1.rsock, wrap1.wsock,
@@ -504,6 +593,11 @@ class Mux(Handler):
 
 class MuxWrapper(SockWrapper):
 
+    def dispose(self):
+        # Our rsock/wsock are the mux's own stdin/stdout, shared by every
+        # channel; the mux owns them and they must outlive us.
+        pass
+
     def __init__(self, mux, channel):
         SockWrapper.__init__(self, mux.rfile, mux.wfile)
         self.mux = mux
@@ -595,6 +689,7 @@ def runonce(handlers, mux):
     to_remove = [s for s in handlers if not s.ok]
     for h in to_remove:
         handlers.remove(h)
+        h.dispose()
 
     for s in handlers:
         s.pre_select(r, w, x)
