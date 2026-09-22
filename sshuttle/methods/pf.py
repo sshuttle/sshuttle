@@ -218,11 +218,15 @@ class FreeBsd(Generic):
             b'-> %s port %r' % (inet_version, lo_addr, subnet, lo_addr, port)
             for exclude, subnet in includes if not exclude
         ]
+        # `quick` is required so our rule short-circuits PF evaluation.
+        # Products that append a later anchor with `quick` exclusion rules
+        # (e.g. Cloudflare WARP's com.cloudflare.warp_svc) would otherwise
+        # become the deciding rule and discard our route-to lo0.
         filtering_rules = [
-            b'pass out route-to lo0 %s proto tcp '
+            b'pass out quick route-to lo0 %s proto tcp '
             b'to %s keep state' % (inet_version, subnet)
             if not exclude else
-            b'pass out %s proto tcp to %s' % (inet_version, subnet)
+            b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
             for exclude, subnet in includes
         ]
 
@@ -234,7 +238,7 @@ class FreeBsd(Generic):
                 b'rdr pass on lo0 %s proto udp to <dns_servers> '
                 b'port 53 -> %s port %r' % (inet_version, lo_addr, dnsport))
             filtering_rules.append(
-                b'pass out route-to lo0 %s proto udp to '
+                b'pass out quick route-to lo0 %s proto udp to '
                 b'<dns_servers> port 53 keep state' % inet_version)
 
         rules = b'\n'.join(tables + translating_rules + filtering_rules) \
