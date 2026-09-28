@@ -95,8 +95,9 @@ def found_host(name, ip):
        hostnames list, send the host to the sshuttle client via
        stdout, and write the host to the cache file.
     """
+    if not re.match(r'^[-\w\.]+$', name):
+        return
     hostname = re.sub(r'\..*', '', name)
-    hostname = re.sub(r'[^-\w\.]', '_', hostname)
     if (ip.startswith('127.') or ip.startswith('255.') or
             hostname == 'localhost'):
         return
