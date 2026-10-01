@@ -4,7 +4,7 @@ sshuttle: where transparent proxy meets VPN meets ssh
 As far as I know, sshuttle is the only program that solves the following
 common case:
 
-- Your client machine (or router) is Linux, FreeBSD, MacOS or Windows.
+- Your client machine (or router) is Linux, FreeBSD, MacOS, or `Windows <https://sshuttle.readthedocs.io/en/stable/windows.html>`_ (experimental).
 
 - You have access to a remote network via ssh.
 
