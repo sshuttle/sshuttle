@@ -169,6 +169,9 @@ class MultiListener:
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
+            if address_v4 is not None:
+                # IPv4 has its own listener; do not let IPv6 claim its port.
+                self.v6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
             try:
                 self.v6.bind(address_v6)
             except OSError as e:
@@ -1034,15 +1037,14 @@ def main(listenip_v6, listenip_v4,
         for i in nslist:
             debug1("  "+str(i))
 
+    # Track actual listener ports, including explicitly configured ports.
+    used_ports = set()
     if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
         # if both ports given, no need to search for a spare port
         ports = [0, ]
     else:
         # if at least one port missing, we have to search
         ports = range(12300, 9000, -1)
-        # keep track of failed bindings and used ports to avoid trying to
-        # bind to the same socket address twice in different listeners
-        used_ports = []
 
     # search for free ports and try to bind
     last_e = None
@@ -1083,12 +1085,12 @@ def main(listenip_v6, listenip_v4,
             if udp_listener:
                 udp_listener.bind(lv6, lv4)
             bound = True
-            used_ports.append(port)
+            used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
             break
         except socket.error as e:
             if e.errno == errno.EADDRINUSE:
                 last_e = e
-                used_ports.append(port)
+                used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
             else:
                 raise e
 
@@ -1128,12 +1130,12 @@ def main(listenip_v6, listenip_v4,
             try:
                 dns_listener.bind(lv6, lv4)
                 bound = True
-                used_ports.append(port)
+                used_ports.add(port)
                 break
             except socket.error as e:
                 if e.errno == errno.EADDRINUSE:
                     last_e = e
-                    used_ports.append(port)
+                    used_ports.add(port)
                 else:
                     raise e
 
