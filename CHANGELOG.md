@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/sshuttle/sshuttle/compare/v2.0.0...v2.0.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* avoid dual-stack listener conflicts and track explicit ports ([#1261](https://github.com/sshuttle/sshuttle/issues/1261)) ([3db9616](https://github.com/sshuttle/sshuttle/commit/3db9616f3226217fcefe13510f0230e303ad9538))
+
 ## [2.0.0](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v2.0.0) (2026-09-28)
 
 
