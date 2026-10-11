@@ -207,10 +207,10 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
-             b'pass out quick route-to lo0 inet6 proto tcp to '
-             b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
              b'pass out quick inet6 proto tcp to '
              b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
+             b'pass out quick route-to lo0 inet6 proto tcp to '
+             b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
              b'pass out quick route-to lo0 inet6 proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
@@ -263,8 +263,8 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
              b'-> 127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
-             b'pass out quick route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
              b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
+             b'pass out quick route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
              b'pass out quick route-to lo0 inet proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
@@ -282,6 +282,28 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
     mock_pf_get_dev.reset_mock()
     mock_pfctl.reset_mock()
     mock_ioctl.reset_mock()
+
+
+@pytest.mark.parametrize("pf_class", [FreeBsd, Darwin])
+@patch('sshuttle.methods.pf.pfctl')
+def test_add_rules_excludes_win_over_catch_all(mock_pfctl, pf_class):
+    # Same order that setup_firewall() builds for "-x 192.168.2.0/24 0/0".
+    includes = [
+        (False, b'0.0.0.0/0'),
+        (True, b'192.168.2.0/24'),
+        (True, b'127.0.0.1/32'),
+    ]
+    pf_class().add_rules(b'sshuttle-1025', includes, 1025, 0, [], AF_INET)
+
+    rules = mock_pfctl.call_args[0][1].split(b'\n')
+    filtering_rules = [r for r in rules if r.startswith(b'pass out quick')]
+    # Every rule is "quick", so the catch-all has to be evaluated last.
+    assert filtering_rules == [
+        b'pass out quick inet proto tcp to 127.0.0.1/32',
+        b'pass out quick inet proto tcp to 192.168.2.0/24',
+        b'pass out quick route-to lo0 inet proto tcp '
+        b'to 0.0.0.0/0 keep state',
+    ]
 
 
 @patch('sshuttle.helpers.verbose', new=3)
@@ -316,10 +338,10 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'2404:6800:4004:80c::/64 port 8000:9000 -> ::1 port 1024\n'
              b'rdr pass on lo0 inet6 proto udp '
              b'to <dns_servers> port 53 -> ::1 port 1026\n'
-             b'pass out quick route-to lo0 inet6 proto tcp to '
-             b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
              b'pass out quick inet6 proto tcp to '
              b'2404:6800:4004:80c::101f/128 port 8080:8080\n'
+             b'pass out quick route-to lo0 inet6 proto tcp to '
+             b'2404:6800:4004:80c::/64 port 8000:9000 keep state\n'
              b'pass out quick route-to lo0 inet6 proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
@@ -372,8 +394,8 @@ def test_setup_firewall_freebsd(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'to 1.2.3.0/24 -> 127.0.0.1 port 1025\n'
              b'rdr pass on lo0 inet proto udp '
              b'to <dns_servers> port 53 -> 127.0.0.1 port 1027\n'
-             b'pass out quick route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
              b'pass out quick inet proto tcp to 1.2.3.66/32 port 80:80\n'
+             b'pass out quick route-to lo0 inet proto tcp to 1.2.3.0/24 keep state\n'
              b'pass out quick route-to lo0 inet proto udp '
              b'to <dns_servers> port 53 keep state\n'),
         call('-e'),
