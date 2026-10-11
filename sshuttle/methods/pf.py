@@ -222,12 +222,17 @@ class FreeBsd(Generic):
         # Products that append a later anchor with `quick` exclusion rules
         # (e.g. Cloudflare WARP's com.cloudflare.warp_svc) would otherwise
         # become the deciding rule and discard our route-to lo0.
+        #
+        # With `quick` the first matching rule wins, while `includes` is
+        # ordered for last-match-wins (least-specific subnet first, and
+        # excludes after includes on ties). Walk it backwards so that a
+        # more specific exclusion is not shadowed by a wider include.
         filtering_rules = [
             b'pass out quick route-to lo0 %s proto tcp '
             b'to %s keep state' % (inet_version, subnet)
             if not exclude else
             b'pass out quick %s proto tcp to %s' % (inet_version, subnet)
-            for exclude, subnet in includes
+            for exclude, subnet in reversed(includes)
         ]
 
         if nslist:
