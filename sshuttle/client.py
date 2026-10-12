@@ -538,7 +538,11 @@ def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r' % (srcip, dstip,))
-    method.send_udp(sock, srcip, dstip, data)
+    try:
+        method.send_udp(sock, srcip, dstip, data)
+    except OSError as e:
+        # One undeliverable datagram should not take the tunnel down.
+        log('WARNING: failed to send UDP reply to %r: %s' % (dstip, e))
 
 
 def onaccept_udp(listener, method, mux, handlers):
@@ -567,7 +571,12 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
-    method.send_udp(sock, srcip, dstip, data)
+    try:
+        method.send_udp(sock, srcip, dstip, data)
+    except OSError as e:
+        # The client that asked may be unreachable by now, e.g. after the
+        # local network changed. Drop this reply instead of crashing.
+        log('WARNING: failed to send DNS reply to %r: %s' % (dstip, e))
 
 
 def ondns(listener, method, mux, handlers):

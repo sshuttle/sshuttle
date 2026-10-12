@@ -125,3 +125,34 @@ def test_separate_ipv4_bind_errors_are_not_hidden(error):
         with pytest.raises(OSError) as exc:
             client.MultiListener().bind(("::", 12300), ("0.0.0.0", 12300))
     assert exc.value.errno == error
+
+
+def test_dns_done_survives_a_failed_reply_send():
+    """An unreachable DNS client must not crash the whole tunnel."""
+    method = Mock()
+    method.send_udp.side_effect = OSError(
+        errno.ENETUNREACH, 'Network is unreachable')
+    mux = Mock()
+    mux.channels = {7: Mock()}
+    dstip = ('192.0.2.1', 5353)
+
+    with patch.dict(client.dnsreqs, {7: 0}, clear=True), \
+            patch('sshuttle.client.log') as mock_log:
+        client.dns_done(7, b'reply', method, Mock(), None, dstip, mux)
+        assert client.dnsreqs == {}
+
+    assert mux.channels == {}
+    assert 'Network is unreachable' in mock_log.call_args[0][0]
+
+
+def test_udp_done_survives_a_failed_reply_send():
+    method = Mock()
+    method.send_udp.side_effect = OSError(
+        errno.EHOSTUNREACH, 'No route to host')
+
+    with patch('sshuttle.client.log') as mock_log:
+        client.udp_done(3, b'198.51.100.7,53,payload', method, Mock(),
+                        ('192.0.2.1', 40000))
+
+    method.send_udp.assert_called_once()
+    assert 'No route to host' in mock_log.call_args[0][0]
