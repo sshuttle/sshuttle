@@ -140,6 +140,11 @@ def _exc_dump():
 
 
 def start_hostwatch(seed_hosts, auto_hosts):
+    if not hasattr(os, 'fork'):
+        # hostwatch runs in a forked child, which Windows does not have.
+        log('WARNING: os.fork is not available on the server. '
+            '--auto-hosts and --seed-hosts features will not work.')
+        return None
     s1, s2 = socket.socketpair()
     pid = os.fork()
     if not pid:
@@ -356,8 +361,11 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
 
         def got_host_req(data):
             if not hw.pid:
-                (hw.pid, hw.sock) = start_hostwatch(
+                started = start_hostwatch(
                         data.decode("ASCII").strip().split(), auto_hosts)
+                if started is None:
+                    return
+                (hw.pid, hw.sock) = started
                 handlers.append(Handler(socks=[hw.sock],
                                         callback=hostwatch_ready))
         mux.got_host_req = got_host_req

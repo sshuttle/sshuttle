@@ -101,3 +101,13 @@ def test_udpproxy_dispose_closes_its_socket():
         time.sleep(0.01)
     assert a.fileno() == -1
     b.close()
+
+
+def test_start_hostwatch_without_fork(monkeypatch):
+    """A server without os.fork (Windows) skips hostwatch instead of crashing."""
+    monkeypatch.delattr(sshuttle.server.os, 'fork')
+    with patch('sshuttle.server.socket.socketpair') as mock_socketpair, \
+            patch('sshuttle.server.log') as mock_log:
+        assert sshuttle.server.start_hostwatch(['host1'], True) is None
+    mock_socketpair.assert_not_called()
+    assert '--auto-hosts' in mock_log.call_args[0][0]
