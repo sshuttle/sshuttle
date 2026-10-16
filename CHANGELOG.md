@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.1](https://github.com/sshuttle/sshuttle/compare/v2.0.0...v2.0.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* avoid dual-stack listener conflicts and track explicit ports ([#1261](https://github.com/sshuttle/sshuttle/issues/1261)) ([3db9616](https://github.com/sshuttle/sshuttle/commit/3db9616f3226217fcefe13510f0230e303ad9538))
+* drop the zone id of a link-local nameserver from nft rules ([#1272](https://github.com/sshuttle/sshuttle/issues/1272)) ([8fa1f3c](https://github.com/sshuttle/sshuttle/commit/8fa1f3c63dbb830bc51b9d5732c35d83fa4b5215))
+* keep the tunnel up when a DNS or UDP reply cannot be sent ([#1273](https://github.com/sshuttle/sshuttle/issues/1273)) ([a7f52ca](https://github.com/sshuttle/sshuttle/commit/a7f52cadbcabf787ad58f188c12fa2deb825a9bc))
+* pf exclusions ignored under a wider include since rules became quick ([#1270](https://github.com/sshuttle/sshuttle/issues/1270)) ([92dd17d](https://github.com/sshuttle/sshuttle/commit/92dd17d4780b0ae68d6742f55b9455eb390afc59))
+* skip hostwatch when the server has no os.fork ([#1271](https://github.com/sshuttle/sshuttle/issues/1271)) ([2cf4a69](https://github.com/sshuttle/sshuttle/commit/2cf4a6979876d53b2ec973bdde95bb9708e544ba))
+
 ## [2.0.0](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v2.0.0) (2026-09-28)
 
 
