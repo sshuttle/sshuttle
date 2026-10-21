@@ -416,7 +416,8 @@ parser.add_argument(
 parser.add_argument(
     "--group",
     help="""
-    apply all the rules only to this linux group
+    apply all the rules only to this linux group (with the nat method,
+    processes that have this group as a supplementary group also match)
     """
 )
 parser.add_argument(
