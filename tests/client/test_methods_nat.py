@@ -213,3 +213,22 @@ def test_setup_firewall(mock_ipt_chain_exists, mock_ipt):
     ]
     mock_ipt_chain_exists.reset_mock()
     mock_ipt.reset_mock()
+
+
+@patch('sshuttle.methods.nat.ipt')
+@patch('sshuttle.methods.nat.ipt_chain_exists')
+def test_group_uses_suppl_groups(mock_ipt_chain_exists, mock_ipt):
+    mock_ipt_chain_exists.return_value = True
+    method = get_method('nat')
+    owner_args = ('-m', 'owner', '--gid-owner', '1234', '--suppl-groups',
+                  '-j', 'MARK', '--set-mark', '1024')
+
+    method.setup_firewall(1024, 1026, [], AF_INET, [], False,
+                          None, '1234', '0x01')
+    assert call(AF_INET, 'mangle', '-I', 'OUTPUT', '1', *owner_args) \
+        in mock_ipt.mock_calls
+    mock_ipt.reset_mock()
+
+    method.restore_firewall(1024, AF_INET, False, None, '1234')
+    assert call(AF_INET, 'mangle', '-D', 'OUTPUT', *owner_args) \
+        in mock_ipt.mock_calls
