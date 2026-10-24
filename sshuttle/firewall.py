@@ -197,7 +197,7 @@ def flush_systemd_dns_cache():
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supersede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(method_name, syslog):
+def main(method_name, syslog, flush_dns=True):
     helpers.logprefix = 'fw: '
     stdin, stdout = setup_daemon()
     hostmap = {}
@@ -351,7 +351,7 @@ def main(method_name, syslog):
         except NotImplementedError:
             pass
 
-        if sys.platform == 'linux':
+        if sys.platform == 'linux' and flush_dns:
             flush_systemd_dns_cache()
 
         try:
@@ -416,7 +416,7 @@ def main(method_name, syslog):
             except Exception:
                 debug2('An error occurred, ignoring it.')
 
-        if sys.platform == 'linux':
+        if sys.platform == 'linux' and flush_dns:
             try:
                 flush_systemd_dns_cache()
             except Exception:

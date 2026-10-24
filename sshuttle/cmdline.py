@@ -51,7 +51,7 @@ def main():
         if opt.firewall:
             if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
-            return firewall.main(opt.method, opt.syslog)
+            return firewall.main(opt.method, opt.syslog, flush_dns=not opt.no_flush_dns)
         elif opt.hostwatch:
             hostwatch.hw_main(opt.subnets, opt.auto_hosts)
             return 0
@@ -128,7 +128,8 @@ def main():
                                       opt.sudo_pythonpath,
                                       opt.add_cmd_delimiter,
                                       opt.remote_shell,
-                                      opt.tmark)
+                                      opt.tmark,
+                                      flush_dns=not opt.no_flush_dns)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')
