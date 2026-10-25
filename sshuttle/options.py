@@ -138,12 +138,10 @@ def parse_list(lst):
 
 
 def parse_namespace(namespace):
-    try:
-        assert re.fullmatch(
-            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace)
-        return namespace
-    except AssertionError:
+    if not re.fullmatch(
+            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace):
         raise Fatal("%r is not a valid namespace name." % namespace)
+    return namespace
 
 
 class Concat(Action):
