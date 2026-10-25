@@ -223,6 +223,11 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-flush-dns",
+    action="store_true",
+    help="do not flush the systemd DNS resolver cache on startup or shutdown"
+)
+parser.add_argument(
     "--ns-hosts",
     metavar="IP[,IP]",
     default=[],
@@ -414,7 +419,8 @@ parser.add_argument(
 parser.add_argument(
     "--group",
     help="""
-    apply all the rules only to this linux group
+    apply all the rules only to this linux group (with the nat method,
+    processes that have this group as a supplementary group also match)
     """
 )
 parser.add_argument(

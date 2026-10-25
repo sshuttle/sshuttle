@@ -40,7 +40,9 @@ class Method(BaseMethod):
             if user is not None:
                 margs += ['--uid-owner', str(user)]
             if group is not None:
-                margs += ['--gid-owner', str(group)]
+                # --suppl-groups also matches the group in a process's
+                # supplementary groups, not only its primary gid.
+                margs += ['--gid-owner', str(group), '--suppl-groups']
             margs += ['-j', 'MARK', '--set-mark', str(port)]
             nonfatal(_ipm, *margs)
             args = '-m', 'mark', '--mark', str(port), '-j', chain
@@ -106,7 +108,7 @@ class Method(BaseMethod):
                 if user is not None:
                     margs += ['--uid-owner', str(user)]
                 if group is not None:
-                    margs += ['--gid-owner', str(group)]
+                    margs += ['--gid-owner', str(group), '--suppl-groups']
                 margs += ['-j', 'MARK', '--set-mark', str(port)]
                 nonfatal(_ipm, *margs)
 

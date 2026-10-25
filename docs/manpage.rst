@@ -119,6 +119,14 @@ Options
     if specified. Only plain DNS traffic sent to these servers
     on port 53 are captured.
 
+.. option:: --no-flush-dns
+
+    Skip flushing the systemd DNS resolver cache at startup and shutdown.
+    By default, sshuttle flushes this cache on Linux so cached responses
+    do not bypass DNS forwarding. Use this option when managing the cache
+    yourself or when systemd-resolved is unavailable. Cached DNS answers
+    may remain until they expire or are flushed manually.
+
 .. option:: --ns-hosts=<server1[,server2[,server3[...]]]>
 
     Capture local DNS requests to the specified server(s)
