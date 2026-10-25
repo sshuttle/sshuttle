@@ -210,7 +210,7 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath):
+    def __init__(self, method_name, sudo_pythonpath, flush_dns=True):
         self.auto_nets = []
 
         argv0 = sys.argv[0]
@@ -222,6 +222,8 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
+        if not flush_dns:
+            argvbase += ['--no-flush-dns']
 
         # A list of commands that we can try to run to start the firewall.
         argv_tries = []
@@ -822,7 +824,8 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark):
+         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark,
+         flush_dns=True):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -837,7 +840,7 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath)
+    fw = FirewallClient(method_name, sudo_pythonpath, flush_dns=flush_dns)
 
     # nslist is the list of name severs to intercept. If --dns is
     # used, we add all DNS servers in resolv.conf. Otherwise, the list

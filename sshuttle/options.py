@@ -225,6 +225,11 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-flush-dns",
+    action="store_true",
+    help="do not flush the systemd DNS resolver cache on startup or shutdown"
+)
+parser.add_argument(
     "--ns-hosts",
     metavar="IP[,IP]",
     default=[],
