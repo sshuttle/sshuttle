@@ -1,5 +1,10 @@
+import json
+import platform
 import socket
+import subprocess
+import sys
 from argparse import ArgumentTypeError as Fatal
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -206,3 +211,70 @@ def test_parse_namespace():
     for namespace in invalid_namespaces:
         with pytest.raises(Fatal, match="'.*' is not a valid namespace name."):
             sshuttle.options.parse_namespace(namespace)
+
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='--namespace is Linux-only')
+@pytest.mark.parametrize('optimization', [0, 1], ids=['normal', 'optimized'])
+@pytest.mark.parametrize('namespace', [
+    '',
+    '123namespace',
+    'my-namespace',
+    'my_namespace!',
+    '.my_namespace',
+    'my_namespace.',
+    'my..namespace',
+    'my.namespace',
+])
+def test_namespace_parser_subprocess(optimization, namespace):
+    if sys.flags.optimize != 0:
+        pytest.fail('namespace parser checks require an unoptimized pytest parent')
+    cwd = Path(__file__).resolve().parents[2]
+    child = """
+import argparse
+import json
+import platform
+import sys
+from pathlib import Path
+
+import sshuttle.options as options
+
+print(json.dumps({
+    'executable': sys.executable,
+    'version': list(sys.version_info),
+    'implementation': platform.python_implementation(),
+    'optimization': sys.flags.optimize,
+    'platform': sys.platform,
+    'module': str(Path(options.__file__).resolve()),
+    'fatal_is_argument_type_error': options.Fatal is argparse.ArgumentTypeError,
+}), flush=True)
+parsed = options.parser.parse_args(['--namespace=' + sys.argv[1]])
+print(json.dumps({'namespace': parsed.namespace}))
+"""
+    command = [sys.executable, '-B']
+    if optimization:
+        command.append('-O')
+    command.extend(['-c', child, namespace])
+    result = subprocess.run(
+        command, shell=False, capture_output=True, text=True, timeout=10,
+        cwd=cwd,
+    )
+    records = result.stdout.splitlines()
+    assert json.loads(records[0]) == {
+        'executable': sys.executable,
+        'version': list(sys.version_info),
+        'implementation': platform.python_implementation(),
+        'optimization': optimization,
+        'platform': sys.platform,
+        'module': str(cwd / 'sshuttle' / 'options.py'),
+        'fatal_is_argument_type_error': True,
+    }
+    if namespace == 'my.namespace':
+        assert (result.returncode, len(records)) == (0, 2), result.stderr
+        assert json.loads(records[1]) == {'namespace': namespace}
+    else:
+        assert result.returncode == 2, result.stderr
+        assert len(records) == 1
+        assert result.stderr.splitlines()[-1] == (
+            'sshuttle: error: argument --namespace: %r is not a valid namespace name.'
+            % namespace
+        )
