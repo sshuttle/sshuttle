@@ -1,4 +1,5 @@
 import errno
+import ipaddress
 import re
 import signal
 import time
@@ -413,10 +414,26 @@ class FirewallClient:
         if rv:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
+    def _auto_nets_not_excluded(self):
+        # The firewall gives priority to the most specific subnet, so an
+        # auto net inside an excluded subnet would override the exclusion.
+        excluded = [ipaddress.ip_network(f'{ip}/{width}', strict=False)
+                    for (_, ip, width, fport, lport) in self.subnets_exclude
+                    if not fport and not lport]
+        auto_nets = []
+        for (family, ip, width, fport, lport) in self.auto_nets:
+            net = ipaddress.ip_network(f'{ip}/{width}', strict=False)
+            if any(net.version == ex.version and net.subnet_of(ex)
+                   for ex in excluded):
+                debug2(f"Ignored excluded auto net {family}/{ip}/{width}")
+            else:
+                auto_nets.append((family, ip, width, fport, lport))
+        return auto_nets
+
     def start(self):
         self.pfile.write(b'ROUTES\n')
         for (family, ip, width, fport, lport) \
-                in self.subnets_include + self.auto_nets:
+                in self.subnets_include + self._auto_nets_not_excluded():
             self.pfile.write(b'%d,%d,0,%s,%d,%d\n' % (family, width,
                                                       ip.encode("ASCII"),
                                                       fport, lport))
