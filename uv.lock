@@ -1116,11 +1116,11 @@ wheels = [
 
 [[package]]
 name = "pydivert"
-version = "4.0.0"
+version = "4.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/20/72/ca61040b52bd2b6a7f772b8d4762ab05f6971175683abb90aa6647713c93/pydivert-4.0.0.tar.gz", hash = "sha256:06272d935efe7489cba5558bf6f7de5b68a2fdbd9fa0521ee04120b22fdeb73a", size = 64942, upload-time = "2026-10-04T18:41:51.841Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/22/4fa2c4737dee915398f0741565f75cf8c1c9e2b75865952600f61d479f8b/pydivert-4.0.1.tar.gz", hash = "sha256:7de2eab52bef9005bcdb9d1ea3641b9a42bc8be8093af748d33c635d997dced2", size = 65941, upload-time = "2026-10-25T06:54:01.703Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/5c/d66e43cf8e7841c2af5180d5e08948d007b5c90b41e851fec8eaa512392b/pydivert-4.0.0-py3-none-win_amd64.whl", hash = "sha256:a642f745c7168b9449fbcfb8fbeedf948e6739c608b92faff0caf80c098540ff", size = 144315, upload-time = "2026-10-04T18:41:50.739Z" },
+    { url = "https://files.pythonhosted.org/packages/57/5e/265b9ebe688220ee3b2d591736b546c7698c03b47deff525fff9270b63f9/pydivert-4.0.1-py3-none-win_amd64.whl", hash = "sha256:848e8da98a39b4da056758f51b53af33cdf027d8c55eff19d910922b61347db1", size = 145172, upload-time = "2026-10-25T06:54:00.547Z" },
 ]
 
 [[package]]
