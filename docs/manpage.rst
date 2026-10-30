@@ -102,7 +102,8 @@ Options
     line, ask the server which subnets it thinks we should
     route, and route those automatically.  The suggestions
     are taken automatically from the server's routing
-    table.
+    table. Suggested subnets that fall within a subnet
+    excluded with :option:`-x` are ignored.
 
     This feature does not detect IPv6 routes. Specify IPv6 subnets
     manually. For example, specify the ``::/0`` subnet on the command
