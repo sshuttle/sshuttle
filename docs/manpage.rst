@@ -102,7 +102,8 @@ Options
     line, ask the server which subnets it thinks we should
     route, and route those automatically.  The suggestions
     are taken automatically from the server's routing
-    table.
+    table. Suggested subnets that fall within a subnet
+    excluded with :option:`-x` are ignored.
 
     This feature does not detect IPv6 routes. Specify IPv6 subnets
     manually. For example, specify the ``::/0`` subnet on the command
@@ -118,6 +119,14 @@ Options
     using the DNS specified via the :option:`--to-ns` option,
     if specified. Only plain DNS traffic sent to these servers
     on port 53 are captured.
+
+.. option:: --no-flush-dns
+
+    Skip flushing the systemd DNS resolver cache at startup and shutdown.
+    By default, sshuttle flushes this cache on Linux so cached responses
+    do not bypass DNS forwarding. Use this option when managing the cache
+    yourself or when systemd-resolved is unavailable. Cached DNS answers
+    may remain until they expire or are flushed manually.
 
 .. option:: --ns-hosts=<server1[,server2[,server3[...]]]>
 

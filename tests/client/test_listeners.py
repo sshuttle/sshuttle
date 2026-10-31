@@ -93,9 +93,10 @@ def test_real_occupied_ipv4_port_still_raises(kind):
     (12299, 0), (0, 12299), (None, 12304), (12304, None),
 ])
 @pytest.mark.parametrize("dns", [False, True])
+@pytest.mark.parametrize("flush_dns", [False, True])
 @pytest.mark.parametrize("udp", [False, True])
 @pytest.mark.parametrize("error", [None, errno.EADDRINUSE, errno.EACCES])
-def test_startup_port_bookkeeping(ports, dns, udp, error):
+def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error):
     features = Features()
     for name in ("ipv4", "ipv6", "dns", "loopback_proxy_port"):
         setattr(features, name, True)
@@ -120,8 +121,8 @@ def test_startup_port_bookkeeping(ports, dns, udp, error):
     nameserver = (socket.AF_INET, "192.0.2.1") if addresses[1] else (socket.AF_INET6, "2001:db8::1")
     args.update(listenip_v6=addresses[0], listenip_v4=addresses[1],
                 remotename="example.invalid", nslist=[nameserver] if dns else [],
-                subnets_include=[], subnets_exclude=[], daemon=False)
-    with patch.object(client, "FirewallClient", return_value=fw), \
+                subnets_include=[], subnets_exclude=[], daemon=False, flush_dns=flush_dns)
+    with patch.object(client, "FirewallClient", return_value=fw) as firewall_client, \
             patch.object(client, "MultiListener", side_effect=make_listener), \
             patch.object(client.ssh, "parse_hostname", return_value=(None, None, None)), \
             patch.object(client, "_main", return_value=0):
@@ -135,6 +136,7 @@ def test_startup_port_bookkeeping(ports, dns, udp, error):
             assert len(listeners) == 1 + udp
             return
         assert client.main(**args) == 0
+    firewall_client.assert_called_once_with(None, None, flush_dns=flush_dns)
     tcp = listeners[(1 + udp) if error else 0]
     candidate = 12299 if error else 12300
     expected = tuple((address[0], address[1] or candidate) if address else None

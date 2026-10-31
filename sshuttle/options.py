@@ -138,12 +138,10 @@ def parse_list(lst):
 
 
 def parse_namespace(namespace):
-    try:
-        assert re.fullmatch(
-            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace)
-        return namespace
-    except AssertionError:
+    if not re.fullmatch(
+            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace):
         raise Fatal("%r is not a valid namespace name." % namespace)
+    return namespace
 
 
 class Concat(Action):
@@ -223,6 +221,11 @@ parser.add_argument(
     help="""
     capture local DNS requests and forward to the remote DNS server
     """
+)
+parser.add_argument(
+    "--no-flush-dns",
+    action="store_true",
+    help="do not flush the systemd DNS resolver cache on startup or shutdown"
 )
 parser.add_argument(
     "--ns-hosts",
@@ -416,7 +419,8 @@ parser.add_argument(
 parser.add_argument(
     "--group",
     help="""
-    apply all the rules only to this linux group
+    apply all the rules only to this linux group (with the nat method,
+    processes that have this group as a supplementary group also match)
     """
 )
 parser.add_argument(
