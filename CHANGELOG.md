@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0](https://github.com/sshuttle/sshuttle/compare/v2.0.0...v2.1.0) (2026-10-31)
+
+
+### Features
+
+* Add an option to skip systemd DNS cache flushing ([#1287](https://github.com/sshuttle/sshuttle/issues/1287)) ([ff533a6](https://github.com/sshuttle/sshuttle/commit/ff533a690a83693cc7f5d68f6f61fc300223a8ba))
+* expand --group to utilizie iptables  --suppl-groups ([#1285](https://github.com/sshuttle/sshuttle/issues/1285)) ([208f215](https://github.com/sshuttle/sshuttle/commit/208f215ffcec650f4d19f321d023d0b3c9aef854))
+
+
+### Bug Fixes
+
+* avoid dual-stack listener conflicts and track explicit ports ([#1261](https://github.com/sshuttle/sshuttle/issues/1261)) ([3db9616](https://github.com/sshuttle/sshuttle/commit/3db9616f3226217fcefe13510f0230e303ad9538))
+* don't let --auto-nets override excluded subnets ([#1296](https://github.com/sshuttle/sshuttle/issues/1296)) ([0177ed3](https://github.com/sshuttle/sshuttle/commit/0177ed36c24236d5a1e3e04ea7a1efe9b3f3b658)), closes [#1014](https://github.com/sshuttle/sshuttle/issues/1014)
+* drop the zone id of a link-local nameserver from nft rules ([#1272](https://github.com/sshuttle/sshuttle/issues/1272)) ([8fa1f3c](https://github.com/sshuttle/sshuttle/commit/8fa1f3c63dbb830bc51b9d5732c35d83fa4b5215))
+* keep the tunnel up when a DNS or UDP reply cannot be sent ([#1273](https://github.com/sshuttle/sshuttle/issues/1273)) ([a7f52ca](https://github.com/sshuttle/sshuttle/commit/a7f52cadbcabf787ad58f188c12fa2deb825a9bc))
+* pf exclusions ignored under a wider include since rules became quick ([#1270](https://github.com/sshuttle/sshuttle/issues/1270)) ([92dd17d](https://github.com/sshuttle/sshuttle/commit/92dd17d4780b0ae68d6742f55b9455eb390afc59))
+* skip hostwatch when the server has no os.fork ([#1271](https://github.com/sshuttle/sshuttle/issues/1271)) ([2cf4a69](https://github.com/sshuttle/sshuttle/commit/2cf4a6979876d53b2ec973bdde95bb9708e544ba))
+* validate namespaces in optimized mode ([#1290](https://github.com/sshuttle/sshuttle/issues/1290)) ([f6e9f28](https://github.com/sshuttle/sshuttle/commit/f6e9f28b6da174b4d87ad33210c1b61d273dbb57))
+
+
+### Documentation
+
+* remove leftover literal block marker in Windows page ([#1299](https://github.com/sshuttle/sshuttle/issues/1299)) ([bfa4be5](https://github.com/sshuttle/sshuttle/commit/bfa4be5543000935d638bb20503793694219c2e7))
+
 ## [2.0.0](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v2.0.0) (2026-09-28)
 
 
