@@ -2,6 +2,7 @@ import errno
 import inspect
 import os
 import socket
+import sys
 from unittest.mock import Mock, patch
 
 import pytest
@@ -96,7 +97,8 @@ def test_real_occupied_ipv4_port_still_raises(kind):
 @pytest.mark.parametrize("flush_dns", [False, True])
 @pytest.mark.parametrize("udp", [False, True])
 @pytest.mark.parametrize("error", [None, errno.EADDRINUSE, errno.EACCES])
-def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error):
+@pytest.mark.parametrize("failing_call", ["bind", "listen"])
+def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error, failing_call):
     features = Features()
     for name in ("ipv4", "ipv6", "dns", "loopback_proxy_port"):
         setattr(features, name, True)
@@ -111,7 +113,7 @@ def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error):
     def make_listener(*args):
         listener = Mock()
         if not listeners and error is not None:
-            listener.bind.side_effect = OSError(error, "test bind failure")
+            getattr(listener, failing_call).side_effect = OSError(error, "test failure")
         listeners.append(listener)
         return listener
 
@@ -144,6 +146,11 @@ def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error):
     tcp.bind.assert_called_once_with(*expected)
     if udp:
         listeners[listeners.index(tcp) + 1].bind.assert_called_once_with(*expected)
+    tcp.listen.assert_called_once_with(10)
+    if error:
+        listeners[0].close.assert_called_once_with()
+        if udp:
+            listeners[1].close.assert_called_once_with()
     tcp_ports = {address[1] for address in tcp.bind.call_args.args if address}
     if dns:
         dns_ports = {address[1] for address in listeners[-1].bind.call_args.args if address}
@@ -160,6 +167,55 @@ def test_separate_ipv4_bind_errors_are_not_hidden(error):
         with pytest.raises(OSError) as exc:
             client.MultiListener().bind(("::", 12300), ("0.0.0.0", 12300))
     assert exc.value.errno == error
+
+
+def test_ipv4_listen_address_in_use_is_not_hidden_by_ipv6():
+    v6, v4 = Mock(), Mock()
+    v4.listen.side_effect = OSError(errno.EADDRINUSE, "test listen failure")
+    with patch.object(client.socket, "socket", side_effect=[v6, v4]):
+        listener = client.MultiListener()
+        listener.bind(("::", 12300), ("0.0.0.0", 12300))
+        with pytest.raises(OSError) as exc:
+            listener.listen(10)
+    assert exc.value.errno == errno.EADDRINUSE
+    assert listener.v4 is v4
+
+
+def test_close_closes_each_bound_socket():
+    v6, v4 = Mock(), Mock()
+    with patch.object(client.socket, "socket", side_effect=[v6, v4]):
+        listener = client.MultiListener()
+        listener.bind(("::", 12300), ("0.0.0.0", 12300))
+    listener.close()
+    v6.close.assert_called_once_with()
+    v4.close.assert_called_once_with()
+    client.MultiListener().close()
+
+
+@pytest.mark.skipif(sys.platform != "linux",
+                    reason="Linux reports this conflict at listen, not bind")
+@pytest.mark.parametrize("dual_stack", [False, True])
+def test_real_port_race_fails_at_listen(dual_stack):
+    if dual_stack and not socket.has_ipv6:
+        pytest.skip("IPv6 unavailable")
+    winner = client.MultiListener()
+    loser = client.MultiListener()
+    try:
+        winner.bind(None, ("127.0.0.1", 0))
+        address = winner.v4.getsockname()
+        try:
+            loser.bind(("::1", address[1]) if dual_stack else None, address)
+        except OSError as exc:
+            if exc.errno in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+                pytest.skip("IPv6 unavailable on this host")
+            raise
+        winner.listen(1)
+        with pytest.raises(OSError) as exc:
+            loser.listen(1)
+        assert exc.value.errno == errno.EADDRINUSE
+    finally:
+        winner.close()
+        loser.close()
 
 
 def test_dns_done_survives_a_failed_reply_send():

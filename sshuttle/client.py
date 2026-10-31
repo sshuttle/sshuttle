@@ -155,15 +155,13 @@ class MultiListener:
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
-            try:
-                self.v4.listen(backlog)
-            except socket.error as e:
-                # on some systems v4 bind will fail if the v6 succeeded,
-                # in this case the v6 socket will receive v4 too.
-                if e.errno == errno.EADDRINUSE and self.v6:
-                    self.v4 = None
-                else:
-                    raise e
+            self.v4.listen(backlog)
+
+    def close(self):
+        if self.v6:
+            self.v6.close()
+        if self.v4:
+            self.v4.close()
 
     def bind(self, address_v6, address_v4):
         assert not self.bind_called
@@ -1118,6 +1116,9 @@ def main(listenip_v6, listenip_v4,
             tcp_listener.bind(lv6, lv4)
             if udp_listener:
                 udp_listener.bind(lv6, lv4)
+            # With SO_REUSEADDR, a port another process just bound may only
+            # be reported as busy here, so this has to stay in the search.
+            tcp_listener.listen(10)
             bound = True
             used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
             break
@@ -1125,13 +1126,17 @@ def main(listenip_v6, listenip_v4,
             if e.errno == errno.EADDRINUSE:
                 last_e = e
                 used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
+                # last_e keeps this attempt's sockets alive through its
+                # traceback, and one of them may already be listening.
+                tcp_listener.close()
+                if udp_listener:
+                    udp_listener.close()
             else:
                 raise e
 
     if not bound:
         assert last_e
         raise last_e
-    tcp_listener.listen(10)
     tcp_listener.print_listening("TCP redirector")
     if udp_listener:
         udp_listener.print_listening("UDP redirector")
