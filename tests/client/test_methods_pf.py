@@ -5,7 +5,8 @@ import pytest
 from unittest.mock import Mock, patch, call, ANY
 from sshuttle.methods import get_method
 from sshuttle.helpers import Fatal, get_env
-from sshuttle.methods.pf import FreeBsd, Darwin, OpenBsd
+from sshuttle.methods.pf import FreeBsd, Darwin, OpenBsd, \
+    point_to_point_addrs, run_network_tool
 
 
 def test_get_supported_features():
@@ -166,12 +167,80 @@ def pfctl(args, stdin=None):
     return None
 
 
+IFCONFIG = """\
+lo0: flags=8049<UP,LOOPBACK,RUNNING,MULTICAST> mtu 16384
+\tinet 127.0.0.1 netmask 0xff000000
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+\tinet 192.0.2.10 netmask 0xffffff00 broadcast 192.0.2.255
+utun1: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1420
+\tinet 198.51.100.2 --> 198.51.100.1 netmask 0xffffff00
+utun2: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1420
+\tinet6 fe80::1%utun2 prefixlen 64 scopeid 0x10
+ipsec0: flags=8051<UP,POINTOPOINT,RUNNING,MULTICAST> mtu 1280
+\tinet 203.0.113.5 --> 203.0.113.5 netmask 0xffffffff
+utun3: flags=8010<POINTOPOINT,MULTICAST> mtu 1420
+\tinet 203.0.113.9 --> 203.0.113.9 netmask 0xffffffff
+"""
+
+
+@patch('sshuttle.methods.pf.run_network_tool')
+def test_point_to_point_addrs(mock_tool):
+    mock_tool.return_value = IFCONFIG
+    assert point_to_point_addrs() == ['198.51.100.2', '203.0.113.5']
+
+
+@patch('sshuttle.methods.pf.log')
+@patch('sshuttle.methods.pf.ssubprocess.run')
+def test_run_network_tool_failure_is_not_fatal(mock_run, mock_log):
+    mock_run.side_effect = OSError('not found')
+    assert run_network_tool(['route', 'get', '192.0.2.1']) == ''
+    assert mock_log.called
+
+
+@patch('sshuttle.methods.pf.route')
+@patch('sshuttle.methods.pf.point_to_point_addrs')
+def test_local_routes_darwin(mock_addrs, mock_route):
+    mock_addrs.return_value = ['127.0.0.2', '198.51.100.2', '203.0.113.5']
+    answers = {
+        # already local: left alone
+        'get 127.0.0.2': '  destination: 127.0.0.2\n  interface: lo0\n',
+        # only covered by the VPN's network route: gets a new host route
+        'get 198.51.100.2':
+            '  destination: 198.51.100.0\n  interface: utun1\n',
+        # has its own host route on the VPN: replaced, then put back
+        'get 203.0.113.5': '  destination: 203.0.113.5\n  interface: ipsec0\n',
+    }
+    mock_route.side_effect = lambda args: answers.get(args, '')
+
+    darwin = Darwin()
+    darwin.fix_local_routes()
+    assert [c for c in mock_route.mock_calls if 'get' not in c.args[0]] == [
+        call('add -host 198.51.100.2 127.0.0.1'),
+        call('delete -host 203.0.113.5'),
+        call('add -host 203.0.113.5 127.0.0.1'),
+    ]
+
+    mock_route.reset_mock()
+    darwin.restore_local_routes()
+    assert mock_route.mock_calls == [
+        call('delete -host 203.0.113.5'),
+        call('add -host 203.0.113.5 -interface ipsec0'),
+        call('delete -host 198.51.100.2'),
+    ]
+
+    mock_route.reset_mock()
+    darwin.restore_local_routes()
+    assert mock_route.mock_calls == []
+
+
 @patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.pf', Darwin())
+@patch('sshuttle.methods.pf.point_to_point_addrs', return_value=[])
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
-def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl):
+def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl,
+                               mock_addrs):
     mock_pfctl.side_effect = pfctl
 
     method = get_method('pf')
