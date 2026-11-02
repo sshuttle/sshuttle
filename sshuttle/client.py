@@ -954,7 +954,7 @@ def main(listenip_v6, listenip_v4,
         try:
             group = getgrnam(group).gr_gid
         except KeyError:
-            raise Fatal("Group %s does not exist." % user)
+            raise Fatal("Group %s does not exist." % group)
     required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
@@ -1013,6 +1013,7 @@ def main(listenip_v6, listenip_v4,
     feature_status("UDP ", required.udp, avail.udp)
     feature_status("DNS ", required.dns, avail.dns)
     feature_status("User", required.user, avail.user)
+    feature_status("Group", required.group, avail.group)
 
     # Exclude traffic destined to our listen addresses.
     if required.ipv4 and listenip_v4 and \
