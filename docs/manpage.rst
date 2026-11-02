@@ -239,6 +239,11 @@ Options
     to be made between latency and bandwidth without completely
     disabling latency control (with :option:`--no-latency-control`).
 
+.. option:: --wrap=<num>
+
+    Restart counting channel numbers after *num*. This option is
+    only meant for testing.
+
 .. option:: -D, --daemon
 
     Automatically fork into the background after connecting
@@ -265,6 +270,17 @@ Options
 
     Disable IPv6 support for methods that support it (nat, nft,
     tproxy, and pf).
+
+.. option:: --user=<user>
+
+    Apply all the rules only to this linux user. Only supported by
+    the nat method.
+
+.. option:: --group=<group>
+
+    Apply all the rules only to this linux group. Processes that have
+    this group as a supplementary group also match. Only supported by
+    the nat method.
 
 .. option:: --firewall
 
@@ -301,12 +317,29 @@ Options
     documentation above). Only works with the --sudoers-no-modify
     option.
 
+.. option:: --no-sudo-pythonpath
+
+    Do not set PYTHONPATH when invoking sudo (or doas) to start the
+    firewall manager. By default, it is set to the directory that
+    contains the :program:`sshuttle` package.
+
 .. option:: -t <mark>, --tmark=<mark>
 
     An option used by the tproxy method: Use the specified traffic
     mark. The mark must be a hexadecimal value. Defaults to 0x01.
 
-.. option:: --version
+.. option:: --namespace=<name>
+
+    (Linux only) Run inside of the net namespace with the given name,
+    as found in /var/run/netns. Cannot be combined with
+    :option:`--namespace-pid`.
+
+.. option:: --namespace-pid=<pid>
+
+    (Linux only) Run inside the net namespace used by the process
+    with the given pid. Cannot be combined with :option:`--namespace`.
+
+.. option:: -V, --version
 
     Print program version.
 
