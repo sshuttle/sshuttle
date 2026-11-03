@@ -51,6 +51,15 @@ def parse_subnetport(s):
     #
     # cidr is the mask defined with the slash notation
     host, cidr, fport, lport = m.groups()
+    fport = int(fport or 0)
+    lport = int(lport or fport)
+    for port in (fport, lport):
+        if not 0 <= port <= 65535:
+            raise Fatal('Port %d is not between 0 and 65535' % port)
+    if fport > lport:
+        raise Fatal('Invalid port range %d-%d: first port is greater '
+                    'than last' % (fport, lport))
+
     try:
         addrinfo = socket.getaddrinfo(host, 0, 0, socket.SOCK_STREAM)
     except socket.gaierror:
@@ -92,8 +101,7 @@ def parse_subnetport(s):
                             'not between 0 and %d'
                             % (cidr_to_use, max_cidr))
 
-        rv.append((family, addr[0], cidr_to_use,
-                   int(fport or 0), int(lport or fport or 0)))
+        rv.append((family, addr[0], cidr_to_use, fport, lport))
 
     return rv
 
