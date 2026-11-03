@@ -154,6 +154,12 @@ class Generic(object):
     def has_skip_loopback():
         return b'skip' in pfctl('-s Interfaces -i lo -v')[0]
 
+    def fix_local_routes(self):
+        pass
+
+    def restore_local_routes(self):
+        pass
+
 
 class FreeBsd(Generic):
     RULE_ACTION_OFFSET = 2968
@@ -348,6 +354,7 @@ class Darwin(FreeBsd):
 
         self.pfioc_rule = c_char * 3104
         self.pfioc_natlook = pfioc_natlook
+        self.local_routes = []
         super(Darwin, self).__init__()
 
     def enable(self):
@@ -373,6 +380,33 @@ class Darwin(FreeBsd):
 
     def _get_natlook_port(self, xport):
         return xport.port
+
+    def fix_local_routes(self):
+        # Redirected connections are answered from 127.0.0.1 to the client's
+        # source address. On a point-to-point interface such as a full-tunnel
+        # VPN, that address may not route through lo0, so the replies leave
+        # through the VPN and every redirected connection times out.
+        for addr in point_to_point_addrs():
+            route_info = route('get %s' % addr)
+            iface = re.search(r'interface: (\S+)', route_info)
+            if iface and iface.group(1) == 'lo0':
+                continue
+            dest = re.search(r'destination: (\S+)', route_info)
+            orig_iface = None
+            if iface and dest and dest.group(1) == addr:
+                # `route change` leaves an existing host route on the VPN
+                # interface, so it has to be replaced.
+                orig_iface = iface.group(1)
+                route('delete -host %s' % addr)
+            route('add -host %s 127.0.0.1' % addr)
+            self.local_routes.append((addr, orig_iface))
+
+    def restore_local_routes(self):
+        while self.local_routes:
+            addr, orig_iface = self.local_routes.pop()
+            route('delete -host %s' % addr)
+            if orig_iface:
+                route('add -host %s -interface %s' % (addr, orig_iface))
 
 
 class PfSense(FreeBsd):
@@ -409,6 +443,38 @@ def pfctl(args, stdin=None):
         raise Fatal('%r returned %d' % (argv, p.returncode))
 
     return o
+
+
+def run_network_tool(argv):
+    # These tools only support the local route fix-up, so a failure is logged
+    # rather than being fatal.
+    debug1('>> %s' % ' '.join(argv))
+    try:
+        p = ssubprocess.run(argv, stdout=ssubprocess.PIPE,
+                            stderr=ssubprocess.PIPE, env=get_env())
+    except OSError as e:
+        log('%r failed: %s' % (argv, e))
+        return ''
+    if p.returncode:
+        log('%r returned %d: %s' % (argv, p.returncode,
+                                    p.stderr.decode('ascii', 'replace')))
+    return p.stdout.decode('ascii', 'replace')
+
+
+def route(args):
+    return run_network_tool(['route', '-n'] + shlex.split(args))
+
+
+def point_to_point_addrs():
+    addrs = []
+    output = run_network_tool(['ifconfig', '-a'])
+    for block in re.split(r'^(?=\S)', output, flags=re.MULTILINE):
+        flags = re.search(r'flags=\w+<([^>]*)>', block)
+        if flags:
+            flags = flags.group(1).split(',')
+            if 'UP' in flags and 'POINTOPOINT' in flags:
+                addrs += re.findall(r'^\s+inet (\S+)', block, re.MULTILINE)
+    return addrs
 
 
 def pf_get_dev():
@@ -481,6 +547,8 @@ class Method(BaseMethod):
         pf.add_anchors(anchor)
         pf.add_rules(anchor, includes, port, dnsport, nslist, family)
         pf.enable()
+        if family == socket.AF_INET:
+            pf.fix_local_routes()
 
     def restore_firewall(self, port, family, udp, user, group):
         if family not in [socket.AF_INET, socket.AF_INET6]:
@@ -491,6 +559,8 @@ class Method(BaseMethod):
             raise Exception("UDP not supported by pf method_name")
 
         pf.disable(pf_get_anchor(family, port))
+        if family == socket.AF_INET:
+            pf.restore_local_routes()
 
     def firewall_command(self, line):
         if line.startswith('QUERY_PF_NAT '):
