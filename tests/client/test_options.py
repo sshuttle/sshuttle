@@ -125,6 +125,24 @@ def test_parse_subnetport_ip6_with_mask_and_port():
             == [(socket.AF_INET6, ip, 16, 80, 90)]
 
 
+def test_parse_subnetport_port_out_of_range():
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:1-65535') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 1, 65535)]
+    for s in ('10.0.0.0/8:70000', '10.0.0.0/8:80-70000',
+              '[fc00::/64]:70000', '[fc00::/64]:80-70000'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) == 'Port 70000 is not between 0 and 65535'
+
+
+def test_parse_subnetport_reversed_port_range():
+    for s in ('10.0.0.0/8:9000-8000', '[fc00::/64]:9000-8000'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) \
+            == 'Invalid port range 9000-8000: first port is greater than last'
+
+
 def test_convert_arg_line_to_args_skips_comments():
     parser = sshuttle.options.MyArgumentParser()
     assert parser.convert_arg_line_to_args("# whatever something") == []
