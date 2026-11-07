@@ -163,10 +163,20 @@ class Concat(Action):
         setattr(namespace, self.dest, curr_value + values)
 
 
+# When copying parameters from the command line to a file, some users
+# might copy the quotes they used on the command line into the config
+# file. We ignore these if the text starts and ends with the same quote.
+def strip_quotes(s):
+    if s.startswith("'") and s.endswith("'") or \
+       s.startswith('"') and s.endswith('"'):
+        return s[1:-1]
+    return s
+
+
 # Override one function in the ArgumentParser so that we can have
 # better control for how we parse files containing arguments. We
-# expect one argument per line, but strip whitespace/quotes from the
-# beginning/end of the lines.
+# expect one argument per line, or an option and its value on the same
+# line, but strip whitespace/quotes from the beginning/end of the lines.
 class MyArgumentParser(ArgumentParser):
     def convert_arg_line_to_args(self, arg_line):
         # Ignore comments
@@ -174,15 +184,14 @@ class MyArgumentParser(ArgumentParser):
             return []
 
         # strip whitespace at beginning and end of line
-        arg_line = arg_line.strip()
+        arg_line = strip_quotes(arg_line.strip())
 
-        # When copying parameters from the command line to a file,
-        # some users might copy the quotes they used on the command
-        # line into the config file. We ignore these if the line
-        # starts and ends with the same quote.
-        if arg_line.startswith("'") and arg_line.endswith("'") or \
-           arg_line.startswith('"') and arg_line.endswith('"'):
-            arg_line = arg_line[1:-1]
+        # Split an option from the value that follows it on the line.
+        # Left whole, argparse reads "-r host" as the value " host" and
+        # doesn't recognize "--remote host" as an option at all.
+        match = re.match(r'(-\w|--\w[\w-]*)\s+(.+)$', arg_line)
+        if match:
+            return [match.group(1), strip_quotes(match.group(2))]
 
         return [arg_line]
 
