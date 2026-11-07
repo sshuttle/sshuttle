@@ -193,14 +193,21 @@ def test_point_to_point_addrs(mock_tool):
 @patch('sshuttle.methods.pf.ssubprocess.run')
 def test_run_network_tool_failure_is_not_fatal(mock_run, mock_log):
     mock_run.side_effect = OSError('not found')
-    assert run_network_tool(['route', 'get', '192.0.2.1']) == ''
+    assert run_network_tool(['route', 'get', '192.0.2.1']) is None
+    assert mock_log.called
+
+    mock_log.reset_mock()
+    mock_run.side_effect = None
+    mock_run.return_value = Mock(returncode=1, stdout=b'', stderr=b'err')
+    assert run_network_tool(['route', 'get', '192.0.2.1']) is None
     assert mock_log.called
 
 
 @patch('sshuttle.methods.pf.route')
 @patch('sshuttle.methods.pf.point_to_point_addrs')
 def test_local_routes_darwin(mock_addrs, mock_route):
-    mock_addrs.return_value = ['127.0.0.2', '198.51.100.2', '203.0.113.5']
+    mock_addrs.return_value = [
+        '127.0.0.2', '198.51.100.2', '203.0.113.5', '203.0.113.7']
     answers = {
         # already local: left alone
         'get 127.0.0.2': '  destination: 127.0.0.2\n  interface: lo0\n',
@@ -209,6 +216,10 @@ def test_local_routes_darwin(mock_addrs, mock_route):
             '  destination: 198.51.100.0\n  interface: utun1\n',
         # has its own host route on the VPN: replaced, then put back
         'get 203.0.113.5': '  destination: 203.0.113.5\n  interface: ipsec0\n',
+        # host route with a gateway: the gateway is put back
+        'get 203.0.113.7': '  destination: 203.0.113.7\n'
+                           '      gateway: 203.0.113.1\n'
+                           '    interface: utun4\n',
     }
     mock_route.side_effect = lambda args: answers.get(args, '')
 
@@ -218,11 +229,15 @@ def test_local_routes_darwin(mock_addrs, mock_route):
         call('add -host 198.51.100.2 127.0.0.1'),
         call('delete -host 203.0.113.5'),
         call('add -host 203.0.113.5 127.0.0.1'),
+        call('delete -host 203.0.113.7'),
+        call('add -host 203.0.113.7 127.0.0.1'),
     ]
 
     mock_route.reset_mock()
     darwin.restore_local_routes()
     assert mock_route.mock_calls == [
+        call('delete -host 203.0.113.7'),
+        call('add -host 203.0.113.7 203.0.113.1'),
         call('delete -host 203.0.113.5'),
         call('add -host 203.0.113.5 -interface ipsec0'),
         call('delete -host 198.51.100.2'),
@@ -233,15 +248,54 @@ def test_local_routes_darwin(mock_addrs, mock_route):
     assert mock_route.mock_calls == []
 
 
+@patch('sshuttle.methods.pf.route')
+@patch('sshuttle.methods.pf.point_to_point_addrs')
+def test_local_routes_darwin_failures(mock_addrs, mock_route):
+    mock_addrs.return_value = ['198.51.100.2', '203.0.113.5', '203.0.113.6']
+    answers = {
+        'get 198.51.100.2':
+            '  destination: 198.51.100.0\n  interface: utun1\n',
+        'get 203.0.113.5': '  destination: 203.0.113.5\n  interface: ipsec0\n',
+        'get 203.0.113.6': '  destination: 203.0.113.6\n  interface: ipsec0\n',
+        # the original host route can't be removed: nothing else is tried
+        'delete -host 203.0.113.6': None,
+        # the loopback routes can't be added
+        'add -host 198.51.100.2 127.0.0.1': None,
+        'add -host 203.0.113.5 127.0.0.1': None,
+    }
+    mock_route.side_effect = lambda args: answers.get(args, '')
+
+    darwin = Darwin()
+    darwin.fix_local_routes()
+    assert [c for c in mock_route.mock_calls if 'get' not in c.args[0]] == [
+        call('add -host 198.51.100.2 127.0.0.1'),
+        call('delete -host 203.0.113.5'),
+        call('add -host 203.0.113.5 127.0.0.1'),
+        # the deleted host route is put straight back
+        call('add -host 203.0.113.5 -interface ipsec0'),
+        call('delete -host 203.0.113.6'),
+    ]
+
+    # nothing was changed, so there is nothing to restore
+    mock_route.reset_mock()
+    darwin.restore_local_routes()
+    assert mock_route.mock_calls == []
+
+
 @patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.pf', Darwin())
-@patch('sshuttle.methods.pf.point_to_point_addrs', return_value=[])
+@patch('sshuttle.methods.pf.route')
+@patch('sshuttle.methods.pf.point_to_point_addrs')
 @patch('sshuttle.methods.pf.pfctl')
 @patch('sshuttle.methods.pf.ioctl')
 @patch('sshuttle.methods.pf.pf_get_dev')
 def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl,
-                               mock_addrs):
+                               mock_addrs, mock_route):
     mock_pfctl.side_effect = pfctl
+    mock_addrs.return_value = ['198.51.100.2']
+    mock_route.side_effect = lambda args: (
+        '  destination: 198.51.100.0\n  interface: utun1\n'
+        if args.startswith('get ') else '')
 
     method = get_method('pf')
     assert method.name == 'pf'
@@ -284,6 +338,9 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
     ]
+    # the local route fix-up is IPv4 only
+    assert mock_addrs.mock_calls == []
+    assert mock_route.mock_calls == []
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
@@ -338,9 +395,15 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl,
              b'to <dns_servers> port 53 keep state\n'),
         call('-E'),
     ]
+    mock_addrs.assert_called_once_with()
+    assert mock_route.mock_calls == [
+        call('get 198.51.100.2'),
+        call('add -host 198.51.100.2 127.0.0.1'),
+    ]
     mock_pf_get_dev.reset_mock()
     mock_ioctl.reset_mock()
     mock_pfctl.reset_mock()
+    mock_route.reset_mock()
 
     method.restore_firewall(1025, AF_INET, False, None, None)
     assert mock_ioctl.mock_calls == []
@@ -348,9 +411,27 @@ def test_setup_firewall_darwin(mock_pf_get_dev, mock_ioctl, mock_pfctl,
         call('-a sshuttle-1025 -F all'),
         call("-X abcdefg"),
     ]
+    assert mock_route.mock_calls == [call('delete -host 198.51.100.2')]
     mock_pf_get_dev.reset_mock()
     mock_pfctl.reset_mock()
     mock_ioctl.reset_mock()
+    mock_route.reset_mock()
+
+    # the routes are restored even if pf can't be disabled
+    method.setup_firewall(
+        1025, 1027,
+        [(AF_INET, u'1.2.3.33')],
+        AF_INET,
+        [(AF_INET, 24, False, u'1.2.3.0', 0, 0)],
+        False,
+        None,
+        None,
+        '0x01')
+    mock_route.reset_mock()
+    with patch('sshuttle.methods.pf.pf.disable', side_effect=Fatal('x')):
+        with pytest.raises(Fatal):
+            method.restore_firewall(1025, AF_INET, False, None, None)
+    assert mock_route.mock_calls == [call('delete -host 198.51.100.2')]
 
 
 @pytest.mark.parametrize("pf_class", [FreeBsd, Darwin])
