@@ -366,6 +366,12 @@ Arguments read from a file must be one per line, as shown below::
     --option2
     value2
 
+An option and its value can also share a line, as they would on the
+command line::
+
+    --option1 value1
+    -r user@example.com
+
 The configuration file supports comments for human-readable
 annotations. For example::
 
