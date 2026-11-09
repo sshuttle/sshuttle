@@ -148,6 +148,49 @@ def test_convert_arg_line_to_args_skips_comments():
     assert parser.convert_arg_line_to_args("# whatever something") == []
 
 
+@pytest.mark.parametrize("line, expected", [
+    ("-r user@example.com", ["-r", "user@example.com"]),
+    ("--remote user@example.com", ["--remote", "user@example.com"]),
+    ("  -r\texample.com  ", ["-r", "example.com"]),
+    ("--ssh-cmd ssh -i key", ["--ssh-cmd", "ssh -i key"]),
+    ("-e 'ssh -i key'", ["-e", "ssh -i key"]),
+    ("-e \"ssh -i key\"", ["-e", "ssh -i key"]),
+    ("'-e ssh -i key'", ["-e", "ssh -i key"]),
+])
+def test_convert_arg_line_to_args_splits_option_and_value(line, expected):
+    parser = sshuttle.options.MyArgumentParser()
+    assert parser.convert_arg_line_to_args(line) == expected
+
+
+@pytest.mark.parametrize("line, expected", [
+    ("--remote", "--remote"),
+    ("user@example.com", "user@example.com"),
+    ("192.168.0.0/16", "192.168.0.0/16"),
+    ("-vvv", "-vvv"),
+    ("--ssh-cmd=ssh -i key", "--ssh-cmd=ssh -i key"),
+    ("'--ssh-cmd=ssh -i key'", "--ssh-cmd=ssh -i key"),
+    ("-essh -i key", "-essh -i key"),
+])
+def test_convert_arg_line_to_args_keeps_single_arguments(line, expected):
+    parser = sshuttle.options.MyArgumentParser()
+    assert parser.convert_arg_line_to_args(line) == [expected]
+
+
+def test_parse_args_reads_option_and_value_from_one_line(tmp_path):
+    config = tmp_path / "sshuttle.conf"
+    config.write_text(
+        "-r user@example.com\n"
+        "--exclude 10.0.0.1\n"
+        "-e ssh -i key\n"
+        "10.0.0.0/8\n"
+    )
+    opt = sshuttle.options.parser.parse_args(["@%s" % config])
+    assert opt.remote == "user@example.com"
+    assert opt.ssh_cmd == "ssh -i key"
+    assert opt.exclude == [[(socket.AF_INET, "10.0.0.1", 32, 0, 0)]]
+    assert opt.subnets == [[(socket.AF_INET, "10.0.0.0", 8, 0, 0)]]
+
+
 @patch('sshuttle.options.socket.getaddrinfo', side_effect=_mock_getaddrinfo)
 def test_parse_subnetport_host(mock_getaddrinfo):
     assert set(sshuttle.options.parse_subnetport('example.com')) \
