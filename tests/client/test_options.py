@@ -143,6 +143,16 @@ def test_parse_subnetport_reversed_port_range():
             == 'Invalid port range 9000-8000: first port is greater than last'
 
 
+def test_parse_ipport_invalid_port():
+    # used to fail with "Unable to resolve address: 127.0.0.1"
+    with pytest.raises(Fatal, match='Port 70000 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('127.0.0.1:70000')
+    with pytest.raises(Fatal, match='Port 70000 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('70000')
+    with pytest.raises(Fatal, match='Port 99999 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('[::1]:99999')
+
+
 def test_convert_arg_line_to_args_skips_comments():
     parser = sshuttle.options.MyArgumentParser()
     assert parser.convert_arg_line_to_args("# whatever something") == []

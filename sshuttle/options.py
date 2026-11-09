@@ -125,6 +125,8 @@ def parse_ipport(s):
     host, port = m.groups()
     host = host or '0.0.0.0'
     port = int(port or 0)
+    if not 0 <= port <= 65535:
+        raise Fatal('Port %d is not between 0 and 65535' % port)
 
     try:
         addrinfo = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
