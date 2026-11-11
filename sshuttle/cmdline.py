@@ -98,9 +98,9 @@ def main():
                 ipport_v4 = "auto"
                 # parse_ipport6('[::1]:0')
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
-            try:
-                int(opt.tmark, 16)
-            except ValueError:
+            # a 32-bit firewall mark; int(x, 16) alone would also accept
+            # signs, underscores and spaces, which break the firewall rules
+            if not re.fullmatch(r'(0x)?[0-9a-f]{1,8}', opt.tmark, re.I):
                 parser.error("--tmark must be a hexadecimal value")
             opt.tmark = opt.tmark.lower()   # make 'x' in 0x lowercase
             if not opt.tmark.startswith("0x"):  # accept without 0x prefix
