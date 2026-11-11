@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 import sshuttle.options
+from sshuttle import client, cmdline
 
 _ip4_reprs = {
         '0.0.0.0': '0.0.0.0',
@@ -349,3 +350,16 @@ print(json.dumps({'namespace': parsed.namespace}))
             'sshuttle: error: argument --namespace: %r is not a valid namespace name.'
             % namespace
         )
+
+
+def test_invalid_listen_is_a_usage_error(capsys):
+    argv = ['sshuttle', '-l', 'foo:bar', '-r', 'example.invalid', '0/0']
+    with patch.object(sys, 'argv', argv), \
+            patch.dict('os.environ', {}, clear=True), \
+            patch.object(client, 'main', return_value=0) as main, \
+            pytest.raises(SystemExit) as excinfo:
+        cmdline.main()
+    assert excinfo.value.code == 2
+    assert ("argument -l/--listen: 'foo:bar' is not a valid IP:port format"
+            in capsys.readouterr().err)
+    main.assert_not_called()
