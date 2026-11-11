@@ -3,6 +3,7 @@ import re
 import shlex
 import socket
 import sys
+from argparse import ArgumentTypeError
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
@@ -84,7 +85,10 @@ def main():
                 ipport_v4 = None
                 lst = opt.listen.split(",")
                 for ip in lst:
-                    family, ip, port = parse_ipport(ip)
+                    try:
+                        family, ip, port = parse_ipport(ip)
+                    except ArgumentTypeError as e:
+                        parser.error('argument -l/--listen: %s' % e)
                     if family == socket.AF_INET6:
                         ipport_v6 = (ip, port)
                     else:
