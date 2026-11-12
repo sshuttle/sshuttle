@@ -1,10 +1,16 @@
 import errno
 import io
+import os
 import socket
+import struct
+import threading
 import time
 
 from unittest.mock import patch, Mock
 
+import pytest
+
+import sshuttle.helpers
 import sshuttle.server
 import sshuttle.ssnet as ssnet
 
@@ -146,3 +152,87 @@ def test_start_hostwatch_without_fork(monkeypatch):
         assert sshuttle.server.start_hostwatch(['host1'], True) is None
     mock_socketpair.assert_not_called()
     assert '--auto-hosts' in mock_log.call_args[0][0]
+
+
+def _packet(channel, cmd, data=b''):
+    return struct.pack('!ccHHH', b'S', b'S', channel, cmd, len(data)) + data
+
+
+def _read_packets(sock, until, timeout=5.0):
+    """Mux packets from sock, up to and including the packet `until`."""
+    sock.settimeout(timeout)
+    buf = b''
+    packets = []
+    try:
+        while until not in packets:
+            chunk = sock.recv(65536)
+            if not chunk:
+                break
+            buf += chunk
+            while len(buf) >= ssnet.HDR_LEN:
+                _, _, channel, cmd, size = struct.unpack(
+                    '!ccHHH', buf[:ssnet.HDR_LEN])
+                if len(buf) < ssnet.HDR_LEN + size:
+                    break
+                packets.append(
+                    (channel, cmd, buf[ssnet.HDR_LEN:ssnet.HDR_LEN + size]))
+                buf = buf[ssnet.HDR_LEN + size:]
+    except socket.timeout:
+        pass
+    return packets
+
+
+@pytest.mark.parametrize("opening", [
+    [(1, ssnet.CMD_TCP_CONNECT, b'%d,127.0.0.1,9' % socket.AF_INET)],
+    [(2, ssnet.CMD_UDP_OPEN, b'%d' % socket.AF_INET),
+     (2, ssnet.CMD_UDP_DATA, b'127.0.0.1,9,payload')],
+    [(3, ssnet.CMD_DNS_REQ, b'query')],
+], ids=['tcp', 'udp', 'dns'])
+def test_server_survives_running_out_of_file_descriptors(opening, monkeypatch):
+    """The real server loop on a socketpair, with the process really out of
+    descriptors when a new channel needs a socket."""
+    resource = pytest.importorskip('resource')
+    monkeypatch.setattr(sshuttle.helpers, 'logprefix',
+                        sshuttle.helpers.logprefix)
+    ours, theirs = socket.socketpair()
+    stdio = [theirs.makefile('rb', buffering=0),
+             theirs.makefile('wb', buffering=0)]
+    with patch.object(sshuttle.server.io, 'FileIO', side_effect=stdio):
+        server = threading.Thread(
+            target=sshuttle.server.main,
+            args=(False, ssnet.LATENCY_BUFFER_SIZE, False, '127.0.0.1@53',
+                  False), daemon=True)
+        server.start()
+        ready = (0, ssnet.CMD_ROUTES, b'')
+        assert ready in _read_packets(ours, ready)
+
+    limits = resource.getrlimit(resource.RLIMIT_NOFILE)
+    hogs = []
+    try:
+        resource.setrlimit(resource.RLIMIT_NOFILE,
+                           (min(limits[0], 256), limits[1]))
+        try:
+            while True:
+                hogs.append(os.open(os.devnull, os.O_RDONLY))
+        except OSError:
+            pass
+        alive = (0, ssnet.CMD_PONG, b'alive?')
+        ours.sendall(b''.join(_packet(*p) for p in opening) +
+                     _packet(0, ssnet.CMD_PING, b'alive?'))
+        replies = _read_packets(ours, alive)
+    finally:
+        for fd in hogs:
+            os.close(fd)
+        resource.setrlimit(resource.RLIMIT_NOFILE, limits)
+
+    assert alive in replies
+    assert server.is_alive()
+    if opening[0][1] == ssnet.CMD_TCP_CONNECT:
+        # the client is told that the connection is over
+        assert (1, ssnet.CMD_TCP_EOF, b'') in replies
+        assert (1, ssnet.CMD_TCP_STOP_SENDING, b'') in replies
+    ours.sendall(_packet(0, ssnet.CMD_EXIT))
+    server.join(5)
+    assert not server.is_alive()
+    ours.close()
+    theirs.close()
