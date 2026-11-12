@@ -1,6 +1,11 @@
 import queue
+import select
 import socket
+import struct
 import time
+from unittest.mock import Mock
+
+import pytest
 
 import sshuttle.ssnet as ssnet
 
@@ -100,3 +105,102 @@ def test_proxy_dispose_leaves_the_mux_alone():
     while 'real' not in closed and time.monotonic() < deadline:
         time.sleep(0.01)
     assert closed == ['real']
+
+
+@pytest.fixture
+def above_fd_setsize():
+    """Returns a function that moves a socket to a descriptor numbered
+    1024 (FD_SETSIZE) or more, which select() cannot watch."""
+    fcntl = pytest.importorskip('fcntl')
+    resource = pytest.importorskip('resource')
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    want = 1024 + 64
+    if soft < want:
+        if hard != resource.RLIM_INFINITY and hard < want:
+            pytest.skip('the open file limit cannot be raised above 1024')
+        resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+    moved = []
+
+    def move(sock):
+        high = socket.socket(
+            fileno=fcntl.fcntl(sock.fileno(), fcntl.F_DUPFD, 1024))
+        sock.close()
+        moved.append(high)
+        return high
+
+    yield move
+    for sock in moved:
+        sock.close()
+    resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+
+
+def test_runonce_relays_on_descriptors_above_fd_setsize(above_fd_setsize):
+    """With about a thousand connections open, new sockets get descriptors
+    that select() rejects with "filedescriptor out of range in select()"."""
+    a, a_peer = socket.socketpair()
+    b, b_peer = socket.socketpair()
+    a, b = above_fd_setsize(a), above_fd_setsize(b)
+    assert min(a.fileno(), b.fileno()) >= 1024
+    handlers = [ssnet.Proxy(ssnet.SockWrapper(a, a), ssnet.SockWrapper(b, b))]
+    try:
+        a_peer.sendall(b'ping')
+        ssnet.runonce(handlers, Mock(fullness=0, too_full=False))
+        b_peer.settimeout(5)
+        assert b_peer.recv(16) == b'ping'
+    finally:
+        a_peer.close()
+        b_peer.close()
+
+
+def test_mux_callback_on_descriptors_above_fd_setsize(above_fd_setsize):
+    def packet(cmd, data):
+        return struct.pack('!ccHHH', b'S', b'S', 0, cmd, len(data)) + data
+
+    ours, theirs = socket.socketpair()
+    ours = above_fd_setsize(ours)
+    assert ours.fileno() >= 1024
+    mux = ssnet.Mux(ours.makefile('rb', buffering=0),
+                    ours.makefile('wb', buffering=0))
+    try:
+        theirs.sendall(packet(ssnet.CMD_PING, b'hi'))
+        mux.callback(None)
+        while mux.outbuf:  # one queued packet is written per call
+            mux.callback(None)
+        theirs.settimeout(5)
+        expected = (packet(ssnet.CMD_PING, b'chicken') +
+                    packet(ssnet.CMD_PONG, b'hi'))
+        received = b''
+        while len(received) < len(expected):
+            received += theirs.recv(64)
+        assert received == expected
+    finally:
+        theirs.close()
+
+
+def test_select_above_fd_setsize_reports_what_select_does(above_fd_setsize):
+    a, b = socket.socketpair()
+    a, b = above_fd_setsize(a), above_fd_setsize(b)
+    # two objects on one descriptor, like the client's mux rfile and wfile
+    rfile = a.makefile('rb', buffering=0)
+    wfile = a.makefile('wb', buffering=0)
+    with pytest.raises(ValueError):
+        select.select([a], [], [], 0)
+    assert ssnet._select([rfile, b], [wfile], [], 0) == ([], [wfile], [])
+    b.send(b'x')
+    assert ssnet._select([rfile, b], [wfile], [], 0) == ([rfile], [wfile], [])
+    assert ssnet._select([rfile, a.fileno()], [], [], 0) == \
+        ([rfile, a.fileno()], [], [])
+    a.recv(1)
+    assert ssnet._select([rfile], [], [], 0.01) == ([], [], [])
+    b.close()  # end of file counts as readable
+    assert ssnet._select([rfile], [], []) == ([rfile], [], [])
+
+
+def test_select_without_poll_still_refuses_high_descriptors(
+        above_fd_setsize, monkeypatch):
+    a, b = socket.socketpair()
+    a = above_fd_setsize(a)
+    b.close()
+    monkeypatch.delattr(select, 'poll', raising=False)
+    with pytest.raises(ValueError):
+        ssnet._select([a], [], [], 0)

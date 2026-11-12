@@ -135,15 +135,49 @@ def _add(socks, elem):
         socks.append(elem)
 
 
+def _fd(sock):
+    try:
+        return sock.fileno()
+    except AttributeError:
+        return sock
+
+
 def _fds(socks):
-    out = []
-    for i in socks:
-        try:
-            out.append(i.fileno())
-        except AttributeError:
-            out.append(i)
-    out.sort()
-    return out
+    return sorted(_fd(i) for i in socks)
+
+
+def _select(r, w, x, timeout=None):
+    """select.select() for descriptors of any number.
+
+    select() cannot watch a descriptor numbered FD_SETSIZE (1024) or more,
+    whatever the open file limit is. When it refuses, use poll() instead.
+    """
+    try:
+        return select.select(r, w, x, timeout)
+    except ValueError:
+        if not hasattr(select, 'poll'):  # Windows
+            raise
+    masks = {}
+    for socks, mask in ((r, select.POLLIN), (w, select.POLLOUT),
+                        (x, select.POLLPRI)):
+        for s in socks:
+            fd = _fd(s)
+            masks[fd] = masks.get(fd, 0) | mask
+    poller = select.poll()
+    for fd, mask in masks.items():
+        poller.register(fd, mask)
+    events = dict(poller.poll(None if timeout is None else timeout * 1000))
+    if any(ev & select.POLLNVAL for ev in events.values()):
+        raise OSError(errno.EBADF, os.strerror(errno.EBADF))
+    # poll() reports errors and hangups whether asked to or not; select()
+    # reports them as readable and writable, and so must we, or the caller
+    # would be woken up forever without being told why.
+    bad = select.POLLERR | select.POLLHUP
+
+    def ready(socks, mask):
+        return [s for s in socks if events.get(_fd(s), 0) & mask]
+    return (ready(r, select.POLLIN | bad), ready(w, select.POLLOUT | bad),
+            ready(x, select.POLLPRI))
 
 
 def _nb_clean(func, *args):
@@ -373,7 +407,7 @@ class Handler:
 
     def callback(self, sock):
         log('--no callback defined-- %r' % self)
-        (r, _, _) = select.select(self.socks, [], [], 0)
+        (r, _, _) = _select(self.socks, [], [], 0)
         for s in r:
             v = s.recv(4096)
             if not v:
@@ -584,7 +618,7 @@ class Mux(Handler):
             _add(w, self.wfile)
 
     def callback(self, sock):
-        (r, w, _) = select.select([self.rfile], [self.wfile], [], 0)
+        (r, w, _) = _select([self.rfile], [self.wfile], [], 0)
         if self.rfile in r:
             self.handle()
         if self.outbuf and self.wfile in w:
@@ -696,7 +730,7 @@ def runonce(handlers, mux):
     debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
            % (len(handlers), _fds(r), _fds(w), _fds(x),
                mux.fullness, mux.too_full))
-    (r, w, x) = select.select(r, w, x)
+    (r, w, x) = _select(r, w, x)
     debug2('  Ready: %d r=%r w=%r x=%r'
            % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r + w + x
