@@ -119,6 +119,18 @@ def daemon_cleanup():
             raise
 
 
+def ipv6_supported():
+    """False when the kernel has no IPv6 at all (e.g. Linux booted with
+    ipv6.disable=1), so not even an IPv6 socket can be created."""
+    try:
+        socket.socket(socket.AF_INET6, socket.SOCK_STREAM).close()
+    except OSError as e:
+        if e.errno != errno.EAFNOSUPPORT:
+            raise
+        return False
+    return True
+
+
 class MultiListener:
 
     def __init__(self, kind=socket.SOCK_STREAM, proto=0):
@@ -919,7 +931,10 @@ def main(listenip_v6, listenip_v4,
     if listenip_v6 is None:
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
-        if avail.ipv6:
+        if avail.ipv6 and not ipv6_supported():
+            debug1("IPv6 disabled since this system does not support it.")
+            listenip_v6 = None
+        elif avail.ipv6:
             listenip_v6 = ('::1' if avail.loopback_proxy_port else '::', 0)
             debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:

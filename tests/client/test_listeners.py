@@ -218,6 +218,56 @@ def test_real_port_race_fails_at_listen(dual_stack):
         loser.close()
 
 
+def _no_ipv6_socket(family, *args):
+    """socket.socket() on a kernel without IPv6 (Linux ipv6.disable=1)."""
+    if family == socket.AF_INET6:
+        raise OSError(errno.EAFNOSUPPORT,
+                      "Address family not supported by protocol")
+    return Mock()
+
+
+@pytest.mark.parametrize("udp", [False, True])
+def test_default_listeners_skip_ipv6_when_the_kernel_has_none(udp):
+    features = Features()
+    for name in ("ipv4", "ipv6", "dns", "loopback_proxy_port"):
+        setattr(features, name, True)
+    features.udp = udp
+    features.user = features.group = False
+    fw = Mock()
+    fw.method.assert_features = Mock()
+    fw.method.get_supported_features.return_value = features
+    fw.method.name = "fake"
+    args = {name: None for name in inspect.signature(client.main).parameters}
+    args.update(listenip_v6="auto", listenip_v4="auto",
+                remotename="example.invalid", nslist=[],
+                subnets_include=[(socket.AF_INET, "10.0.0.0", 8, 0, 0)],
+                subnets_exclude=[], daemon=False)
+    with patch.object(client, "FirewallClient", return_value=fw), \
+            patch.object(client.socket, "socket", side_effect=_no_ipv6_socket), \
+            patch.object(client.ssh, "parse_hostname", return_value=(None, None, None)), \
+            patch.object(client, "_main", return_value=0) as _main:
+        assert client.main(**args) == 0
+    redirectport_v6, redirectport_v4 = fw.setup.call_args.args[3:5]
+    assert (redirectport_v6, redirectport_v4) == (0, 12300)
+    tcp_listener, udp_listener = _main.call_args.args[:2]
+    assert tcp_listener.v6 is None and tcp_listener.v4 is not None
+    assert (udp_listener is not None) == udp
+
+
+def test_ipv6_supported_only_hides_a_missing_address_family():
+    with patch.object(client.socket, "socket", side_effect=_no_ipv6_socket):
+        assert client.ipv6_supported() is False
+    with patch.object(client.socket, "socket",
+                      side_effect=OSError(errno.EMFILE, "Too many open files")):
+        with pytest.raises(OSError) as exc:
+            client.ipv6_supported()
+    assert exc.value.errno == errno.EMFILE
+    sock = Mock()
+    with patch.object(client.socket, "socket", return_value=sock):
+        assert client.ipv6_supported() is True
+    sock.close.assert_called_once_with()
+
+
 def test_dns_done_survives_a_failed_reply_send():
     """An unreachable DNS client must not crash the whole tunnel."""
     method = Mock()
