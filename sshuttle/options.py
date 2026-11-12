@@ -181,12 +181,14 @@ def strip_quotes(s):
 # line, but strip whitespace/quotes from the beginning/end of the lines.
 class MyArgumentParser(ArgumentParser):
     def convert_arg_line_to_args(self, arg_line):
-        # Ignore comments
-        if arg_line.startswith("#"):
+        # strip whitespace at beginning and end of line
+        arg_line = arg_line.strip()
+
+        # Ignore blank lines and comments, including indented ones
+        if not arg_line or arg_line.startswith("#"):
             return []
 
-        # strip whitespace at beginning and end of line
-        arg_line = strip_quotes(arg_line.strip())
+        arg_line = strip_quotes(arg_line)
 
         # Split an option from the value that follows it on the line.
         # Left whole, argparse reads "-r host" as the value " host" and
