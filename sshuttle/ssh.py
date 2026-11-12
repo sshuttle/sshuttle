@@ -113,7 +113,11 @@ def parse_hostport(rhostport):
             except ValueError:
                 # else if both fails, we have a hostname with port
                 host = parsed.hostname
-            port = parsed.port
+            try:
+                port = parsed.port
+            except ValueError:
+                raise Fatal("--remote %r does not have a valid port; it must "
+                            "be a number between 0 and 65535" % rhostport)
 
     if password is None or len(password) == 0:
         password = None
