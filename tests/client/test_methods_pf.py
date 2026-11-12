@@ -284,6 +284,35 @@ def test_local_routes_darwin_failures(mock_addrs, mock_route):
 
 @patch('sshuttle.helpers.verbose', new=3)
 @patch('sshuttle.methods.pf.pf', Darwin())
+@patch('sshuttle.methods.pf.pfctl')
+@patch('sshuttle.methods.pf.ioctl')
+@patch('sshuttle.methods.pf.pf_get_dev')
+def test_setup_firewall_darwin_dns_only(mock_pf_get_dev, mock_ioctl,
+                                        mock_pfctl):
+    # firewall.main() also sets up a family that only has a nameserver,
+    # e.g. an IPv6 DNS server with IPv4-only subnets like 0/0.
+    mock_pfctl.side_effect = pfctl
+    method = get_method('pf')
+    method.setup_firewall(
+        1024, 1026,
+        [(AF_INET6, u'2404:6800:4004:80c::33')],
+        AF_INET6,
+        [],
+        False,
+        None,
+        None,
+        '0x01')
+    assert call('-a sshuttle6-1024 -f /dev/stdin',
+                b'table <dns_servers> {2404:6800:4004:80c::33}\n'
+                b'rdr pass on lo0 inet6 proto udp '
+                b'to <dns_servers> port 53 -> ::1 port 1026\n'
+                b'pass out quick route-to lo0 inet6 proto udp '
+                b'to <dns_servers> port 53 keep state\n') \
+        in mock_pfctl.mock_calls
+
+
+@patch('sshuttle.helpers.verbose', new=3)
+@patch('sshuttle.methods.pf.pf', Darwin())
 @patch('sshuttle.methods.pf.route')
 @patch('sshuttle.methods.pf.point_to_point_addrs')
 @patch('sshuttle.methods.pf.pfctl')

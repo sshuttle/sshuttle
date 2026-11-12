@@ -542,8 +542,9 @@ class Method(BaseMethod):
         if udp:
             raise Exception("UDP not supported by pf method_name")
 
+        # A family can be set up for its nameservers alone, with no subnets.
+        includes = []
         if subnets:
-            includes = []
             # If a given subnet is both included and excluded, list the
             # exclusion first; the table will ignore the second, opposite
             # definition
