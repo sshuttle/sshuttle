@@ -265,6 +265,11 @@ def test_parse_namespace():
         'my.long_namespace.with.multiple.dots',
         '@my.long_namespace.with.multiple.dots',
         'my.Namespace.With.Mixed.Case',
+        'a',
+        '_',
+        '@a',
+        'a.b',
+        'ns1.x',
     ]
 
     for namespace in valid_namespaces:
