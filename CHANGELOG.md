@@ -1,5 +1,49 @@
 # Changelog
 
+## [2.1.0](https://github.com/sshuttle/sshuttle/compare/v2.0.0...v2.1.0) (2026-11-12)
+
+
+### Features
+
+* Add an option to skip systemd DNS cache flushing ([#1287](https://github.com/sshuttle/sshuttle/issues/1287)) ([ff533a6](https://github.com/sshuttle/sshuttle/commit/ff533a690a83693cc7f5d68f6f61fc300223a8ba))
+* expand --group to utilizie iptables  --suppl-groups ([#1285](https://github.com/sshuttle/sshuttle/issues/1285)) ([208f215](https://github.com/sshuttle/sshuttle/commit/208f215ffcec650f4d19f321d023d0b3c9aef854))
+
+
+### Bug Fixes
+
+* accept an option and its value on one config file line ([#1308](https://github.com/sshuttle/sshuttle/issues/1308)) ([9261031](https://github.com/sshuttle/sshuttle/commit/92610316ce9a7f1ca3152ff52b91cf0d1d88a733)), closes [#302](https://github.com/sshuttle/sshuttle/issues/302)
+* accept one-character namespace names and segments ([#1322](https://github.com/sshuttle/sshuttle/issues/1322)) ([f56f371](https://github.com/sshuttle/sshuttle/commit/f56f37119d4b83e723e2e3c830e04558de0c9068))
+* allow prompt restart of fixed-port TCP listeners ([#1289](https://github.com/sshuttle/sshuttle/issues/1289)) ([c03f847](https://github.com/sshuttle/sshuttle/commit/c03f847032417bfb54c072bf1af5dd1bea5a8adb))
+* avoid dual-stack listener conflicts and track explicit ports ([#1261](https://github.com/sshuttle/sshuttle/issues/1261)) ([3db9616](https://github.com/sshuttle/sshuttle/commit/3db9616f3226217fcefe13510f0230e303ad9538))
+* don't auto-exclude the remote's IPv6 address when IPv6 is off ([#1316](https://github.com/sshuttle/sshuttle/issues/1316)) ([59c010c](https://github.com/sshuttle/sshuttle/commit/59c010c4cdcbd53f2c097448e25759114a2a6b1f))
+* don't let --auto-nets override excluded subnets ([#1296](https://github.com/sshuttle/sshuttle/issues/1296)) ([0177ed3](https://github.com/sshuttle/sshuttle/commit/0177ed36c24236d5a1e3e04ea7a1efe9b3f3b658)), closes [#1014](https://github.com/sshuttle/sshuttle/issues/1014)
+* drop the zone id of a link-local nameserver from nft rules ([#1272](https://github.com/sshuttle/sshuttle/issues/1272)) ([8fa1f3c](https://github.com/sshuttle/sshuttle/commit/8fa1f3c63dbb830bc51b9d5732c35d83fa4b5215))
+* ignore blank lines and indented comments in config files ([#1319](https://github.com/sshuttle/sshuttle/issues/1319)) ([8eb78c4](https://github.com/sshuttle/sshuttle/commit/8eb78c40f69d0154e912fbc81556f030eefafedb))
+* keep running with more than 1024 open file descriptors ([#1315](https://github.com/sshuttle/sshuttle/issues/1315)) ([c8e3572](https://github.com/sshuttle/sshuttle/commit/c8e35725dc717c710019b56d15fa2df204fba294))
+* keep the server running when a nameserver is unreachable ([#1318](https://github.com/sshuttle/sshuttle/issues/1318)) ([5aceb6a](https://github.com/sshuttle/sshuttle/commit/5aceb6aa47a6c9df6f0b46fe359218a72dfc3909))
+* keep the server running when it runs out of file descriptors ([#1324](https://github.com/sshuttle/sshuttle/issues/1324)) ([a12eaa8](https://github.com/sshuttle/sshuttle/commit/a12eaa854353dcfa03eff1f09781bc0d0dc55b74))
+* keep the tunnel up when a DNS or UDP reply cannot be sent ([#1273](https://github.com/sshuttle/sshuttle/issues/1273)) ([a7f52ca](https://github.com/sshuttle/sshuttle/commit/a7f52cadbcabf787ad58f188c12fa2deb825a9bc))
+* pf exclusions ignored under a wider include since rules became quick ([#1270](https://github.com/sshuttle/sshuttle/issues/1270)) ([92dd17d](https://github.com/sshuttle/sshuttle/commit/92dd17d4780b0ae68d6742f55b9455eb390afc59))
+* **pf:** set up a family that has nameservers but no subnets ([#1321](https://github.com/sshuttle/sshuttle/issues/1321)) ([87b90db](https://github.com/sshuttle/sshuttle/commit/87b90db4373822e7c264f0cb604adf7132475e74))
+* reject --tmark values that are not plain hex ([#1314](https://github.com/sshuttle/sshuttle/issues/1314)) ([aba7975](https://github.com/sshuttle/sshuttle/commit/aba797583403a12760f3d8925931d87b1f74d8f2))
+* reject an out-of-range --listen port with a clear error ([#1312](https://github.com/sshuttle/sshuttle/issues/1312)) ([cba0390](https://github.com/sshuttle/sshuttle/commit/cba0390fc70b1d5499e7f7f80cf88b73d8ad75f9))
+* reject invalid ports in subnet arguments ([#1306](https://github.com/sshuttle/sshuttle/issues/1306)) ([f1f1ef4](https://github.com/sshuttle/sshuttle/commit/f1f1ef48ec1146960de029fb301c5c1c98b583a4))
+* report an invalid --listen value as a usage error ([#1313](https://github.com/sshuttle/sshuttle/issues/1313)) ([e30cc15](https://github.com/sshuttle/sshuttle/commit/e30cc15c36f52c20c6c741a759bf1db7d2d3e002))
+* report an invalid --remote port as a fatal error ([#1320](https://github.com/sshuttle/sshuttle/issues/1320)) ([6e79e91](https://github.com/sshuttle/sshuttle/commit/6e79e916562c61e2e9e075e0f81c2d0f0246abcc))
+* route VPN addresses through lo0 on macOS ([#1304](https://github.com/sshuttle/sshuttle/issues/1304)) ([6bcb6dc](https://github.com/sshuttle/sshuttle/commit/6bcb6dca11847a339c74b192547019b70fca2100))
+* skip hostwatch when the server has no os.fork ([#1271](https://github.com/sshuttle/sshuttle/issues/1271)) ([2cf4a69](https://github.com/sshuttle/sshuttle/commit/2cf4a6979876d53b2ec973bdde95bb9708e544ba))
+* start without IPv6 on a kernel that has none ([#1317](https://github.com/sshuttle/sshuttle/issues/1317)) ([1628ea5](https://github.com/sshuttle/sshuttle/commit/1628ea5a1e58ca6224213c5be5daf072781f9866))
+* **tproxy:** match an IPv6 nameserver with /128, not /32 ([#1323](https://github.com/sshuttle/sshuttle/issues/1323)) ([22fb83e](https://github.com/sshuttle/sshuttle/commit/22fb83eeb2623780789903623be22f45dfe3853f))
+* validate --group the same way as --user ([#1305](https://github.com/sshuttle/sshuttle/issues/1305)) ([37a47b0](https://github.com/sshuttle/sshuttle/commit/37a47b076b909329fe7cdb6d3d56935fad5fb29e))
+* validate namespaces in optimized mode ([#1290](https://github.com/sshuttle/sshuttle/issues/1290)) ([f6e9f28](https://github.com/sshuttle/sshuttle/commit/f6e9f28b6da174b4d87ad33210c1b61d273dbb57))
+
+
+### Documentation
+
+* add missing options to the man page ([#1301](https://github.com/sshuttle/sshuttle/issues/1301)) ([0b1baba](https://github.com/sshuttle/sshuttle/commit/0b1babadb17572f441d7e44231fb112911709786))
+* fix unresolved --sudoers-user reference in usage page ([#1300](https://github.com/sshuttle/sshuttle/issues/1300)) ([3e9a9f6](https://github.com/sshuttle/sshuttle/commit/3e9a9f64d9112503d0dfbf13f3b999bb5a84ee98))
+* remove leftover literal block marker in Windows page ([#1299](https://github.com/sshuttle/sshuttle/issues/1299)) ([bfa4be5](https://github.com/sshuttle/sshuttle/commit/bfa4be5543000935d638bb20503793694219c2e7))
+
 ## [2.0.0](https://github.com/sshuttle/sshuttle/compare/v1.3.2...v2.0.0) (2026-09-28)
 
 
