@@ -1040,6 +1040,11 @@ def main(listenip_v6, listenip_v4,
         try:
             addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
             for family, _, _, _, sockaddr in addrinfo:
+                if family == socket.AF_INET6 and not required.ipv6:
+                    # No IPv6 traffic is redirected, so there is nothing
+                    # to exclude, and an IPv6 entry would make the
+                    # firewall set up IPv6 rules after all.
+                    continue
                 remote_ip = sockaddr[0]
 
                 # Strip IPv6 scope suffix, e.g. fe80::1%eth0

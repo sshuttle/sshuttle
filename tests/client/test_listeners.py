@@ -290,3 +290,41 @@ def test_tcp_listener_restarts_after_active_close(ipv6):
         for sock in (listener.v6, listener.v4, replacement.v6, replacement.v4):
             if sock is not None:
                 sock.close()
+
+
+@pytest.mark.parametrize("ipv6", [False, True])
+def test_remote_ipv6_address_is_excluded_only_when_ipv6_is_used(ipv6):
+    """A dual-stack remote must not hand the firewall IPv6 subnets when
+    IPv6 is off (--disable-ipv6, or a method without IPv6)."""
+    features = Features()
+    for name in ("ipv4", "ipv6", "dns", "loopback_proxy_port"):
+        setattr(features, name, True)
+    features.udp = features.user = features.group = False
+    fw = Mock()
+    fw.method.assert_features = Mock()
+    fw.method.get_supported_features.return_value = features
+    fw.method.name = "fake"
+    remote = [
+        (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2001:db8::10", 0, 0, 0)),
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.0.2.10", 0)),
+    ]
+    args = {name: None for name in inspect.signature(client.main).parameters}
+    args.update(listenip_v6=("::1", 0) if ipv6 else None,
+                listenip_v4=("127.0.0.1", 0),
+                remotename="remote.example", nslist=[],
+                subnets_include=[(socket.AF_INET, "10.0.0.0", 8, 0, 0)],
+                subnets_exclude=[], daemon=False)
+    with patch.object(client, "FirewallClient", return_value=fw), \
+            patch.object(client, "MultiListener", side_effect=lambda *a: Mock()), \
+            patch.object(client.ssh, "parse_hostname",
+                         return_value=("remote.example", None, None)), \
+            patch.object(client.socket, "getaddrinfo", return_value=remote), \
+            patch.object(client, "_main", return_value=0):
+        assert client.main(**args) == 0
+    subnets_exclude = fw.setup.call_args.args[1]
+    assert (socket.AF_INET, "192.0.2.10", 32, 0, 0) in subnets_exclude
+    excluded_v6 = [s for s in subnets_exclude if s[0] == socket.AF_INET6]
+    if ipv6:
+        assert (socket.AF_INET6, "2001:db8::10", 128, 0, 0) in excluded_v6
+    else:
+        assert excluded_v6 == []
