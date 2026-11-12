@@ -1,3 +1,4 @@
+import errno
 import re
 import struct
 import socket
@@ -16,6 +17,11 @@ from sshuttle.ssnet import Handler, Proxy, Mux, MuxWrapper, \
     close_later
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, \
     get_random_nameserver, which, get_env, SocketRWShim
+
+
+# What socket() fails with when the process (EMFILE) or the whole system
+# (ENFILE) has no file descriptor left.
+OUT_OF_FILES = (errno.EMFILE, errno.ENFILE)
 
 
 def _ipmatch(ipstr):
@@ -218,8 +224,15 @@ class DnsProxy(Handler):
             peer = self.to_ns_peer
             port = int(self.to_ns_port)
 
-        family, sockaddr = self._addrinfo(peer, port)
-        sock = socket.socket(family, socket.SOCK_DGRAM)
+        try:
+            # getaddrinfo() needs a descriptor too
+            family, sockaddr = self._addrinfo(peer, port)
+            sock = socket.socket(family, socket.SOCK_DGRAM)
+        except OSError as e:
+            if e.errno not in OUT_OF_FILES:
+                raise
+            log('warning: too many open files.  Discarded DNS request.')
+            return
 
         self.peers[sock] = peer
 
@@ -382,7 +395,17 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
             if family != socket.AF_INET:
                 family = socket.AF_INET6
             dstport = int(dstport)
-            outwrap = ssnet.connect_dst(family, dstip, dstport)
+            try:
+                outwrap = ssnet.connect_dst(family, dstip, dstport)
+            except OSError as e:
+                if e.errno not in OUT_OF_FILES:
+                    raise
+                log('warning: too many open files.  Discarded connection '
+                    'to %s:%d.' % (dstip, dstport))
+                # Nothing will come from us, and we want nothing more.
+                mux.send(channel, ssnet.CMD_TCP_EOF, b(''))
+                mux.send(channel, ssnet.CMD_TCP_STOP_SENDING, b(''))
+                return
             handlers.append(Proxy(MuxWrapper(mux, channel), outwrap))
         mux.new_channel = new_channel
 
@@ -390,7 +413,13 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
 
         def dns_req(channel, data):
             debug2('Incoming DNS request channel=%d.' % channel)
-            h = DnsProxy(mux, channel, data, to_nameserver)
+            try:
+                h = DnsProxy(mux, channel, data, to_nameserver)
+            except OSError as e:
+                if e.errno not in OUT_OF_FILES:
+                    raise
+                log('warning: too many open files.  Discarded DNS request.')
+                return
             handlers.append(h)
             dnshandlers[channel] = h
         mux.got_dns_req = dns_req
@@ -421,7 +450,15 @@ def main(latency_control, latency_buffer_size, auto_hosts, to_nameserver,
                 raise Fatal('UDP connection channel %d already open' %
                             channel)
             else:
-                h = UdpProxy(mux, channel, family)
+                try:
+                    h = UdpProxy(mux, channel, family)
+                except OSError as e:
+                    if e.errno not in OUT_OF_FILES:
+                        raise
+                    log('warning: too many open files.  Discarded UDP '
+                        'channel %d.' % channel)
+                    del mux.channels[channel]
+                    return
                 handlers.append(h)
                 udphandlers[channel] = h
         mux.got_udp_open = udp_open
