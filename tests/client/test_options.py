@@ -154,9 +154,17 @@ def test_parse_ipport_invalid_port():
         sshuttle.options.parse_ipport('[::1]:99999')
 
 
-def test_convert_arg_line_to_args_skips_comments():
+@pytest.mark.parametrize("line", [
+    "# whatever something",
+    "  # indented comment",
+    "\t# tab-indented comment",
+    "",
+    "   ",
+    "\n",
+])
+def test_convert_arg_line_to_args_skips_comments_and_blank_lines(line):
     parser = sshuttle.options.MyArgumentParser()
-    assert parser.convert_arg_line_to_args("# whatever something") == []
+    assert parser.convert_arg_line_to_args(line) == []
 
 
 @pytest.mark.parametrize("line, expected", [
@@ -199,6 +207,19 @@ def test_parse_args_reads_option_and_value_from_one_line(tmp_path):
     assert opt.remote == "user@example.com"
     assert opt.ssh_cmd == "ssh -i key"
     assert opt.exclude == [[(socket.AF_INET, "10.0.0.1", 32, 0, 0)]]
+    assert opt.subnets == [[(socket.AF_INET, "10.0.0.0", 8, 0, 0)]]
+
+
+def test_parse_args_ignores_blank_and_indented_comment_lines(tmp_path):
+    config = tmp_path / "sshuttle.conf"
+    config.write_text(
+        "-r user@example.com\n"
+        "\n"
+        "    # subnets to forward\n"
+        "10.0.0.0/8\n"
+    )
+    opt = sshuttle.options.parser.parse_args(["@%s" % config])
+    assert opt.remote == "user@example.com"
     assert opt.subnets == [[(socket.AF_INET, "10.0.0.0", 8, 0, 0)]]
 
 
