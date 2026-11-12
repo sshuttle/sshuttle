@@ -1,3 +1,6 @@
+import pytest
+
+from sshuttle.helpers import Fatal
 from sshuttle.ssh import parse_hostport
 
 
@@ -18,3 +21,15 @@ def test_username_and_host():
     assert parse_hostport("user@host") == ("user", None, None, "host")
     assert parse_hostport("user:@host") == ("user", None, None, "host")
     assert parse_hostport("user:pass@host") == ("user", "pass", None, "host")
+
+
+@pytest.mark.parametrize("rhostport", [
+    "host:99999",
+    "user@host:65536",
+    "[2001::1]:70000",
+    "host:abc",
+    "user@host:22x",
+])
+def test_invalid_port(rhostport):
+    with pytest.raises(Fatal, match="does not have a valid port"):
+        parse_hostport(rhostport)
