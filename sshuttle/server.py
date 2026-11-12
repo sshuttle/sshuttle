@@ -220,12 +220,14 @@ class DnsProxy(Handler):
 
         family, sockaddr = self._addrinfo(peer, port)
         sock = socket.socket(family, socket.SOCK_DGRAM)
-        sock.connect(sockaddr)
 
         self.peers[sock] = peer
 
         debug2('DNS: sending to %r:%d (try %d)' % (peer, port, self.tries))
         try:
+            # connect() already fails if there is no route to the
+            # nameserver, e.g. an IPv6 one on a host without IPv6.
+            sock.connect(sockaddr)
             sock.send(self.request)
             self.socks.append(sock)
         except socket.error:

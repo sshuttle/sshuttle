@@ -1,3 +1,4 @@
+import errno
 import io
 import socket
 import time
@@ -87,6 +88,40 @@ def test_dnsproxy_dispose_closes_every_socket_it_made():
         time.sleep(0.01)
     assert a.fileno() == -1
     b.close()
+
+
+def test_dnsproxy_tries_another_nameserver_when_one_is_unreachable():
+    """With no route to a nameserver (say an IPv6 one in resolv.conf on a
+    host without IPv6), connect() on the UDP socket fails straight away."""
+    unreachable, reachable = Mock(), Mock()
+    unreachable.connect.side_effect = OSError(
+        errno.ENETUNREACH, 'Network is unreachable')
+    nameservers = [(socket.AF_INET6, '2001:db8::53'),
+                   (socket.AF_INET, '192.0.2.53')]
+    with patch('sshuttle.server.socket.socket',
+               side_effect=[unreachable, reachable]), \
+            patch('sshuttle.server.get_random_nameserver',
+                  side_effect=nameservers):
+        h = sshuttle.server.DnsProxy(Mock(), 5, b'query', None)
+
+    unreachable.send.assert_not_called()
+    reachable.connect.assert_called_once_with(('192.0.2.53', 53))
+    reachable.send.assert_called_once_with(b'query')
+    assert h.socks == [reachable]
+    # dispose() closes what is in peers
+    assert set(h.peers) == {unreachable, reachable}
+
+
+def test_dnsproxy_gives_up_when_the_nameserver_stays_unreachable():
+    sock = Mock()
+    sock.connect.side_effect = OSError(
+        errno.ENETUNREACH, 'Network is unreachable')
+    with patch('sshuttle.server.socket.socket', return_value=sock):
+        h = sshuttle.server.DnsProxy(Mock(), 5, b'query', '192.0.2.53@53')
+
+    assert sock.connect.call_count == 3
+    sock.send.assert_not_called()
+    assert h.socks == []
 
 
 def test_udpproxy_dispose_closes_its_socket():
