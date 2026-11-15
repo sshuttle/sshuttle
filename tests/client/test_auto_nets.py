@@ -43,3 +43,17 @@ def test_auto_nets_inside_an_exclude_are_not_forwarded():
         f'{v4},24,1,198.51.100.0,22,22',
         f'{v6},32,1,2001:db8::,0,0',
     ]
+
+
+def test_auto_nets_need_a_listener_for_their_family():
+    v4, v6 = socket.AF_INET, socket.AF_INET6
+    routestr = (b'%d,10.1.0.0,16\n%d,2001:db8:1::,48\n' % (v4, v6))
+    v4_only = Mock(v4=object(), v6=None)
+    v6_only = Mock(v4=None, v6=object())
+    both = Mock(v4=object(), v6=object())
+    assert client.parse_auto_nets(routestr, v4_only) == [
+        (v4, '10.1.0.0', 16, 0, 0)]
+    assert client.parse_auto_nets(routestr, v6_only) == [
+        (v6, '2001:db8:1::', 48, 0, 0)]
+    assert client.parse_auto_nets(routestr, both) == [
+        (v4, '10.1.0.0', 16, 0, 0), (v6, '2001:db8:1::', 48, 0, 0)]
