@@ -633,6 +633,26 @@ def ondns(listener, method, mux, handlers):
     expire_connections(now, mux)
 
 
+def parse_auto_nets(routestr, tcp_listener):
+    """Parse the server's routes, keeping those we have a listener for."""
+    nets = []
+    for line in routestr.strip().split(b'\n'):
+        if not line:
+            continue
+        (family, ip, width) = line.split(b',', 2)
+        family = int(family)
+        width = int(width)
+        ip = ip.decode("ASCII")
+        if family == socket.AF_INET6 and tcp_listener.v6 is None:
+            debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
+        elif family == socket.AF_INET and tcp_listener.v4 is None:
+            debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
+        else:
+            debug2("Adding auto net %d/%s/%d" % (family, ip, width))
+            nets.append((family, ip, width, 0, 0))
+    return nets
+
+
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
           python, latency_control, latency_buffer_size,
           dns_listener, seed_hosts, auto_hosts, auto_nets, daemon,
@@ -775,20 +795,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     def onroutes(routestr):
         if auto_nets:
-            for line in routestr.strip().split(b'\n'):
-                if not line:
-                    continue
-                (family, ip, width) = line.split(b',', 2)
-                family = int(family)
-                width = int(width)
-                ip = ip.decode("ASCII")
-                if family == socket.AF_INET6 and tcp_listener.v6 is None:
-                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
-                if family == socket.AF_INET and tcp_listener.v4 is None:
-                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
-                else:
-                    debug2("Adding auto net %d/%s/%d" % (family, ip, width))
-                    fw.auto_nets.append((family, ip, width, 0, 0))
+            fw.auto_nets.extend(parse_auto_nets(routestr, tcp_listener))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!
