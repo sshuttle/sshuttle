@@ -144,6 +144,21 @@ def test_parse_subnetport_reversed_port_range():
             == 'Invalid port range 9000-8000: first port is greater than last'
 
 
+def test_parse_subnetport_port_range_starting_at_zero():
+    # a range starting at 0 used to be accepted and then treated as
+    # "all ports" by the firewall methods
+    for s in ('10.0.0.0/8:0-80', '[fc00::/64]:0-80'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) \
+            == 'Invalid port range 0-80: port 0 is not allowed in a range'
+    # port 0 on its own still means "no port"
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:0') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 0, 0)]
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:0-0') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 0, 0)]
+
+
 def test_parse_ipport_invalid_port():
     # used to fail with "Unable to resolve address: 127.0.0.1"
     with pytest.raises(Fatal, match='Port 70000 is not between 0 and 65535'):
