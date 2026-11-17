@@ -59,6 +59,10 @@ def parse_subnetport(s):
     if fport > lport:
         raise Fatal('Invalid port range %d-%d: first port is greater '
                     'than last' % (fport, lport))
+    # Port 0 means "no port", so it can't start a range.
+    if fport == 0 and lport > 0:
+        raise Fatal('Invalid port range 0-%d: port 0 is not allowed '
+                    'in a range' % lport)
 
     try:
         addrinfo = socket.getaddrinfo(host, 0, 0, socket.SOCK_STREAM)
