@@ -24,3 +24,15 @@ def test_check_daemon_already_running(tmp_path):
     with pytest.raises(Fatal, match='sshuttle is already running'):
         client.check_daemon(str(pidfile))
     assert pidfile.exists()
+
+
+def test_check_daemon_leaves_non_regular_file_alone(monkeypatch):
+    # --pidfile=/dev/null is a way to not have a pidfile at all.
+    unlinked = []
+    monkeypatch.setattr(client.os, 'unlink', unlinked.append)
+    client.check_daemon(os.devnull)
+    assert unlinked == []
+    assert client._pidname is None
+
+    client.daemon_cleanup()
+    assert unlinked == []
