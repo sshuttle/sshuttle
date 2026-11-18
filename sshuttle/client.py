@@ -493,11 +493,20 @@ class FirewallClient:
         if line != b'STARTED\n':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
-    def sethostip(self, hostname, ip):
-        assert not re.search(br'[^-\w\.]', hostname)
-        assert not re.search(br'[^0-9.]', ip)
-        self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
-        self.pfile.flush()
+    def sethostips(self, hostlist):
+        """Send the "name,ip" entries of hostlist to the firewall as one
+           batch. It updates the hosts file once per batch, not per host."""
+        lines = []
+        for entry in hostlist.split():
+            hostname, _, ip = entry.partition(b',')
+            if not (hostname and ip):
+                continue
+            assert not re.search(br'[^-\w\.]', hostname)
+            assert not re.search(br'[^0-9.]', ip)
+            lines.append(b'HOST %s,%s\n' % (hostname, ip))
+        if lines:
+            self.pfile.write(b''.join(lines) + b'HOSTS_END\n')
+            self.pfile.flush()
 
     def done(self):
         self.pfile.close()
@@ -818,10 +827,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     def onhostlist(hostlist):
         debug2('got host list: %r' % hostlist)
-        for line in hostlist.strip().split():
-            if line:
-                name, ip = line.split(b',', 1)
-                fw.sethostip(name, ip)
+        fw.sethostips(hostlist)
     mux.got_host_list = onhostlist
 
     tcp_listener.add_handler(handlers, onaccept_tcp, method, mux)

@@ -1,12 +1,22 @@
 import io
 import os
+import threading
+import time
 from socket import AF_INET, AF_INET6
 
-from unittest.mock import Mock, patch, call
+from unittest.mock import ANY, Mock, patch, call
 
 import pytest
 
 import sshuttle.firewall
+
+
+@pytest.fixture(autouse=True)
+def no_dns_flush():
+    # firewall.main() would otherwise run the real "resolvectl
+    # flush-caches", which triggers a polkit prompt when run unprivileged.
+    with patch('sshuttle.firewall.flush_systemd_dns_cache') as flush:
+        yield flush
 
 
 def setup_daemon():
@@ -21,6 +31,7 @@ NSLIST
 PORTS 1024,1025,1026,1027
 GO 1 - - 0x01 12345
 HOST 1.2.3.3,existing
+HOSTS_END
 """.format(inet=AF_INET, inet6=AF_INET6).encode('ASCII'))
     stdout = Mock()
     return stdin, stdout
@@ -109,22 +120,27 @@ def test_subnet_weight():
                                     reverse=True)
 
 
+@patch('sshuttle.firewall.HostsWriter')
 @patch('sshuttle.firewall.rewrite_etc_hosts')
 @patch('sshuttle.firewall.setup_daemon')
 @patch('sshuttle.firewall.get_method')
-def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
+def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts,
+              mock_hosts_writer):
     stdin, stdout = setup_daemon()
     mock_setup_daemon.return_value = stdin, stdout
+    mock_hosts_writer.return_value.hostmap = {'1.2.3.3': 'existing'}
 
     mock_get_method("not_auto").name = "test"
     mock_get_method.reset_mock()
 
     sshuttle.firewall.main("not_auto", False)
 
-    assert mock_rewrite_etc_hosts.mock_calls == [
-        call({'1.2.3.3': 'existing'}, 1024),
-        call({}, 1024),
+    assert mock_hosts_writer.mock_calls == [
+        call(1024),
+        call().update({'1.2.3.3': 'existing'}),
+        call().stop(),
     ]
+    assert mock_rewrite_etc_hosts.mock_calls == [call({}, 1024)]
 
     assert stdout.mock_calls == [
         call.write(b'READY test\n'),
@@ -161,3 +177,170 @@ def test_main(mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
         call().restore_firewall(1024, AF_INET6, True, None, None),
         call().restore_firewall(1025, AF_INET, True, None, None),
     ]
+
+
+@patch('sshuttle.firewall.HostsWriter')
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+@patch('sshuttle.firewall.setup_daemon')
+@patch('sshuttle.firewall.get_method')
+def test_main_hosts_batches(mock_get_method, mock_setup_daemon,
+                            mock_rewrite_etc_hosts, mock_hosts_writer):
+    stdin, stdout = setup_daemon()
+    stdin = io.BytesIO(stdin.getvalue() + b"""\
+HOST host-a,1.2.3.4
+HOST malformed-without-ip
+HOST %s,1.2.3.9
+HOST host-b,1.2.3.5
+OTHER
+HOSTS_END
+HOST %s,1.2.3.6
+HOSTS_END
+""" % (b'x' * 2000, b'y' * 253))
+    mock_setup_daemon.return_value = stdin, stdout
+
+    sshuttle.firewall.main("not_auto", False)
+
+    # One HostsWriter, fed one dict per batch. Malformed and overlong
+    # lines are skipped and do not end the session.
+    assert mock_hosts_writer.mock_calls[:5] == [
+        call(1024),
+        call().update({'1.2.3.3': 'existing'}),
+        call().update({'host-a': '1.2.3.4', 'host-b': '1.2.3.5'}),
+        call().update({'y' * 253: '1.2.3.6'}),
+        call().stop(),
+    ]
+    assert call().firewall_command('OTHER') in mock_get_method.mock_calls
+
+
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+@patch('sshuttle.firewall.setup_daemon')
+@patch('sshuttle.firewall.get_method')
+def test_main_restores_hosts_after_writer_finished(
+        mock_get_method, mock_setup_daemon, mock_rewrite_etc_hosts):
+    started = threading.Event()
+    events = []
+
+    def slow_rewrite(hostmap, port):
+        events.append(('start', dict(hostmap)))
+        started.set()
+        time.sleep(0.1)
+        events.append(('end', dict(hostmap)))
+    mock_rewrite_etc_hosts.side_effect = slow_rewrite
+
+    class EofWhileWriterBusy(io.BytesIO):
+        def readline(self, *args):
+            line = super().readline(*args)
+            if not line:
+                started.wait(5)
+            return line
+
+    stdin, stdout = setup_daemon()
+    mock_setup_daemon.return_value = \
+        EofWhileWriterBusy(stdin.getvalue()), stdout
+
+    sshuttle.firewall.main("not_auto", False)
+
+    # The client went away while the real HostsWriter was rewriting. The
+    # restore must only start once that rewrite has finished.
+    host = {'1.2.3.3': 'existing'}
+    assert events == [('start', host), ('end', host),
+                      ('start', {}), ('end', {})]
+
+
+def rewrites_signalled(mock_rewrite_etc_hosts, side_effect=None):
+    """Make each rewrite release a semaphore, so tests can wait for it."""
+    done = threading.Semaphore(0)
+
+    def rewrite(hostmap, port):
+        try:
+            if side_effect:
+                side_effect(hostmap, port)
+        finally:
+            done.release()
+    mock_rewrite_etc_hosts.side_effect = rewrite
+    return done
+
+
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+def test_hosts_writer_coalesces_while_busy(mock_rewrite_etc_hosts):
+    started, release = threading.Event(), threading.Event()
+    written = []
+
+    def slow_rewrite(hostmap, port):
+        written.append(dict(hostmap))
+        started.set()
+        release.wait(5)
+    done = rewrites_signalled(mock_rewrite_etc_hosts, slow_rewrite)
+
+    writer = sshuttle.firewall.HostsWriter(1024)
+    # A single host is written right away.
+    writer.update({'a': '1.2.3.4'})
+    assert started.wait(5)
+    # Everything that arrives during that rewrite goes into the next one.
+    writer.update({'b': '1.2.3.5'})
+    writer.update({'c': '1.2.3.6', 'a': '1.2.3.4'})
+    release.set()
+    assert done.acquire(timeout=5) and done.acquire(timeout=5)
+    writer.stop()
+
+    assert written == [
+        {'a': '1.2.3.4'},
+        {'a': '1.2.3.4', 'b': '1.2.3.5', 'c': '1.2.3.6'},
+    ]
+    assert mock_rewrite_etc_hosts.call_args_list == [
+        call(ANY, 1024), call(ANY, 1024)]
+
+
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+def test_hosts_writer_ignores_unchanged_hosts(mock_rewrite_etc_hosts):
+    done = rewrites_signalled(mock_rewrite_etc_hosts)
+    writer = sshuttle.firewall.HostsWriter(1024)
+    writer.update({'a': '1.2.3.4'})
+    assert done.acquire(timeout=5)
+    writer.update({'a': '1.2.3.4'})
+    writer.update({})
+    assert not writer._dirty
+    writer.stop()
+    assert mock_rewrite_etc_hosts.call_count == 1
+
+
+@patch('sshuttle.firewall.log')
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+def test_hosts_writer_logs_each_error_once(mock_rewrite_etc_hosts, mock_log):
+    errors = [OSError('denied'), OSError('denied'), OSError('full')]
+
+    def fail(hostmap, port):
+        raise errors.pop(0)
+    done = rewrites_signalled(mock_rewrite_etc_hosts, fail)
+
+    writer = sshuttle.firewall.HostsWriter(1024)
+    for i in range(3):
+        writer.update({'host%d' % i: '1.2.3.4'})
+        assert done.acquire(timeout=5)
+    writer.stop()
+    assert mock_log.mock_calls == [
+        call('Failed to update /etc/hosts: denied'),
+        call('Failed to update /etc/hosts: full'),
+    ]
+
+
+@patch('sshuttle.firewall.rewrite_etc_hosts')
+def test_hosts_writer_stop_drops_pending_hosts(mock_rewrite_etc_hosts):
+    started, release = threading.Event(), threading.Event()
+
+    def slow_rewrite(hostmap, port):
+        started.set()
+        release.wait(5)
+    rewrites_signalled(mock_rewrite_etc_hosts, slow_rewrite)
+
+    writer = sshuttle.firewall.HostsWriter(1024)
+    writer.update({'a': '1.2.3.4'})
+    assert started.wait(5)
+    writer.update({'b': '1.2.3.5'})
+    stopper = threading.Thread(target=writer.stop)
+    stopper.start()
+    release.set()
+    stopper.join(5)
+    # The rewrite in progress finished, the pending one was dropped.
+    assert not stopper.is_alive()
+    assert mock_rewrite_etc_hosts.call_count == 1
