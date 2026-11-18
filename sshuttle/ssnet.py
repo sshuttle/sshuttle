@@ -377,7 +377,7 @@ class SockWrapper:
         rb = self.uread()
         if rb:
             self.buf.append(rb)
-        if rb == b(''):  # empty string means EOF; None means temporarily empty
+        if rb == b'':  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def copy_to(self, outwrap):
@@ -453,8 +453,12 @@ class Proxy(Handler):
     def callback(self, sock):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
-        self.wrap1.fill()
-        self.wrap2.fill()
+        # Every Proxy wakes when the shared mux is ready, so only read the
+        # socket that woke us. select() is level triggered: nothing is lost.
+        if sock is self.wrap1.rsock:
+            self.wrap1.fill()
+        if sock is self.wrap2.rsock:
+            self.wrap2.fill()
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
         if self.wrap1.buf and self.wrap2.shut_write:
@@ -692,6 +696,9 @@ class MuxWrapper(SockWrapper):
             return b('')  # EOF
         else:
             return None  # no data available right now
+
+    def fill(self):
+        pass  # channel data and EOF arrive through got_packet()
 
     def got_packet(self, cmd, data):
         if cmd == CMD_TCP_EOF:

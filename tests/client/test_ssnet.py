@@ -204,3 +204,58 @@ def test_select_without_poll_still_refuses_high_descriptors(
     monkeypatch.delattr(select, 'poll', raising=False)
     with pytest.raises(ValueError):
         ssnet._select([a], [], [], 0)
+
+
+def test_proxy_reads_an_idle_connection_only_when_it_is_ready():
+    """Every Proxy wakes up when the shared mux is ready. Reading each idle
+    connection then costs a recv() per connection per round."""
+    class RecvCounter(socket.socket):
+        recvs = 0
+
+        def recv(self, *args):
+            self.recvs += 1
+            return super().recv(*args)
+
+    def packet(channel, cmd, data):
+        return struct.pack('!ccHHH', b'S', b'S', channel, cmd,
+                           len(data)) + data
+
+    ours, theirs = socket.socketpair()
+    conn, peer = socket.socketpair()
+    conn = RecvCounter(fileno=conn.detach())
+    mux = ssnet.Mux(ours.makefile('rb', buffering=0),
+                    ours.makefile('wb', buffering=0))
+    handlers = [mux, ssnet.Proxy(ssnet.SockWrapper(conn, conn),
+                                 ssnet.MuxWrapper(mux, 1))]
+    sent = b''
+
+    def mux_sent(expected):
+        nonlocal sent
+        while mux.outbuf:
+            mux.flush()
+        theirs.settimeout(5)
+        try:
+            while expected not in sent:
+                chunk = theirs.recv(4096)
+                if not chunk:
+                    break
+                sent += chunk
+        except socket.timeout:
+            pass
+        return expected in sent
+
+    try:
+        theirs.sendall(packet(0, ssnet.CMD_PING, b'hi'))
+        ssnet.runonce(handlers, mux)
+        assert conn.recvs == 0
+
+        # data and EOF on the connection are still relayed
+        peer.sendall(b'data')
+        ssnet.runonce(handlers, mux)
+        assert mux_sent(packet(1, ssnet.CMD_TCP_DATA, b'data'))
+        peer.close()
+        ssnet.runonce(handlers, mux)
+        assert mux_sent(packet(1, ssnet.CMD_TCP_EOF, b''))
+    finally:
+        for s in (mux.rfile, mux.wfile, ours, theirs, conn, peer):
+            s.close()
