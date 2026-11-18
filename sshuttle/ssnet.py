@@ -6,6 +6,7 @@ import threading
 import errno
 import select
 import os
+import time
 
 import sshuttle.helpers as helpers
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, set_non_blocking_io
@@ -81,7 +82,15 @@ def close_later(sock):
             debug1('error closing %r: %s' % (sock, e))
 
 
+# Latency control sends a window of data, then a PING, and waits for the PONG
+# before sending more, so bulk data cannot fill ssh's buffers. The window
+# doubles while the latest PING is at most LATENCY_TARGET slower than the
+# fastest seen. It halves when the last LATENCY_SAMPLES all were, or one was
+# far slower, and otherwise holds (one slow PING may be jitter).
 LATENCY_BUFFER_SIZE = 32768
+LATENCY_BUFFER_MAX = 16 * 1024 * 1024
+LATENCY_TARGET = 0.03  # seconds of queueing a bulk transfer may add
+LATENCY_SAMPLES = 4
 
 SHUT_RD = 0
 SHUT_WR = 1
@@ -492,6 +501,10 @@ class Mux(Handler):
         self.outbuf = []
         self.fullness = 0
         self.too_full = False
+        self.window = LATENCY_BUFFER_SIZE
+        self.min_rtt = None
+        self.recent = []
+        self.pings = {b('chicken'): time.monotonic()}
         self.send(0, CMD_PING, b('chicken'))
 
     def next_channel(self):
@@ -510,10 +523,31 @@ class Mux(Handler):
         return total
 
     def check_fullness(self):
-        if self.fullness > LATENCY_BUFFER_SIZE:
+        if self.fullness > self.window:
             if not self.too_full:
+                self.pings[b('rttest')] = time.monotonic()
                 self.send(0, CMD_PING, b('rttest'))
             self.too_full = True
+
+    def adapt_window(self, data):
+        sent = self.pings.pop(data, None)
+        if sent is None:
+            return
+        rtt = time.monotonic() - sent
+        if self.min_rtt is None or rtt < self.min_rtt:
+            self.min_rtt = rtt
+        debug2('PING %r rtt=%.1fms min=%.1fms window=%d'
+               % (data, rtt * 1000, self.min_rtt * 1000, self.window))
+        if data != b('rttest'):
+            return  # the initial PING only measures the idle round trip
+        self.recent = (self.recent + [rtt])[-LATENCY_SAMPLES:]
+        queued = rtt - self.min_rtt
+        if queued <= LATENCY_TARGET:
+            self.window = min(self.window * 2,
+                              max(LATENCY_BUFFER_MAX, LATENCY_BUFFER_SIZE))
+        elif (min(self.recent) - self.min_rtt > LATENCY_TARGET or
+                queued > 4 * LATENCY_TARGET):
+            self.window = max(self.window // 2, LATENCY_BUFFER_SIZE)
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -537,8 +571,10 @@ class Mux(Handler):
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
             debug2('received PING response')
-            self.too_full = False
-            self.fullness = 0
+            self.adapt_window(data)
+            if data == b('rttest'):
+                self.too_full = False
+                self.fullness = 0
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_TCP_CONNECT:

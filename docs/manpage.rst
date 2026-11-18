@@ -224,20 +224,17 @@ Options
     tunnel go slowly. Normally, :program:`sshuttle` tries to avoid
     this problem using a "fullness check" that allows only
     a certain amount of outstanding data to be buffered at
-    a time.  But on high-bandwidth links, this can leave a
-    lot of your bandwidth underutilized.  It also makes
-    :program:`sshuttle` seem slow in bandwidth benchmarks (benchmarks
-    rarely test ping latency, which is what :program:`sshuttle` is
-    trying to control).  This option disables the latency
-    control feature, maximizing bandwidth usage.  Use at
-    your own risk.
+    a time.  That amount adapts to the link (see
+    :option:`--latency-buffer-size`), but a single transfer may
+    still get less bandwidth than without it.  This option
+    disables the latency control feature, maximizing bandwidth
+    usage.  Use at your own risk.
 
 .. option:: --latency-buffer-size
 
-    Set the size of the buffer used in latency control. The
-    default is ``32768``. Changing this option allows a compromise
-    to be made between latency and bandwidth without completely
-    disabling latency control (with :option:`--no-latency-control`).
+    Set the minimum size of the latency control window. The default
+    is ``32768``. The window grows from there, up to 16 MiB, as long
+    as it adds no more than about 30 ms to the round trip.
 
 .. option:: --wrap=<num>
 
