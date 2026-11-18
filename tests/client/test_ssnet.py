@@ -164,7 +164,7 @@ def test_mux_callback_on_descriptors_above_fd_setsize(above_fd_setsize):
     try:
         theirs.sendall(packet(ssnet.CMD_PING, b'hi'))
         mux.callback(None)
-        while mux.outbuf:  # one queued packet is written per call
+        while mux.outbuf:
             mux.callback(None)
         theirs.settimeout(5)
         expected = (packet(ssnet.CMD_PING, b'chicken') +
@@ -437,3 +437,127 @@ def test_latency_window_sends_one_rttest_at_a_time(clocked_mux):
     assert mux.window == 2 * ssnet.LATENCY_BUFFER_SIZE
     assert not mux.too_full
     assert mux.fullness == 0
+
+
+def test_mux_flush_writes_until_the_pipe_is_full():
+    ours, theirs = socket.socketpair()
+    ours.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+    mux = ssnet.Mux(ours.makefile('rb', buffering=0),
+                    ours.makefile('wb', buffering=0))
+    try:
+        for i in range(200):
+            mux.send(1, ssnet.CMD_TCP_DATA, bytes([i]) * 30000)
+        expected = b''.join(mux.outbuf)
+        mux.flush()
+        # One call wrote more than one packet, and stopped at a full pipe.
+        written = len(expected) - mux.amount_queued()
+        assert written > 30008
+        assert mux.outbuf
+        theirs.settimeout(5)
+        received = b''
+        while mux.outbuf or len(received) < len(expected):
+            received += theirs.recv(1 << 20)
+            mux.flush()
+        assert received == expected
+    finally:
+        theirs.close()
+
+
+def test_mux_flush_lets_channels_refill_once_drained():
+    ours, theirs = socket.socketpair()
+    mux = ssnet.Mux(ours.makefile('rb', buffering=0),
+                    ours.makefile('wb', buffering=0))
+    wrapper = ssnet.MuxWrapper(mux, 1)
+    try:
+        for _ in range(3):
+            mux.send(1, ssnet.CMD_TCP_DATA, b'x' * ssnet.MAX_PACKET_DATA)
+        mux.pre_select([], [], [])
+        assert wrapper.too_full()
+        mux.flush()  # the socket buffer takes all of it
+        assert not mux.outbuf
+        assert not wrapper.too_full()
+    finally:
+        theirs.close()
+
+
+def test_muxwrapper_packet_size(monkeypatch):
+    a, b = socket.socketpair()
+    mux = ssnet.Mux(a.makefile('rb', buffering=0),
+                    a.makefile('wb', buffering=0))
+    try:
+        wrapper = ssnet.MuxWrapper(mux, 1)
+        assert wrapper.uwrite(b'x' * 100000) == ssnet.MAX_PACKET_DATA
+        monkeypatch.setattr(ssnet, 'LATENCY_BUFFER_SIZE', 4096)
+        assert wrapper.uwrite(b'x' * 100000) == 4096
+        assert wrapper.uwrite(b'x' * 100) == 100
+        monkeypatch.setattr(ssnet, 'LATENCY_BUFFER_SIZE', -1)
+        assert wrapper.uwrite(b'xy') == 1
+        sizes = [len(p) - ssnet.HDR_LEN for p in mux.outbuf[1:]]
+        assert sizes == [ssnet.MAX_PACKET_DATA, 4096, 100, 1]
+    finally:
+        a.close()
+        b.close()
+
+
+def test_a_busy_channel_does_not_hold_up_the_others():
+    """Commit 5d13909 cut mux packets to 2 KiB because "a single busy stream
+    can ruin it for everybody". With full-size packets the mux queue stays
+    bounded and a quiet channel still gets through."""
+    mux_end, pipe = socket.socketpair()
+    pipe.setblocking(False)
+    mux = ssnet.Mux(mux_end.makefile('rb', buffering=0),
+                    mux_end.makefile('wb', buffering=0))
+    handlers, peers = [mux], []
+    for channel in (1, 2):
+        s, peer = socket.socketpair()
+        handlers.append(ssnet.Proxy(ssnet.SockWrapper(s, s),
+                                    ssnet.MuxWrapper(mux, channel)))
+        peers.append(peer)
+    busy, quiet = peers
+    busy.setblocking(False)
+    # always readable, so runonce() returns even while the pipe is full
+    tick, tick_peer = socket.socketpair()
+    tick_peer.send(b't')
+    handlers.append(ssnet.Handler([tick], lambda sock: None))
+    # runonce() calls a Proxy once per ready socket in its socks (its own
+    # socket twice, the mux's two), and each call may queue a packet.
+    limit = 2 * ssnet.MAX_PACKET_DATA + 4 * (ssnet.MAX_PACKET_DATA +
+                                             ssnet.HDR_LEN)
+    received = b''
+
+    def one_round():
+        nonlocal received
+        try:
+            busy.send(b'x' * 262144)
+        except BlockingIOError:
+            pass
+        ssnet.runonce(handlers, mux)
+        assert mux.amount_queued() < limit
+        try:
+            received += pipe.recv(16384)  # a slow pipe
+        except BlockingIOError:
+            pass
+
+    def quiet_data_arrived():
+        pos = 0
+        while pos + ssnet.HDR_LEN <= len(received):
+            _, _, channel, cmd, n = struct.unpack(
+                '!ccHHH', received[pos:pos + ssnet.HDR_LEN])
+            if channel == 2 and cmd == ssnet.CMD_TCP_DATA:
+                return True
+            pos += ssnet.HDR_LEN + n
+        return False
+
+    try:
+        for _ in range(50):
+            one_round()
+        assert handlers[1].wrap1.buf  # the busy channel is backlogged
+        quiet.sendall(b'k')
+        for _ in range(100):
+            one_round()
+            if quiet_data_arrived():
+                break
+        assert quiet_data_arrived()
+    finally:
+        for s in [mux_end, pipe, tick, tick_peer] + peers:
+            s.close()

@@ -92,6 +92,10 @@ LATENCY_BUFFER_MAX = 16 * 1024 * 1024
 LATENCY_TARGET = 0.03  # seconds of queueing a bulk transfer may add
 LATENCY_SAMPLES = 4
 
+# Most channel data per mux packet. Channels wait while the mux has
+# 2 * MAX_PACKET_DATA queued.
+MAX_PACKET_DATA = 32768
+
 SHUT_RD = 0
 SHUT_WR = 1
 SHUT_RDWR = 2
@@ -505,6 +509,7 @@ class Mux(Handler):
         self.min_rtt = None
         self.recent = []
         self.pings = {b('chicken'): time.monotonic()}
+        self.queue_full = False
         self.send(0, CMD_PING, b('chicken'))
 
     def next_channel(self):
@@ -614,22 +619,29 @@ class Mux(Handler):
 
     def flush(self):
         set_non_blocking_io(self.wfile.fileno())
-        if self.outbuf and self.outbuf[0]:
+        # Write until the pipe is full, not one packet per select().
+        while self.outbuf:
             wrote = _nb_clean(self.wfile.write, self.outbuf[0])
-            # self.wfile.flush()
             if helpers.verbose >= 2:
                 debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
-            if wrote:
+            if not wrote:
+                break
+            if wrote < len(self.outbuf[0]):
                 self.outbuf[0] = self.outbuf[0][wrote:]
-        while self.outbuf and not self.outbuf[0]:
-            self.outbuf[0:1] = []
+                break
+            del self.outbuf[0]
+        # Let channels refill this round once the queue has drained.
+        if self.queue_full:
+            self.queue_full = self.amount_queued() >= 2 * MAX_PACKET_DATA
 
     def fill(self):
         set_non_blocking_io(self.rfile.fileno())
         try:
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
-            # get a MemoryError here. Read no more than 1MiB.
-            read = _nb_clean(self.rfile.read, min(1048576, LATENCY_BUFFER_SIZE))
+            # get a MemoryError here. Read no more than 1MiB, and at least
+            # 64 KiB so a full packet fits in one read.
+            read = _nb_clean(self.rfile.read,
+                             min(1048576, max(LATENCY_BUFFER_SIZE, 65536)))
             if helpers.verbose >= 2:
                 debug2('mux read: %r' % len(read))
         except OSError:
@@ -659,6 +671,8 @@ class Mux(Handler):
                 break
 
     def pre_select(self, r, w, x):
+        # Once per round, so every channel gets its turn.
+        self.queue_full = self.amount_queued() >= 2 * MAX_PACKET_DATA
         _add(r, self.rfile)
         if self.outbuf:
             _add(w, self.wfile)
@@ -723,13 +737,13 @@ class MuxWrapper(SockWrapper):
             self.mux.channels[self.channel] = None
 
     def too_full(self):
-        return self.mux.too_full
+        return self.mux.too_full or self.mux.queue_full
 
     def uwrite(self, buf):
-        if self.mux.too_full:
+        if self.too_full():
             return 0  # too much already enqueued
-        if len(buf) > 2048:
-            buf = buf[:2048]
+        # At least 1, so a bad --latency-buffer-size cannot cut data off.
+        buf = buf[:max(1, min(LATENCY_BUFFER_SIZE, MAX_PACKET_DATA))]
         self.mux.send(self.channel, CMD_TCP_DATA, buf)
         return len(buf)
 
