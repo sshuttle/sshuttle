@@ -259,3 +259,51 @@ def test_proxy_reads_an_idle_connection_only_when_it_is_ready():
     finally:
         for s in (mux.rfile, mux.wfile, ours, theirs, conn, peer):
             s.close()
+
+
+@pytest.mark.parametrize('verbose', [0, 2])
+def test_runonce_builds_debug_strings_only_when_logging(
+        verbose, monkeypatch, capsys):
+    """Formatting the descriptor lists costs time on every round."""
+    monkeypatch.setattr('sshuttle.helpers.verbose', verbose)
+    fds = Mock(wraps=ssnet._fds)
+    monkeypatch.setattr(ssnet, '_fds', fds)
+    a, a_peer = socket.socketpair()
+    b, b_peer = socket.socketpair()
+    handlers = [ssnet.Proxy(ssnet.SockWrapper(a, a), ssnet.SockWrapper(b, b))]
+    try:
+        a_peer.sendall(b'ping')
+        ssnet.runonce(handlers, Mock(fullness=0, too_full=False))
+        logged = capsys.readouterr().err
+        if verbose:
+            assert fds.called
+            assert 'Waiting: 1 r=' in logged and 'Ready: 1 r=' in logged
+        else:
+            assert not fds.called
+            assert logged == ''
+    finally:
+        for s in (a, a_peer, b, b_peer):
+            s.close()
+
+
+@pytest.mark.parametrize('verbose', [0, 2, 3])
+def test_mux_debug_messages_follow_the_verbosity(verbose, monkeypatch, capsys):
+    monkeypatch.setattr('sshuttle.helpers.verbose', verbose)
+    ours, theirs = socket.socketpair()
+    mux = ssnet.Mux(ours.makefile('rb', buffering=0),
+                    ours.makefile('wb', buffering=0))  # sends a PING
+    try:
+        mux.flush()
+        theirs.sendall(b'x')
+        mux.fill()
+        mux.got_packet(0, ssnet.CMD_PONG, b'')
+        ours.setblocking(False)
+        assert ssnet._nb_clean(ours.recv, 1) is None
+        logged = capsys.readouterr().err
+    finally:
+        for s in (mux.rfile, mux.wfile, ours, theirs):
+            s.close()
+    for message, level in ((' > channel=0 cmd=PING', 2), ('mux wrote:', 2),
+                           ('mux read: 1', 2), ('<  channel=0 cmd=PONG', 2),
+                           ('recv: err was:', 3)):
+        assert (message in logged) == (verbose >= level), message
