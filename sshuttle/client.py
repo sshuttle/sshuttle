@@ -55,7 +55,10 @@ def check_daemon(pidfile):
     if not oldpid:
         os.unlink(_pidname)
         return  # invalid pidfile, ok
-    oldpid = int(oldpid.strip() or 0)
+    try:
+        oldpid = int(oldpid.strip() or 0)
+    except ValueError:
+        oldpid = 0
     if oldpid <= 0:
         os.unlink(_pidname)
         return  # invalid pidfile, ok
