@@ -7,6 +7,7 @@ import errno
 import select
 import os
 
+import sshuttle.helpers as helpers
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, set_non_blocking_io
 
 MAX_CHANNEL = 65535
@@ -187,7 +188,8 @@ def _nb_clean(func, *args):
         # Note: In python2 socket.error != OSError (In python3, they are same)
         _, e = sys.exc_info()[:2]
         if e.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
-            debug3('%s: err was: %s' % (func.__name__, e))
+            if helpers.verbose >= 3:
+                debug3('%s: err was: %s' % (func.__name__, e))
             return None
         else:
             # Re-raise other errors (including EPIPE) so they can be handled
@@ -377,7 +379,7 @@ class SockWrapper:
         rb = self.uread()
         if rb:
             self.buf.append(rb)
-        if rb == b(''):  # empty string means EOF; None means temporarily empty
+        if rb == b'':  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def copy_to(self, outwrap):
@@ -453,8 +455,12 @@ class Proxy(Handler):
     def callback(self, sock):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
-        self.wrap1.fill()
-        self.wrap2.fill()
+        # Every Proxy wakes when the shared mux is ready, so only read the
+        # socket that woke us. select() is level triggered: nothing is lost.
+        if sock is self.wrap1.rsock:
+            self.wrap1.fill()
+        if sock is self.wrap2.rsock:
+            self.wrap2.fill()
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
         if self.wrap1.buf and self.wrap2.shut_write:
@@ -515,15 +521,17 @@ class Mux(Handler):
         p = struct.pack('!ccHHH', b('S'), b('S'), channel, cmd, len(data)) \
             + data
         self.outbuf.append(p)
-        debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
-               % (channel, cmd_to_name.get(cmd, hex(cmd)),
-                  len(data), self.fullness))
+        if helpers.verbose >= 2:
+            debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
+                   % (channel, cmd_to_name.get(cmd, hex(cmd)),
+                      len(data), self.fullness))
         # debug3('>>> data: %r' % data)
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
-        debug2('<  channel=%d cmd=%s len=%d'
-               % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
+        if helpers.verbose >= 2:
+            debug2('<  channel=%d cmd=%s len=%d'
+                   % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
         # debug3('<<< data: %r' % data)
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
@@ -573,7 +581,8 @@ class Mux(Handler):
         if self.outbuf and self.outbuf[0]:
             wrote = _nb_clean(self.wfile.write, self.outbuf[0])
             # self.wfile.flush()
-            debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
+            if helpers.verbose >= 2:
+                debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
             if wrote:
                 self.outbuf[0] = self.outbuf[0][wrote:]
         while self.outbuf and not self.outbuf[0]:
@@ -585,7 +594,8 @@ class Mux(Handler):
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
             # get a MemoryError here. Read no more than 1MiB.
             read = _nb_clean(self.rfile.read, min(1048576, LATENCY_BUFFER_SIZE))
-            debug2('mux read: %r' % len(read))
+            if helpers.verbose >= 2:
+                debug2('mux read: %r' % len(read))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
@@ -693,6 +703,9 @@ class MuxWrapper(SockWrapper):
         else:
             return None  # no data available right now
 
+    def fill(self):
+        pass  # channel data and EOF arrive through got_packet()
+
     def got_packet(self, cmd, data):
         if cmd == CMD_TCP_EOF:
             # Remote side already knows the status - set flag but don't notify
@@ -727,12 +740,15 @@ def runonce(handlers, mux):
 
     for s in handlers:
         s.pre_select(r, w, x)
-    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
-           % (len(handlers), _fds(r), _fds(w), _fds(x),
-               mux.fullness, mux.too_full))
+    # Called every round: skip building the debug strings unless needed.
+    if helpers.verbose >= 2:
+        debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
+               % (len(handlers), _fds(r), _fds(w), _fds(x),
+                  mux.fullness, mux.too_full))
     (r, w, x) = _select(r, w, x)
-    debug2('  Ready: %d r=%r w=%r x=%r'
-           % (len(handlers), _fds(r), _fds(w), _fds(x)))
+    if helpers.verbose >= 2:
+        debug2('  Ready: %d r=%r w=%r x=%r'
+               % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r + w + x
     did = {}
     for h in handlers:
