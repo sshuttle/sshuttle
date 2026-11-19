@@ -384,7 +384,8 @@ parser.add_argument(
     default=32768,
     dest="latency_buffer_size",
     help="""
-    size of latency control buffer
+    minimum size of the latency control window, which grows from there
+    while it adds less than about 30 ms of delay
     """
 )
 parser.add_argument(
