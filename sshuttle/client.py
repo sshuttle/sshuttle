@@ -2,6 +2,7 @@ import errno
 import ipaddress
 import re
 import signal
+import stat
 import time
 import subprocess as ssubprocess
 import os
@@ -46,7 +47,13 @@ def check_daemon(pidfile):
     global _pidname
     _pidname = os.path.abspath(pidfile)
     try:
-        oldpid = open(_pidname).read(1024)
+        with open(_pidname) as f:
+            if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                # Not a regular file (e.g. --pidfile=/dev/null): leave it
+                # alone and don't write a pidfile at all.
+                _pidname = None
+                return
+            oldpid = f.read(1024)
     except IOError as e:
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
@@ -80,13 +87,16 @@ def daemonize():
     # Try to open the pidfile prior to forking. If there is a problem,
     # the client can then exit with a proper exit status code and
     # message.
-    try:
-        outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-    except PermissionError:
-        # User will have to look in syslog for error message since
-        # --daemon implies --syslog, all output gets redirected to
-        # syslog.
-        raise Fatal("failed to create/write pidfile %s" % _pidname)
+    outfd = None
+    if _pidname is not None:
+        try:
+            outfd = os.open(_pidname,
+                            os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+        except PermissionError:
+            # User will have to look in syslog for error message since
+            # --daemon implies --syslog, all output gets redirected to
+            # syslog.
+            raise Fatal("failed to create/write pidfile %s" % _pidname)
 
     # Create a daemon process with a new session id.
     if os.fork():
@@ -96,10 +106,11 @@ def daemonize():
         os._exit(0)
 
     # Write pid to the pidfile.
-    try:
-        os.write(outfd, b'%d\n' % os.getpid())
-    finally:
-        os.close(outfd)
+    if outfd is not None:
+        try:
+            os.write(outfd, b'%d\n' % os.getpid())
+        finally:
+            os.close(outfd)
     os.chdir("/")
 
     # Normal exit when killed, or try/finally won't work and the pidfile won't
@@ -113,6 +124,8 @@ def daemonize():
 
 
 def daemon_cleanup():
+    if _pidname is None:
+        return
     try:
         os.unlink(_pidname)
     except OSError as e:
@@ -803,7 +816,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     if daemon:
         daemonize()
-        log('daemonizing (%s).' % _pidname)
+        log('daemonizing (%s).' % (_pidname or 'no pidfile'))
 
     def onroutes(routestr):
         if auto_nets:
