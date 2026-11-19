@@ -78,7 +78,7 @@ def read_host_cache():
         words = line.strip().split(',')
         if len(words) == 2:
             (name, ip) = words
-            name = re.sub(r'[^-\w\.]', '-', name).strip()
+            name = re.sub(r'[^-\w\.]', '-', name, flags=re.ASCII).strip()
             # Remove characters that shouldn't be in IP
             ip = re.sub(r'[^0-9.]', '', ip).strip()
             if name and ip:
@@ -95,7 +95,9 @@ def found_host(name, ip):
        hostnames list, send the host to the sshuttle client via
        stdout, and write the host to the cache file.
     """
-    if not re.match(r'^[-\w\.]+$', name):
+    # Host names are ASCII; \w would also let non-ASCII letters through, and
+    # the cache file is written as ASCII.
+    if not re.match(r'^[-\w\.]+$', name, re.ASCII):
         return
     hostname = re.sub(r'\..*', '', name)
     if (ip.startswith('127.') or ip.startswith('255.') or
