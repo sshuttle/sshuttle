@@ -1068,8 +1068,8 @@ def main(listenip_v6, listenip_v4,
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
-    # Exclude remote server IP
-    host, proxy_host, proxy_command = ssh.parse_hostname(remotename)
+    # Exclude remote.
+    host, proxy_host, proxy_command, remote_port = ssh.parse_hostname(remotename)
     hosts_to_exclude = []
     if proxy_command:
         debug1(
@@ -1080,6 +1080,7 @@ def main(listenip_v6, listenip_v4,
         hosts_to_exclude.append(proxy_host)
     elif host:
         hosts_to_exclude.append(host)
+
     for host in hosts_to_exclude:
         try:
             addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
@@ -1090,13 +1091,19 @@ def main(listenip_v6, listenip_v4,
                     # firewall set up IPv6 rules after all.
                     continue
                 remote_ip = sockaddr[0]
-
                 # Strip IPv6 scope suffix, e.g. fe80::1%eth0
                 if family == socket.AF_INET6:
                     remote_ip = remote_ip.split('%', 1)[0]
 
-                if not any(remote_ip == sex[1] for sex in subnets_exclude):
-                    subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
+                width = 32 if family == socket.AF_INET else 128
+                already_excluded = any(
+                    remote_ip == sex[1]
+                    and (sex[3] == 0 and sex[4] == 0
+                         or sex[3] <= remote_port <= sex[4])
+                    for sex in subnets_exclude
+                )
+                if not already_excluded:
+                    subnets_exclude.append((family, remote_ip, width, remote_port, remote_port))
         except Exception as e:
             debug1(f"Failed to exclude remote IP: {e}\n")
     # We don't print the IP+port of where we are listening here
