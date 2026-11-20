@@ -168,7 +168,7 @@ def _check_netstat():
     try:
         p = ssubprocess.Popen(argv, stdout=ssubprocess.PIPE, stderr=null,
                               env=get_env())
-        content = p.stdout.read().decode("ASCII")
+        content = p.stdout.read().decode("ASCII", errors="ignore")
         p.wait()
     except OSError:
         _, e = sys.exc_info()[:2]

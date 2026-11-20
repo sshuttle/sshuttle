@@ -36,3 +36,11 @@ def test_check_daemon_leaves_non_regular_file_alone(monkeypatch):
 
     client.daemon_cleanup()
     assert unlinked == []
+
+
+def test_daemonize_pidfile_directory_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(client, '_pidname', None)
+    pidfile = tmp_path / "missing" / "sshuttle.pid"
+    client.check_daemon(str(pidfile))
+    with pytest.raises(Fatal, match='failed to create/write pidfile'):
+        client.daemonize()
