@@ -92,11 +92,12 @@ def daemonize():
         try:
             outfd = os.open(_pidname,
                             os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-        except PermissionError:
+        except OSError as e:
             # User will have to look in syslog for error message since
             # --daemon implies --syslog, all output gets redirected to
             # syslog.
-            raise Fatal("failed to create/write pidfile %s" % _pidname)
+            raise Fatal("failed to create/write pidfile %s: %s"
+                        % (_pidname, e.strerror))
 
     # Create a daemon process with a new session id.
     if os.fork():
