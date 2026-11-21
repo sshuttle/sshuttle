@@ -126,7 +126,7 @@ def test_startup_port_bookkeeping(ports, dns, flush_dns, udp, error, failing_cal
                 subnets_include=[], subnets_exclude=[], daemon=False, flush_dns=flush_dns)
     with patch.object(client, "FirewallClient", return_value=fw) as firewall_client, \
             patch.object(client, "MultiListener", side_effect=make_listener), \
-            patch.object(client.ssh, "parse_hostname", return_value=(None, None, None)), \
+            patch.object(client.ssh, "parse_hostname", return_value=(None, None, None, 22)), \
             patch.object(client, "_main", return_value=0):
         if error == errno.EACCES or (error and 0 not in ports):
             with pytest.raises(OSError) as exc:
@@ -244,7 +244,7 @@ def test_default_listeners_skip_ipv6_when_the_kernel_has_none(udp):
                 subnets_exclude=[], daemon=False)
     with patch.object(client, "FirewallClient", return_value=fw), \
             patch.object(client.socket, "socket", side_effect=_no_ipv6_socket), \
-            patch.object(client.ssh, "parse_hostname", return_value=(None, None, None)), \
+            patch.object(client.ssh, "parse_hostname", return_value=(None, None, None, 22)), \
             patch.object(client, "_main", return_value=0) as _main:
         assert client.main(**args) == 0
     redirectport_v6, redirectport_v4 = fw.setup.call_args.args[3:5]
@@ -367,14 +367,14 @@ def test_remote_ipv6_address_is_excluded_only_when_ipv6_is_used(ipv6):
     with patch.object(client, "FirewallClient", return_value=fw), \
             patch.object(client, "MultiListener", side_effect=lambda *a: Mock()), \
             patch.object(client.ssh, "parse_hostname",
-                         return_value=("remote.example", None, None)), \
+                         return_value=("remote_ip.example", None, None, 22)), \
             patch.object(client.socket, "getaddrinfo", return_value=remote), \
             patch.object(client, "_main", return_value=0):
         assert client.main(**args) == 0
     subnets_exclude = fw.setup.call_args.args[1]
-    assert (socket.AF_INET, "192.0.2.10", 32, 0, 0) in subnets_exclude
+    assert (socket.AF_INET, "192.0.2.10", 32, 22, 22) in subnets_exclude
     excluded_v6 = [s for s in subnets_exclude if s[0] == socket.AF_INET6]
     if ipv6:
-        assert (socket.AF_INET6, "2001:db8::10", 128, 0, 0) in excluded_v6
+        assert (socket.AF_INET6, "2001:db8::10", 128, 22, 22) in excluded_v6
     else:
         assert excluded_v6 == []
