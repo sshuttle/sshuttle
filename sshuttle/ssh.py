@@ -40,10 +40,14 @@ def parse_hostname(remotename):
     if not host:
         return None, None, None, port
 
+    # Avoid running ssh -G if -r provides port
+    if port is not None:
+        return host, None, None, port
+
     remote_host = None
     proxy_host = None
     proxy_command = None
-    config_port = None
+    remote_port = None
 
     try:
         result = ssubprocess.run(
@@ -54,7 +58,7 @@ def parse_hostname(remotename):
                 if line.startswith('hostname '):
                     remote_host = line.split(' ', 1)[1].strip()
                 elif line.startswith('port '):
-                    config_port = int(line.split(' ', 1)[1].strip())
+                    remote_port = int(line.split(' ', 1)[1].strip())
                 elif line.startswith('proxyjump '):
                     proxy_raw = line.split(' ', 1)[1].strip()
                     # Remove brackets
@@ -68,7 +72,7 @@ def parse_hostname(remotename):
         pass
 
     if port is None:
-        port = config_port
+        port = remote_port
         if port is None:
             debug1("Could not determine SSH port; using default port 22.\n")
             port = 22
