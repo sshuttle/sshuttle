@@ -895,7 +895,7 @@ def main(listenip_v6, listenip_v4,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
          user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark,
-         flush_dns=True):
+         flush_dns=True, no_auto_exclude=False):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -1078,37 +1078,51 @@ def main(listenip_v6, listenip_v4,
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
-    # Exclude remote server IP
-    host, proxy_host, proxy_command = ssh.parse_hostname(remotename)
-    hosts_to_exclude = []
-    if proxy_command:
-        debug1(
-            "Warning: ProxyCommand is configured; skipping automatic remote IP exclusion. "
-            "Use -x explicitly if required.\n"
+    if no_auto_exclude:
+        print(
+            "Warning: automatic SSH endpoint exclusion is disabled. \n"
+            "If this is needed due to a bug, please report it at "
+            "https://github.com/sshuttle/sshuttle/issues"
         )
-    elif proxy_host:
-        hosts_to_exclude.append(proxy_host)
-    elif host:
-        hosts_to_exclude.append(host)
-    for host in hosts_to_exclude:
-        try:
-            addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
-            for family, _, _, _, sockaddr in addrinfo:
-                if family == socket.AF_INET6 and not required.ipv6:
-                    # No IPv6 traffic is redirected, so there is nothing
-                    # to exclude, and an IPv6 entry would make the
-                    # firewall set up IPv6 rules after all.
-                    continue
-                remote_ip = sockaddr[0]
+    else:
+        # Exclude remote
+        host, proxy_host, proxy_command, remote_port = ssh.parse_hostname(remotename)
+        hosts_to_exclude = []
+        if proxy_command:
+            debug1(
+                "Warning: ProxyCommand is configured; skipping automatic remote IP exclusion. "
+                "Use -x explicitly if required.\n"
+            )
+        elif proxy_host:
+            hosts_to_exclude.append(proxy_host)
+        elif host:
+            hosts_to_exclude.append(host)
 
-                # Strip IPv6 scope suffix, e.g. fe80::1%eth0
-                if family == socket.AF_INET6:
-                    remote_ip = remote_ip.split('%', 1)[0]
+        for host in hosts_to_exclude:
+            try:
+                addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
+                for family, _, _, _, sockaddr in addrinfo:
+                    if family == socket.AF_INET6 and not required.ipv6:
+                        # No IPv6 traffic is redirected, so there is nothing
+                        # to exclude, and an IPv6 entry would make the
+                        # firewall set up IPv6 rules after all.
+                        continue
+                    remote_ip = sockaddr[0]
+                    # Strip IPv6 scope suffix, e.g. fe80::1%eth0
+                    if family == socket.AF_INET6:
+                        remote_ip = remote_ip.split('%', 1)[0]
 
-                if not any(remote_ip == sex[1] for sex in subnets_exclude):
-                    subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
-        except Exception as e:
-            debug1(f"Failed to exclude remote IP: {e}\n")
+                    width = 32 if family == socket.AF_INET else 128
+                    already_excluded = any(
+                        remote_ip == sex[1]
+                        and (sex[3] == 0 and sex[4] == 0
+                             or sex[3] <= remote_port <= sex[4])
+                        for sex in subnets_exclude
+                    )
+                    if not already_excluded:
+                        subnets_exclude.append((family, remote_ip, width, remote_port, remote_port))
+            except Exception as e:
+                debug1(f"Failed to exclude remote IP: {e}\n")
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.

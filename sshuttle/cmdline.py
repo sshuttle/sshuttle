@@ -133,7 +133,8 @@ def main():
                                       opt.add_cmd_delimiter,
                                       opt.remote_shell,
                                       opt.tmark,
-                                      flush_dns=not opt.no_flush_dns)
+                                      flush_dns=not opt.no_flush_dns,
+                                      no_auto_exclude=opt.no_auto_exclude)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

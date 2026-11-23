@@ -321,6 +321,13 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-auto-exclude",
+    action="store_true",
+    help="""
+    disable automatic exclusion of the SSH endpoint
+    """
+)
+parser.add_argument(
     "-v", "--verbose",
     action="count",
     default=0,
