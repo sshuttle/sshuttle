@@ -30,3 +30,7 @@ def test_setup_firewall_scoped_nameserver(mock_nft):
              'daddr 2404:6800:4004:80c::33', 'udp dport 53',
              'redirect to :1026'),
     ]
+
+
+def helper(item):
+    print(item)
