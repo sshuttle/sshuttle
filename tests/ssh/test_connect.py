@@ -36,4 +36,11 @@ def _build_argv(rhostport, sshmetadata, monkeypatch):
         os.environ.pop("SSHPASS", None)
 
 
+def test_connect_username_with_escaped_colon(monkeypatch):
+
+    argv, sshpass = _build_argv(
+        "proxyuser%3Atarget@10.4.42.52:2222",supported_ssh_version ,monkeypatch)
+    assert argv[:4] == ["ssh", "-p", "2222", "proxyuser:target@10.4.42.52"]
+    assert "sshpass" not in argv
+    assert sshpass is None
 
