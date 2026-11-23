@@ -9,7 +9,7 @@ import subprocess as ssubprocess
 import shlex
 from shlex import quote
 import ipaddress
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 import sshuttle.helpers as helpers
 from sshuttle.helpers import debug2, which, get_path, SocketRWShim, Fatal
@@ -94,6 +94,13 @@ def parse_hostport(rhostport):
         if ":" in username:
             # this will even allow for the username to be empty
             username, password = username.split(":", 1)
+        # Percent-decode the username and password only after the
+        # splits above, so an escaped separator (such as %3A for a
+        # colon inside the username, issue #994) is never treated
+        # as a real one.
+        username = unquote(username)
+        if password is not None:
+            password = unquote(password)
 
     if ":" in host:
         # IPv6 address and/or got a port specified
