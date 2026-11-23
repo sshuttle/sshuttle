@@ -1,3 +1,4 @@
+import errno
 import os
 
 import pytest
@@ -44,3 +45,17 @@ def test_daemonize_pidfile_directory_missing(tmp_path, monkeypatch):
     client.check_daemon(str(pidfile))
     with pytest.raises(Fatal, match='failed to create/write pidfile'):
         client.daemonize()
+
+
+@pytest.mark.parametrize('content', ['', 'garbage', '999999999\n'])
+def test_check_daemon_stale_pidfile_not_removable(tmp_path, monkeypatch,
+                                                  content):
+    pidfile = tmp_path / "sshuttle.pid"
+    pidfile.write_text(content)
+
+    def unlink(path):
+        raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), path)
+    monkeypatch.setattr(client.os, 'unlink', unlink)
+    with pytest.raises(Fatal, match="can't remove stale pidfile .*: "
+                                    "Permission denied"):
+        client.check_daemon(str(pidfile))

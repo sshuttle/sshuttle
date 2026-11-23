@@ -43,6 +43,15 @@ def got_signal(signum, frame):
 _pidname = None
 
 
+def _remove_stale_pidfile():
+    try:
+        os.unlink(_pidname)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise Fatal("can't remove stale pidfile %s: %s"
+                        % (_pidname, e.strerror))
+
+
 def check_daemon(pidfile):
     global _pidname
     _pidname = os.path.abspath(pidfile)
@@ -60,20 +69,20 @@ def check_daemon(pidfile):
         else:
             raise Fatal("can't read %s: %s" % (_pidname, e))
     if not oldpid:
-        os.unlink(_pidname)
+        _remove_stale_pidfile()
         return  # invalid pidfile, ok
     try:
         oldpid = int(oldpid.strip() or 0)
     except ValueError:
         oldpid = 0
     if oldpid <= 0:
-        os.unlink(_pidname)
+        _remove_stale_pidfile()
         return  # invalid pidfile, ok
     try:
         os.kill(oldpid, 0)
     except OSError as e:
         if e.errno == errno.ESRCH:
-            os.unlink(_pidname)
+            _remove_stale_pidfile()
             return  # outdated pidfile, ok
         elif e.errno == errno.EPERM:
             pass
