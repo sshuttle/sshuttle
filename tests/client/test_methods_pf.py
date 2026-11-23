@@ -110,6 +110,34 @@ def test_firewall_command_darwin(mock_pf_get_dev, mock_ioctl, mock_stdout):
     ]
 
 
+@patch('sshuttle.methods.pf.pf', Darwin())
+@patch('sshuttle.methods.pf.sys.stdout')
+@patch('sshuttle.methods.pf.ioctl')
+@patch('sshuttle.methods.pf.pf_get_dev')
+def test_firewall_command_darwin_against_two_commands(mock_pf_get_dev, mock_ioctl, mock_stdout):
+    method = get_method('pf')
+    assert not method.firewall_command("something")
+
+    command = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n" % (
+        AF_INET, socket.IPPROTO_TCP,
+        "127.0.0.1", 1025, "127.0.0.2", 1024)
+
+
+    command2 = "QUERY_PF_NAT %d,%d,%s,%d,%s,%d\n mspaint.exe" % (
+        AF_INET, socket.IPPROTO_TCP,
+        "127.0.0.1", 1025, "127.0.0.2", 1024)
+    assert method.firewall_command(command)
+
+    assert mock_pf_get_dev.mock_calls == [call()]
+    assert mock_ioctl.mock_calls == [
+        call(mock_pf_get_dev(), 0xc0544417, ANY),
+    ]
+    assert mock_stdout.mock_calls == [
+        call.write('QUERY_PF_NAT_SUCCESS 0.0.0.0,0\n'),
+        call.flush(),
+    ]
+
+
 @patch('sshuttle.methods.pf.pf', FreeBsd())
 @patch('sshuttle.methods.pf.sys.stdout')
 @patch('sshuttle.methods.pf.ioctl')
