@@ -328,6 +328,10 @@ def test_hosts_writer_logs_each_error_once(mock_rewrite_etc_hosts, mock_log):
 def test_hosts_writer_stop_drops_pending_hosts(mock_rewrite_etc_hosts):
     started, release = threading.Event(), threading.Event()
 
+    def faster_rewrite(hostmap, port):
+        started.set()
+        release.wait(5)
+
     def slow_rewrite(hostmap, port):
         started.set()
         release.wait(5)
