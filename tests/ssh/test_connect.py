@@ -44,3 +44,8 @@ def test_connect_username_with_escaped_colon(monkeypatch):
     assert "sshpass" not in argv
     assert sshpass is None
 
+
+def test_connect_username_with_password(monkeypatch):
+    argv, sshpass = _build_argv("user:pass@host", monkeypatch)
+    assert argv[:4] == ["sshpass", "-e", "ssh", "user@host"]
+    assert sshpass == "pass"
