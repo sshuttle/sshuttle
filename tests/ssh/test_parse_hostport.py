@@ -23,6 +23,15 @@ def test_username_and_host():
     assert parse_hostport("user:pass@host") == ("user", "pass", None, "host")
 
 
+def test_username_with_escaped_colon():
+    assert parse_hostport("proxyuser%3Atarget@10.4.42.52:2222") == \
+        ("proxyuser:target", None, 2222, "10.4.42.52")
+    assert parse_hostport("user%3Aname@host") == \
+        ("user:name", None, None, "host")
+    assert parse_hostport("user%3Aname:pass@host") == \
+        ("user:name", "pass", None, "host")
+
+
 @pytest.mark.parametrize("rhostport", [
     "host:99999",
     "user@host:65536",
