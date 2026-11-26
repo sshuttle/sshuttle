@@ -51,6 +51,19 @@ def parse_subnetport(s):
     #
     # cidr is the mask defined with the slash notation
     host, cidr, fport, lport = m.groups()
+    fport = int(fport or 0)
+    lport = int(lport or fport)
+    for port in (fport, lport):
+        if not 0 <= port <= 65535:
+            raise Fatal('Port %d is not between 0 and 65535' % port)
+    if fport > lport:
+        raise Fatal('Invalid port range %d-%d: first port is greater '
+                    'than last' % (fport, lport))
+    # Port 0 means "no port", so it can't start a range.
+    if fport == 0 and lport > 0:
+        raise Fatal('Invalid port range 0-%d: port 0 is not allowed '
+                    'in a range' % lport)
+
     try:
         addrinfo = socket.getaddrinfo(host, 0, 0, socket.SOCK_STREAM)
     except socket.gaierror:
@@ -92,8 +105,7 @@ def parse_subnetport(s):
                             'not between 0 and %d'
                             % (cidr_to_use, max_cidr))
 
-        rv.append((family, addr[0], cidr_to_use,
-                   int(fport or 0), int(lport or fport or 0)))
+        rv.append((family, addr[0], cidr_to_use, fport, lport))
 
     return rv
 
@@ -117,6 +129,8 @@ def parse_ipport(s):
     host, port = m.groups()
     host = host or '0.0.0.0'
     port = int(port or 0)
+    if not 0 <= port <= 65535:
+        raise Fatal('Port %d is not between 0 and 65535' % port)
 
     try:
         addrinfo = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
@@ -138,12 +152,10 @@ def parse_list(lst):
 
 
 def parse_namespace(namespace):
-    try:
-        assert re.fullmatch(
-            r'(@?[a-z_A-Z]\w+(?:\.@?[a-z_A-Z]\w+)*)', namespace)
-        return namespace
-    except AssertionError:
+    if not re.fullmatch(
+            r'(@?[a-z_A-Z]\w*(?:\.@?[a-z_A-Z]\w*)*)', namespace):
         raise Fatal("%r is not a valid namespace name." % namespace)
+    return namespace
 
 
 class Concat(Action):
@@ -157,26 +169,37 @@ class Concat(Action):
         setattr(namespace, self.dest, curr_value + values)
 
 
+# When copying parameters from the command line to a file, some users
+# might copy the quotes they used on the command line into the config
+# file. We ignore these if the text starts and ends with the same quote.
+def strip_quotes(s):
+    if s.startswith("'") and s.endswith("'") or \
+       s.startswith('"') and s.endswith('"'):
+        return s[1:-1]
+    return s
+
+
 # Override one function in the ArgumentParser so that we can have
 # better control for how we parse files containing arguments. We
-# expect one argument per line, but strip whitespace/quotes from the
-# beginning/end of the lines.
+# expect one argument per line, or an option and its value on the same
+# line, but strip whitespace/quotes from the beginning/end of the lines.
 class MyArgumentParser(ArgumentParser):
     def convert_arg_line_to_args(self, arg_line):
-        # Ignore comments
-        if arg_line.startswith("#"):
-            return []
-
         # strip whitespace at beginning and end of line
         arg_line = arg_line.strip()
 
-        # When copying parameters from the command line to a file,
-        # some users might copy the quotes they used on the command
-        # line into the config file. We ignore these if the line
-        # starts and ends with the same quote.
-        if arg_line.startswith("'") and arg_line.endswith("'") or \
-           arg_line.startswith('"') and arg_line.endswith('"'):
-            arg_line = arg_line[1:-1]
+        # Ignore blank lines and comments, including indented ones
+        if not arg_line or arg_line.startswith("#"):
+            return []
+
+        arg_line = strip_quotes(arg_line)
+
+        # Split an option from the value that follows it on the line.
+        # Left whole, argparse reads "-r host" as the value " host" and
+        # doesn't recognize "--remote host" as an option at all.
+        match = re.match(r'(-\w|--\w[\w-]*)\s+(.+)$', arg_line)
+        if match:
+            return [match.group(1), strip_quotes(match.group(2))]
 
         return [arg_line]
 
@@ -223,6 +246,11 @@ parser.add_argument(
     help="""
     capture local DNS requests and forward to the remote DNS server
     """
+)
+parser.add_argument(
+    "--no-flush-dns",
+    action="store_true",
+    help="do not flush the systemd DNS resolver cache on startup or shutdown"
 )
 parser.add_argument(
     "--ns-hosts",
@@ -293,6 +321,13 @@ parser.add_argument(
     """
 )
 parser.add_argument(
+    "--no-auto-exclude",
+    action="store_true",
+    help="""
+    disable automatic exclusion of the SSH endpoint
+    """
+)
+parser.add_argument(
     "-v", "--verbose",
     action="count",
     default=0,
@@ -356,7 +391,8 @@ parser.add_argument(
     default=32768,
     dest="latency_buffer_size",
     help="""
-    size of latency control buffer
+    minimum size of the latency control window, which grows from there
+    while it adds less than about 30 ms of delay
     """
 )
 parser.add_argument(
@@ -416,7 +452,8 @@ parser.add_argument(
 parser.add_argument(
     "--group",
     help="""
-    apply all the rules only to this linux group
+    apply all the rules only to this linux group (with the nat method,
+    processes that have this group as a supplementary group also match)
     """
 )
 parser.add_argument(

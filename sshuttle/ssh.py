@@ -12,7 +12,7 @@ import ipaddress
 from urllib.parse import urlparse
 
 import sshuttle.helpers as helpers
-from sshuttle.helpers import debug2, which, get_path, SocketRWShim, Fatal
+from sshuttle.helpers import debug1, debug2, which, get_path, SocketRWShim, Fatal
 
 
 def get_module_source(name):
@@ -34,15 +34,20 @@ def parse_hostname(remotename):
     """
     Parse and resolve SSH remote hostname.
     Uses 'ssh -G' to query the effective SSH configuration.
-    Returns tuple of (remote_host, proxy_host, proxy_command).
+    Returns tuple of (remote_host, proxy_host, proxy_command, port).
     """
-    _, _, _, host = parse_hostport(remotename)
+    _, _, port, host = parse_hostport(remotename)
     if not host:
-        return None, None, None
+        return None, None, None, port
+
+    # Avoid running ssh -G if -r provides port
+    if port is not None:
+        return host, None, None, port
 
     remote_host = None
     proxy_host = None
     proxy_command = None
+    remote_port = None
 
     try:
         result = ssubprocess.run(
@@ -52,6 +57,8 @@ def parse_hostname(remotename):
             for line in result.stdout.split('\n'):
                 if line.startswith('hostname '):
                     remote_host = line.split(' ', 1)[1].strip()
+                elif line.startswith('port '):
+                    remote_port = int(line.split(' ', 1)[1].strip())
                 elif line.startswith('proxyjump '):
                     proxy_raw = line.split(' ', 1)[1].strip()
                     # Remove brackets
@@ -64,7 +71,13 @@ def parse_hostname(remotename):
     except Exception:
         pass
 
-    return remote_host or host, proxy_host, proxy_command
+    if port is None:
+        port = remote_port
+        if port is None:
+            debug1("Could not determine SSH port; using default port 22.\n")
+            port = 22
+
+    return remote_host or host, proxy_host, proxy_command, port
 
 
 def parse_hostport(rhostport):
@@ -115,7 +128,11 @@ def parse_hostport(rhostport):
                 # parsed.hostname is lowercased, but ssh matches "Host"
                 # aliases case-sensitively, so keep the original text.
                 host = parsed.netloc.rsplit(':', 1)[0]
-            port = parsed.port
+            try:
+                port = parsed.port
+            except ValueError:
+                raise Fatal("--remote %r does not have a valid port; it must "
+                            "be a number between 0 and 65535" % rhostport)
 
     if password is None or len(password) == 0:
         password = None

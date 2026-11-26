@@ -1,6 +1,8 @@
 import errno
+import ipaddress
 import re
 import signal
+import stat
 import time
 import subprocess as ssubprocess
 import os
@@ -41,28 +43,46 @@ def got_signal(signum, frame):
 _pidname = None
 
 
+def _remove_stale_pidfile():
+    try:
+        os.unlink(_pidname)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise Fatal("can't remove stale pidfile %s: %s"
+                        % (_pidname, e.strerror))
+
+
 def check_daemon(pidfile):
     global _pidname
     _pidname = os.path.abspath(pidfile)
     try:
-        oldpid = open(_pidname).read(1024)
+        with open(_pidname) as f:
+            if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+                # Not a regular file (e.g. --pidfile=/dev/null): leave it
+                # alone and don't write a pidfile at all.
+                _pidname = None
+                return
+            oldpid = f.read(1024)
     except IOError as e:
         if e.errno == errno.ENOENT:
             return  # no pidfile, ok
         else:
             raise Fatal("can't read %s: %s" % (_pidname, e))
     if not oldpid:
-        os.unlink(_pidname)
+        _remove_stale_pidfile()
         return  # invalid pidfile, ok
-    oldpid = int(oldpid.strip() or 0)
+    try:
+        oldpid = int(oldpid.strip() or 0)
+    except ValueError:
+        oldpid = 0
     if oldpid <= 0:
-        os.unlink(_pidname)
+        _remove_stale_pidfile()
         return  # invalid pidfile, ok
     try:
         os.kill(oldpid, 0)
     except OSError as e:
         if e.errno == errno.ESRCH:
-            os.unlink(_pidname)
+            _remove_stale_pidfile()
             return  # outdated pidfile, ok
         elif e.errno == errno.EPERM:
             pass
@@ -76,13 +96,17 @@ def daemonize():
     # Try to open the pidfile prior to forking. If there is a problem,
     # the client can then exit with a proper exit status code and
     # message.
-    try:
-        outfd = os.open(_pidname, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-    except PermissionError:
-        # User will have to look in syslog for error message since
-        # --daemon implies --syslog, all output gets redirected to
-        # syslog.
-        raise Fatal("failed to create/write pidfile %s" % _pidname)
+    outfd = None
+    if _pidname is not None:
+        try:
+            outfd = os.open(_pidname,
+                            os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+        except OSError as e:
+            # User will have to look in syslog for error message since
+            # --daemon implies --syslog, all output gets redirected to
+            # syslog.
+            raise Fatal("failed to create/write pidfile %s: %s"
+                        % (_pidname, e.strerror))
 
     # Create a daemon process with a new session id.
     if os.fork():
@@ -92,10 +116,11 @@ def daemonize():
         os._exit(0)
 
     # Write pid to the pidfile.
-    try:
-        os.write(outfd, b'%d\n' % os.getpid())
-    finally:
-        os.close(outfd)
+    if outfd is not None:
+        try:
+            os.write(outfd, b'%d\n' % os.getpid())
+        finally:
+            os.close(outfd)
     os.chdir("/")
 
     # Normal exit when killed, or try/finally won't work and the pidfile won't
@@ -109,6 +134,8 @@ def daemonize():
 
 
 def daemon_cleanup():
+    if _pidname is None:
+        return
     try:
         os.unlink(_pidname)
     except OSError as e:
@@ -116,6 +143,18 @@ def daemon_cleanup():
             pass
         else:
             raise
+
+
+def ipv6_supported():
+    """False when the kernel has no IPv6 at all (e.g. Linux booted with
+    ipv6.disable=1), so not even an IPv6 socket can be created."""
+    try:
+        socket.socket(socket.AF_INET6, socket.SOCK_STREAM).close()
+    except OSError as e:
+        if e.errno != errno.EAFNOSUPPORT:
+            raise
+        return False
+    return True
 
 
 class MultiListener:
@@ -154,21 +193,21 @@ class MultiListener:
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
-            try:
-                self.v4.listen(backlog)
-            except socket.error as e:
-                # on some systems v4 bind will fail if the v6 succeeded,
-                # in this case the v6 socket will receive v4 too.
-                if e.errno == errno.EADDRINUSE and self.v6:
-                    self.v4 = None
-                else:
-                    raise e
+            self.v4.listen(backlog)
+
+    def close(self):
+        if self.v6:
+            self.v6.close()
+        if self.v4:
+            self.v4.close()
 
     def bind(self, address_v6, address_v4):
         assert not self.bind_called
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
+            if os.name == "posix" and self.type == socket.SOCK_STREAM:
+                self.v6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             if address_v4 is not None:
                 # IPv4 has its own listener; do not let IPv6 claim its port.
                 self.v6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
@@ -192,6 +231,8 @@ class MultiListener:
             self.v6 = None
         if address_v4 is not None:
             self.v4 = socket.socket(socket.AF_INET, self.type, self.proto)
+            if os.name == "posix" and self.type == socket.SOCK_STREAM:
+                self.v4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.v4.bind(address_v4)
         else:
             self.v4 = None
@@ -210,7 +251,7 @@ class MultiListener:
 
 class FirewallClient:
 
-    def __init__(self, method_name, sudo_pythonpath):
+    def __init__(self, method_name, sudo_pythonpath, flush_dns=True):
         self.auto_nets = []
 
         argv0 = sys.argv[0]
@@ -222,6 +263,8 @@ class FirewallClient:
                     ['--firewall'])
         if ssyslog._p:
             argvbase += ['--syslog']
+        if not flush_dns:
+            argvbase += ['--no-flush-dns']
 
         # A list of commands that we can try to run to start the firewall.
         argv_tries = []
@@ -411,10 +454,26 @@ class FirewallClient:
         if rv:
             raise Fatal('%r returned %d' % (self.argv, rv))
 
+    def _auto_nets_not_excluded(self):
+        # The firewall gives priority to the most specific subnet, so an
+        # auto net inside an excluded subnet would override the exclusion.
+        excluded = [ipaddress.ip_network(f'{ip}/{width}', strict=False)
+                    for (_, ip, width, fport, lport) in self.subnets_exclude
+                    if not fport and not lport]
+        auto_nets = []
+        for (family, ip, width, fport, lport) in self.auto_nets:
+            net = ipaddress.ip_network(f'{ip}/{width}', strict=False)
+            if any(net.version == ex.version and net.subnet_of(ex)
+                   for ex in excluded):
+                debug2(f"Ignored excluded auto net {family}/{ip}/{width}")
+            else:
+                auto_nets.append((family, ip, width, fport, lport))
+        return auto_nets
+
     def start(self):
         self.pfile.write(b'ROUTES\n')
         for (family, ip, width, fport, lport) \
-                in self.subnets_include + self.auto_nets:
+                in self.subnets_include + self._auto_nets_not_excluded():
             self.pfile.write(b'%d,%d,0,%s,%d,%d\n' % (family, width,
                                                       ip.encode("ASCII"),
                                                       fport, lport))
@@ -457,11 +516,20 @@ class FirewallClient:
         if line != b'STARTED\n':
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
-    def sethostip(self, hostname, ip):
-        assert not re.search(br'[^-\w\.]', hostname)
-        assert not re.search(br'[^0-9.]', ip)
-        self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
-        self.pfile.flush()
+    def sethostips(self, hostlist):
+        """Send the "name,ip" entries of hostlist to the firewall as one
+           batch. It updates the hosts file once per batch, not per host."""
+        lines = []
+        for entry in hostlist.split():
+            hostname, _, ip = entry.partition(b',')
+            if not (hostname and ip):
+                continue
+            assert not re.search(br'[^-\w\.]', hostname)
+            assert not re.search(br'[^0-9.]', ip)
+            lines.append(b'HOST %s,%s\n' % (hostname, ip))
+        if lines:
+            self.pfile.write(b''.join(lines) + b'HOSTS_END\n')
+            self.pfile.flush()
 
     def done(self):
         self.pfile.close()
@@ -538,7 +606,11 @@ def udp_done(chan, data, method, sock, dstip):
     (src, srcport, data) = data.split(b",", 2)
     srcip = (src, int(srcport))
     debug3('doing send from %r to %r' % (srcip, dstip,))
-    method.send_udp(sock, srcip, dstip, data)
+    try:
+        method.send_udp(sock, srcip, dstip, data)
+    except OSError as e:
+        # One undeliverable datagram should not take the tunnel down.
+        log('WARNING: failed to send UDP reply to %r: %s' % (dstip, e))
 
 
 def onaccept_udp(listener, method, mux, handlers):
@@ -567,7 +639,12 @@ def dns_done(chan, data, method, sock, srcip, dstip, mux):
     debug3('dns_done: channel=%d src=%r dst=%r' % (chan, srcip, dstip))
     del mux.channels[chan]
     del dnsreqs[chan]
-    method.send_udp(sock, srcip, dstip, data)
+    try:
+        method.send_udp(sock, srcip, dstip, data)
+    except OSError as e:
+        # The client that asked may be unreachable by now, e.g. after the
+        # local network changed. Drop this reply instead of crashing.
+        log('WARNING: failed to send DNS reply to %r: %s' % (dstip, e))
 
 
 def ondns(listener, method, mux, handlers):
@@ -589,6 +666,26 @@ def ondns(listener, method, mux, handlers):
     mux.channels[chan] = lambda cmd, data: dns_done(
         chan, data, method, listener, srcip=dstip, dstip=srcip, mux=mux)
     expire_connections(now, mux)
+
+
+def parse_auto_nets(routestr, tcp_listener):
+    """Parse the server's routes, keeping those we have a listener for."""
+    nets = []
+    for line in routestr.strip().split(b'\n'):
+        if not line:
+            continue
+        (family, ip, width) = line.split(b',', 2)
+        family = int(family)
+        width = int(width)
+        ip = ip.decode("ASCII")
+        if family == socket.AF_INET6 and tcp_listener.v6 is None:
+            debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
+        elif family == socket.AF_INET and tcp_listener.v4 is None:
+            debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
+        else:
+            debug2("Adding auto net %d/%s/%d" % (family, ip, width))
+            nets.append((family, ip, width, 0, 0))
+    return nets
 
 
 def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
@@ -729,24 +826,11 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     if daemon:
         daemonize()
-        log('daemonizing (%s).' % _pidname)
+        log('daemonizing (%s).' % (_pidname or 'no pidfile'))
 
     def onroutes(routestr):
         if auto_nets:
-            for line in routestr.strip().split(b'\n'):
-                if not line:
-                    continue
-                (family, ip, width) = line.split(b',', 2)
-                family = int(family)
-                width = int(width)
-                ip = ip.decode("ASCII")
-                if family == socket.AF_INET6 and tcp_listener.v6 is None:
-                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
-                if family == socket.AF_INET and tcp_listener.v4 is None:
-                    debug2("Ignored auto net %d/%s/%d" % (family, ip, width))
-                else:
-                    debug2("Adding auto net %d/%s/%d" % (family, ip, width))
-                    fw.auto_nets.append((family, ip, width, 0, 0))
+            fw.auto_nets.extend(parse_auto_nets(routestr, tcp_listener))
 
         # we definitely want to do this *after* starting ssh, or we might end
         # up intercepting the ssh connection!
@@ -766,10 +850,7 @@ def _main(tcp_listener, udp_listener, fw, ssh_cmd, remotename,
 
     def onhostlist(hostlist):
         debug2('got host list: %r' % hostlist)
-        for line in hostlist.strip().split():
-            if line:
-                name, ip = line.split(b',', 1)
-                fw.sethostip(name, ip)
+        fw.sethostips(hostlist)
     mux.got_host_list = onhostlist
 
     tcp_listener.add_handler(handlers, onaccept_tcp, method, mux)
@@ -813,7 +894,8 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark):
+         user, group, sudo_pythonpath, add_cmd_delimiter, remote_shell, tmark,
+         flush_dns=True, no_auto_exclude=False):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -828,7 +910,7 @@ def main(listenip_v6, listenip_v4,
     debug1('Starting sshuttle proxy (version %s).' % __version__)
     helpers.logprefix = 'c : '
 
-    fw = FirewallClient(method_name, sudo_pythonpath)
+    fw = FirewallClient(method_name, sudo_pythonpath, flush_dns=flush_dns)
 
     # nslist is the list of name severs to intercept. If --dns is
     # used, we add all DNS servers in resolv.conf. Otherwise, the list
@@ -888,7 +970,10 @@ def main(listenip_v6, listenip_v4,
     if listenip_v6 is None:
         debug1("IPv6 disabled by --disable-ipv6")
     if listenip_v6 == "auto":
-        if avail.ipv6:
+        if avail.ipv6 and not ipv6_supported():
+            debug1("IPv6 disabled since this system does not support it.")
+            listenip_v6 = None
+        elif avail.ipv6:
             listenip_v6 = ('::1' if avail.loopback_proxy_port else '::', 0)
             debug1("IPv6 enabled: Using default IPv6 listen address " + listenip_v6[0])
         else:
@@ -923,7 +1008,7 @@ def main(listenip_v6, listenip_v4,
         try:
             group = getgrnam(group).gr_gid
         except KeyError:
-            raise Fatal("Group %s does not exist." % user)
+            raise Fatal("Group %s does not exist." % group)
     required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
@@ -982,9 +1067,10 @@ def main(listenip_v6, listenip_v4,
     feature_status("UDP ", required.udp, avail.udp)
     feature_status("DNS ", required.dns, avail.dns)
     feature_status("User", required.user, avail.user)
+    feature_status("Group", required.group, avail.group)
 
     # Exclude traffic destined to our listen addresses.
-    if required.ipv4 and \
+    if required.ipv4 and listenip_v4 and \
             not any(listenip_v4[0] == sex[1] for sex in subnets_v4):
         subnets_exclude.append((socket.AF_INET, listenip_v4[0], 32, 0, 0))
 
@@ -992,32 +1078,51 @@ def main(listenip_v6, listenip_v4,
             not any(listenip_v6[0] == sex[1] for sex in subnets_v6):
         subnets_exclude.append((socket.AF_INET6, listenip_v6[0], 128, 0, 0))
 
-    # Exclude remote server IP
-    host, proxy_host, proxy_command = ssh.parse_hostname(remotename)
-    hosts_to_exclude = []
-    if proxy_command:
-        debug1(
-            "Warning: ProxyCommand is configured; skipping automatic remote IP exclusion. "
-            "Use -x explicitly if required.\n"
+    if no_auto_exclude:
+        print(
+            "Warning: automatic SSH endpoint exclusion is disabled. \n"
+            "If this is needed due to a bug, please report it at "
+            "https://github.com/sshuttle/sshuttle/issues"
         )
-    elif proxy_host:
-        hosts_to_exclude.append(proxy_host)
-    elif host:
-        hosts_to_exclude.append(host)
-    for host in hosts_to_exclude:
-        try:
-            addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
-            for family, _, _, _, sockaddr in addrinfo:
-                remote_ip = sockaddr[0]
+    else:
+        # Exclude remote
+        host, proxy_host, proxy_command, remote_port = ssh.parse_hostname(remotename)
+        hosts_to_exclude = []
+        if proxy_command:
+            debug1(
+                "Warning: ProxyCommand is configured; skipping automatic remote IP exclusion. "
+                "Use -x explicitly if required.\n"
+            )
+        elif proxy_host:
+            hosts_to_exclude.append(proxy_host)
+        elif host:
+            hosts_to_exclude.append(host)
 
-                # Strip IPv6 scope suffix, e.g. fe80::1%eth0
-                if family == socket.AF_INET6:
-                    remote_ip = remote_ip.split('%', 1)[0]
+        for host in hosts_to_exclude:
+            try:
+                addrinfo = socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
+                for family, _, _, _, sockaddr in addrinfo:
+                    if family == socket.AF_INET6 and not required.ipv6:
+                        # No IPv6 traffic is redirected, so there is nothing
+                        # to exclude, and an IPv6 entry would make the
+                        # firewall set up IPv6 rules after all.
+                        continue
+                    remote_ip = sockaddr[0]
+                    # Strip IPv6 scope suffix, e.g. fe80::1%eth0
+                    if family == socket.AF_INET6:
+                        remote_ip = remote_ip.split('%', 1)[0]
 
-                if not any(remote_ip == sex[1] for sex in subnets_exclude):
-                    subnets_exclude.append((family, remote_ip, 32 if family == socket.AF_INET else 128, 0, 0))
-        except Exception as e:
-            debug1(f"Failed to exclude remote IP: {e}\n")
+                    width = 32 if family == socket.AF_INET else 128
+                    already_excluded = any(
+                        remote_ip == sex[1]
+                        and (sex[3] == 0 and sex[4] == 0
+                             or sex[3] <= remote_port <= sex[4])
+                        for sex in subnets_exclude
+                    )
+                    if not already_excluded:
+                        subnets_exclude.append((family, remote_ip, width, remote_port, remote_port))
+            except Exception as e:
+                debug1(f"Failed to exclude remote IP: {e}\n")
     # We don't print the IP+port of where we are listening here
     # because we do that below when we have identified the ports to
     # listen on.
@@ -1039,8 +1144,9 @@ def main(listenip_v6, listenip_v4,
 
     # Track actual listener ports, including explicitly configured ports.
     used_ports = set()
-    if listenip_v6 and listenip_v6[1] and listenip_v4 and listenip_v4[1]:
-        # if both ports given, no need to search for a spare port
+    if not any(address and not address[1]
+               for address in (listenip_v6, listenip_v4)):
+        # All enabled listeners have explicit ports; try only once.
         ports = [0, ]
     else:
         # if at least one port missing, we have to search
@@ -1084,6 +1190,9 @@ def main(listenip_v6, listenip_v4,
             tcp_listener.bind(lv6, lv4)
             if udp_listener:
                 udp_listener.bind(lv6, lv4)
+            # With SO_REUSEADDR, a port another process just bound may only
+            # be reported as busy here, so this has to stay in the search.
+            tcp_listener.listen(10)
             bound = True
             used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
             break
@@ -1091,13 +1200,17 @@ def main(listenip_v6, listenip_v4,
             if e.errno == errno.EADDRINUSE:
                 last_e = e
                 used_ports.update(p for p in (redirectport_v6, redirectport_v4) if p)
+                # last_e keeps this attempt's sockets alive through its
+                # traceback, and one of them may already be listening.
+                tcp_listener.close()
+                if udp_listener:
+                    udp_listener.close()
             else:
                 raise e
 
     if not bound:
         assert last_e
         raise last_e
-    tcp_listener.listen(10)
     tcp_listener.print_listening("TCP redirector")
     if udp_listener:
         udp_listener.print_listening("UDP redirector")

@@ -56,6 +56,9 @@ class Method(BaseMethod):
         # Redirect DNS traffic as requested. This includes routing traffic
         # to localhost DNS servers through sshuttle.
         for _, ip in [i for i in nslist if i[0] == family]:
+            # A link-local nameserver carries a zone id (fe80::1%eth0),
+            # which nft does not accept in an address match.
+            ip = ip.split('%', 1)[0]
             _nft('add rule', chain, ip_version,
                  'daddr %s' % ip, 'udp dport 53',
                  ('redirect to :' + str(dnsport)))

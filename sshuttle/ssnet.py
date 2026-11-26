@@ -6,7 +6,9 @@ import threading
 import errno
 import select
 import os
+import time
 
+import sshuttle.helpers as helpers
 from sshuttle.helpers import b, log, debug1, debug2, debug3, Fatal, set_non_blocking_io
 
 MAX_CHANNEL = 65535
@@ -80,7 +82,19 @@ def close_later(sock):
             debug1('error closing %r: %s' % (sock, e))
 
 
+# Latency control sends a window of data, then a PING, and waits for the PONG
+# before sending more, so bulk data cannot fill ssh's buffers. The window
+# doubles while the latest PING is at most LATENCY_TARGET slower than the
+# fastest seen. It halves when the last LATENCY_SAMPLES all were, or one was
+# far slower, and otherwise holds (one slow PING may be jitter).
 LATENCY_BUFFER_SIZE = 32768
+LATENCY_BUFFER_MAX = 16 * 1024 * 1024
+LATENCY_TARGET = 0.03  # seconds of queueing a bulk transfer may add
+LATENCY_SAMPLES = 4
+
+# Most channel data per mux packet. Channels wait while the mux has
+# 2 * MAX_PACKET_DATA queued.
+MAX_PACKET_DATA = 32768
 
 SHUT_RD = 0
 SHUT_WR = 1
@@ -135,15 +149,49 @@ def _add(socks, elem):
         socks.append(elem)
 
 
+def _fd(sock):
+    try:
+        return sock.fileno()
+    except AttributeError:
+        return sock
+
+
 def _fds(socks):
-    out = []
-    for i in socks:
-        try:
-            out.append(i.fileno())
-        except AttributeError:
-            out.append(i)
-    out.sort()
-    return out
+    return sorted(_fd(i) for i in socks)
+
+
+def _select(r, w, x, timeout=None):
+    """select.select() for descriptors of any number.
+
+    select() cannot watch a descriptor numbered FD_SETSIZE (1024) or more,
+    whatever the open file limit is. When it refuses, use poll() instead.
+    """
+    try:
+        return select.select(r, w, x, timeout)
+    except ValueError:
+        if not hasattr(select, 'poll'):  # Windows
+            raise
+    masks = {}
+    for socks, mask in ((r, select.POLLIN), (w, select.POLLOUT),
+                        (x, select.POLLPRI)):
+        for s in socks:
+            fd = _fd(s)
+            masks[fd] = masks.get(fd, 0) | mask
+    poller = select.poll()
+    for fd, mask in masks.items():
+        poller.register(fd, mask)
+    events = dict(poller.poll(None if timeout is None else timeout * 1000))
+    if any(ev & select.POLLNVAL for ev in events.values()):
+        raise OSError(errno.EBADF, os.strerror(errno.EBADF))
+    # poll() reports errors and hangups whether asked to or not; select()
+    # reports them as readable and writable, and so must we, or the caller
+    # would be woken up forever without being told why.
+    bad = select.POLLERR | select.POLLHUP
+
+    def ready(socks, mask):
+        return [s for s in socks if events.get(_fd(s), 0) & mask]
+    return (ready(r, select.POLLIN | bad), ready(w, select.POLLOUT | bad),
+            ready(x, select.POLLPRI))
 
 
 def _nb_clean(func, *args):
@@ -153,7 +201,8 @@ def _nb_clean(func, *args):
         # Note: In python2 socket.error != OSError (In python3, they are same)
         _, e = sys.exc_info()[:2]
         if e.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
-            debug3('%s: err was: %s' % (func.__name__, e))
+            if helpers.verbose >= 3:
+                debug3('%s: err was: %s' % (func.__name__, e))
             return None
         else:
             # Re-raise other errors (including EPIPE) so they can be handled
@@ -343,7 +392,7 @@ class SockWrapper:
         rb = self.uread()
         if rb:
             self.buf.append(rb)
-        if rb == b(''):  # empty string means EOF; None means temporarily empty
+        if rb == b'':  # empty string means EOF; None means temporarily empty
             self.noread()
 
     def copy_to(self, outwrap):
@@ -373,7 +422,7 @@ class Handler:
 
     def callback(self, sock):
         log('--no callback defined-- %r' % self)
-        (r, _, _) = select.select(self.socks, [], [], 0)
+        (r, _, _) = _select(self.socks, [], [], 0)
         for s in r:
             v = s.recv(4096)
             if not v:
@@ -419,8 +468,12 @@ class Proxy(Handler):
     def callback(self, sock):
         self.wrap1.try_connect()
         self.wrap2.try_connect()
-        self.wrap1.fill()
-        self.wrap2.fill()
+        # Every Proxy wakes when the shared mux is ready, so only read the
+        # socket that woke us. select() is level triggered: nothing is lost.
+        if sock is self.wrap1.rsock:
+            self.wrap1.fill()
+        if sock is self.wrap2.rsock:
+            self.wrap2.fill()
         self.wrap1.copy_to(self.wrap2)
         self.wrap2.copy_to(self.wrap1)
         if self.wrap1.buf and self.wrap2.shut_write:
@@ -452,6 +505,11 @@ class Mux(Handler):
         self.outbuf = []
         self.fullness = 0
         self.too_full = False
+        self.window = LATENCY_BUFFER_SIZE
+        self.min_rtt = None
+        self.recent = []
+        self.pings = {b('chicken'): time.monotonic()}
+        self.queue_full = False
         self.send(0, CMD_PING, b('chicken'))
 
     def next_channel(self):
@@ -470,10 +528,31 @@ class Mux(Handler):
         return total
 
     def check_fullness(self):
-        if self.fullness > LATENCY_BUFFER_SIZE:
+        if self.fullness > self.window:
             if not self.too_full:
+                self.pings[b('rttest')] = time.monotonic()
                 self.send(0, CMD_PING, b('rttest'))
             self.too_full = True
+
+    def adapt_window(self, data):
+        sent = self.pings.pop(data, None)
+        if sent is None:
+            return
+        rtt = time.monotonic() - sent
+        if self.min_rtt is None or rtt < self.min_rtt:
+            self.min_rtt = rtt
+        debug2('PING %r rtt=%.1fms min=%.1fms window=%d'
+               % (data, rtt * 1000, self.min_rtt * 1000, self.window))
+        if data != b('rttest'):
+            return  # the initial PING only measures the idle round trip
+        self.recent = (self.recent + [rtt])[-LATENCY_SAMPLES:]
+        queued = rtt - self.min_rtt
+        if queued <= LATENCY_TARGET:
+            self.window = min(self.window * 2,
+                              max(LATENCY_BUFFER_MAX, LATENCY_BUFFER_SIZE))
+        elif (min(self.recent) - self.min_rtt > LATENCY_TARGET or
+                queued > 4 * LATENCY_TARGET):
+            self.window = max(self.window // 2, LATENCY_BUFFER_SIZE)
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -481,22 +560,26 @@ class Mux(Handler):
         p = struct.pack('!ccHHH', b('S'), b('S'), channel, cmd, len(data)) \
             + data
         self.outbuf.append(p)
-        debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
-               % (channel, cmd_to_name.get(cmd, hex(cmd)),
-                  len(data), self.fullness))
+        if helpers.verbose >= 2:
+            debug2(' > channel=%d cmd=%s len=%d (fullness=%d)'
+                   % (channel, cmd_to_name.get(cmd, hex(cmd)),
+                      len(data), self.fullness))
         # debug3('>>> data: %r' % data)
         self.fullness += len(data)
 
     def got_packet(self, channel, cmd, data):
-        debug2('<  channel=%d cmd=%s len=%d'
-               % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
+        if helpers.verbose >= 2:
+            debug2('<  channel=%d cmd=%s len=%d'
+                   % (channel, cmd_to_name.get(cmd, hex(cmd)), len(data)))
         # debug3('<<< data: %r' % data)
         if cmd == CMD_PING:
             self.send(0, CMD_PONG, data)
         elif cmd == CMD_PONG:
             debug2('received PING response')
-            self.too_full = False
-            self.fullness = 0
+            self.adapt_window(data)
+            if data == b('rttest'):
+                self.too_full = False
+                self.fullness = 0
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_TCP_CONNECT:
@@ -536,22 +619,31 @@ class Mux(Handler):
 
     def flush(self):
         set_non_blocking_io(self.wfile.fileno())
-        if self.outbuf and self.outbuf[0]:
+        # Write until the pipe is full, not one packet per select().
+        while self.outbuf:
             wrote = _nb_clean(self.wfile.write, self.outbuf[0])
-            # self.wfile.flush()
-            debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
-            if wrote:
+            if helpers.verbose >= 2:
+                debug2('mux wrote: %r/%d' % (wrote, len(self.outbuf[0])))
+            if not wrote:
+                break
+            if wrote < len(self.outbuf[0]):
                 self.outbuf[0] = self.outbuf[0][wrote:]
-        while self.outbuf and not self.outbuf[0]:
-            self.outbuf[0:1] = []
+                break
+            del self.outbuf[0]
+        # Let channels refill this round once the queue has drained.
+        if self.queue_full:
+            self.queue_full = self.amount_queued() >= 2 * MAX_PACKET_DATA
 
     def fill(self):
         set_non_blocking_io(self.rfile.fileno())
         try:
             # If LATENCY_BUFFER_SIZE is inappropriately large, we will
-            # get a MemoryError here. Read no more than 1MiB.
-            read = _nb_clean(self.rfile.read, min(1048576, LATENCY_BUFFER_SIZE))
-            debug2('mux read: %r' % len(read))
+            # get a MemoryError here. Read no more than 1MiB, and at least
+            # 64 KiB so a full packet fits in one read.
+            read = _nb_clean(self.rfile.read,
+                             min(1048576, max(LATENCY_BUFFER_SIZE, 65536)))
+            if helpers.verbose >= 2:
+                debug2('mux read: %r' % len(read))
         except OSError:
             _, e = sys.exc_info()[:2]
             raise Fatal('other end: %r' % e)
@@ -579,12 +671,14 @@ class Mux(Handler):
                 break
 
     def pre_select(self, r, w, x):
+        # Once per round, so every channel gets its turn.
+        self.queue_full = self.amount_queued() >= 2 * MAX_PACKET_DATA
         _add(r, self.rfile)
         if self.outbuf:
             _add(w, self.wfile)
 
     def callback(self, sock):
-        (r, w, _) = select.select([self.rfile], [self.wfile], [], 0)
+        (r, w, _) = _select([self.rfile], [self.wfile], [], 0)
         if self.rfile in r:
             self.handle()
         if self.outbuf and self.wfile in w:
@@ -643,13 +737,13 @@ class MuxWrapper(SockWrapper):
             self.mux.channels[self.channel] = None
 
     def too_full(self):
-        return self.mux.too_full
+        return self.mux.too_full or self.mux.queue_full
 
     def uwrite(self, buf):
-        if self.mux.too_full:
+        if self.too_full():
             return 0  # too much already enqueued
-        if len(buf) > 2048:
-            buf = buf[:2048]
+        # At least 1, so a bad --latency-buffer-size cannot cut data off.
+        buf = buf[:max(1, min(LATENCY_BUFFER_SIZE, MAX_PACKET_DATA))]
         self.mux.send(self.channel, CMD_TCP_DATA, buf)
         return len(buf)
 
@@ -658,6 +752,9 @@ class MuxWrapper(SockWrapper):
             return b('')  # EOF
         else:
             return None  # no data available right now
+
+    def fill(self):
+        pass  # channel data and EOF arrive through got_packet()
 
     def got_packet(self, cmd, data):
         if cmd == CMD_TCP_EOF:
@@ -693,12 +790,15 @@ def runonce(handlers, mux):
 
     for s in handlers:
         s.pre_select(r, w, x)
-    debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
-           % (len(handlers), _fds(r), _fds(w), _fds(x),
-               mux.fullness, mux.too_full))
-    (r, w, x) = select.select(r, w, x)
-    debug2('  Ready: %d r=%r w=%r x=%r'
-           % (len(handlers), _fds(r), _fds(w), _fds(x)))
+    # Called every round: skip building the debug strings unless needed.
+    if helpers.verbose >= 2:
+        debug2('Waiting: %d r=%r w=%r x=%r (fullness=%d/%d)'
+               % (len(handlers), _fds(r), _fds(w), _fds(x),
+                  mux.fullness, mux.too_full))
+    (r, w, x) = _select(r, w, x)
+    if helpers.verbose >= 2:
+        debug2('  Ready: %d r=%r w=%r x=%r'
+               % (len(handlers), _fds(r), _fds(w), _fds(x)))
     ready = r + w + x
     did = {}
     for h in handlers:

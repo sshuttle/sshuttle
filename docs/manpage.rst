@@ -102,7 +102,8 @@ Options
     line, ask the server which subnets it thinks we should
     route, and route those automatically.  The suggestions
     are taken automatically from the server's routing
-    table.
+    table. Suggested subnets that fall within a subnet
+    excluded with :option:`-x` are ignored.
 
     This feature does not detect IPv6 routes. Specify IPv6 subnets
     manually. For example, specify the ``::/0`` subnet on the command
@@ -118,6 +119,14 @@ Options
     using the DNS specified via the :option:`--to-ns` option,
     if specified. Only plain DNS traffic sent to these servers
     on port 53 are captured.
+
+.. option:: --no-flush-dns
+
+    Skip flushing the systemd DNS resolver cache at startup and shutdown.
+    By default, sshuttle flushes this cache on Linux so cached responses
+    do not bypass DNS forwarding. Use this option when managing the cache
+    yourself or when systemd-resolved is unavailable. Cached DNS answers
+    may remain until they expire or are flushed manually.
 
 .. option:: --ns-hosts=<server1[,server2[,server3[...]]]>
 
@@ -215,20 +224,22 @@ Options
     tunnel go slowly. Normally, :program:`sshuttle` tries to avoid
     this problem using a "fullness check" that allows only
     a certain amount of outstanding data to be buffered at
-    a time.  But on high-bandwidth links, this can leave a
-    lot of your bandwidth underutilized.  It also makes
-    :program:`sshuttle` seem slow in bandwidth benchmarks (benchmarks
-    rarely test ping latency, which is what :program:`sshuttle` is
-    trying to control).  This option disables the latency
-    control feature, maximizing bandwidth usage.  Use at
-    your own risk.
+    a time.  That amount adapts to the link (see
+    :option:`--latency-buffer-size`), but a single transfer may
+    still get less bandwidth than without it.  This option
+    disables the latency control feature, maximizing bandwidth
+    usage.  Use at your own risk.
 
 .. option:: --latency-buffer-size
 
-    Set the size of the buffer used in latency control. The
-    default is ``32768``. Changing this option allows a compromise
-    to be made between latency and bandwidth without completely
-    disabling latency control (with :option:`--no-latency-control`).
+    Set the minimum size of the latency control window. The default
+    is ``32768``. The window grows from there, up to 16 MiB, as long
+    as it adds no more than about 30 ms to the round trip.
+
+.. option:: --wrap=<num>
+
+    Restart counting channel numbers after *num*. This option is
+    only meant for testing.
 
 .. option:: -D, --daemon
 
@@ -256,6 +267,17 @@ Options
 
     Disable IPv6 support for methods that support it (nat, nft,
     tproxy, and pf).
+
+.. option:: --user=<user>
+
+    Apply all the rules only to this linux user. Only supported by
+    the nat method.
+
+.. option:: --group=<group>
+
+    Apply all the rules only to this linux group. Processes that have
+    this group as a supplementary group also match. Only supported by
+    the nat method.
 
 .. option:: --firewall
 
@@ -292,12 +314,29 @@ Options
     documentation above). Only works with the --sudoers-no-modify
     option.
 
+.. option:: --no-sudo-pythonpath
+
+    Do not set PYTHONPATH when invoking sudo (or doas) to start the
+    firewall manager. By default, it is set to the directory that
+    contains the :program:`sshuttle` package.
+
 .. option:: -t <mark>, --tmark=<mark>
 
     An option used by the tproxy method: Use the specified traffic
     mark. The mark must be a hexadecimal value. Defaults to 0x01.
 
-.. option:: --version
+.. option:: --namespace=<name>
+
+    (Linux only) Run inside of the net namespace with the given name,
+    as found in /var/run/netns. Cannot be combined with
+    :option:`--namespace-pid`.
+
+.. option:: --namespace-pid=<pid>
+
+    (Linux only) Run inside the net namespace used by the process
+    with the given pid. Cannot be combined with :option:`--namespace`.
+
+.. option:: -V, --version
 
     Print program version.
 
@@ -323,6 +362,12 @@ Arguments read from a file must be one per line, as shown below::
     value1
     --option2
     value2
+
+An option and its value can also share a line, as they would on the
+command line::
+
+    --option1 value1
+    -r user@example.com
 
 The configuration file supports comments for human-readable
 annotations. For example::

@@ -26,8 +26,6 @@ Alternative Linux VM approach
 
 Instead of using the above experimental WinDivert method, you can run sshuttle inside a Linux virtual machine on Windows.
 
-Use Linux VM on Windows::
-
 What we can really do is to create a Linux VM with Vagrant (or simply
 VirtualBox if you like). In the Vagrant settings, remember to turn on bridged
 NIC. Then, run sshuttle inside the VM like below::

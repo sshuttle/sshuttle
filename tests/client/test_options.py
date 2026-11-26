@@ -1,10 +1,16 @@
+import json
+import platform
 import socket
+import subprocess
+import sys
 from argparse import ArgumentTypeError as Fatal
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import sshuttle.options
+from sshuttle import client, cmdline
 
 _ip4_reprs = {
         '0.0.0.0': '0.0.0.0',
@@ -120,9 +126,116 @@ def test_parse_subnetport_ip6_with_mask_and_port():
             == [(socket.AF_INET6, ip, 16, 80, 90)]
 
 
-def test_convert_arg_line_to_args_skips_comments():
+def test_parse_subnetport_port_out_of_range():
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:1-65535') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 1, 65535)]
+    for s in ('10.0.0.0/8:70000', '10.0.0.0/8:80-70000',
+              '[fc00::/64]:70000', '[fc00::/64]:80-70000'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) == 'Port 70000 is not between 0 and 65535'
+
+
+def test_parse_subnetport_reversed_port_range():
+    for s in ('10.0.0.0/8:9000-8000', '[fc00::/64]:9000-8000'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) \
+            == 'Invalid port range 9000-8000: first port is greater than last'
+
+
+def test_parse_subnetport_port_range_starting_at_zero():
+    # a range starting at 0 used to be accepted and then treated as
+    # "all ports" by the firewall methods
+    for s in ('10.0.0.0/8:0-80', '[fc00::/64]:0-80'):
+        with pytest.raises(Fatal) as excinfo:
+            sshuttle.options.parse_subnetport(s)
+        assert str(excinfo.value) \
+            == 'Invalid port range 0-80: port 0 is not allowed in a range'
+    # port 0 on its own still means "no port"
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:0') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 0, 0)]
+    assert sshuttle.options.parse_subnetport('10.0.0.0/8:0-0') \
+        == [(socket.AF_INET, '10.0.0.0', 8, 0, 0)]
+
+
+def test_parse_ipport_invalid_port():
+    # used to fail with "Unable to resolve address: 127.0.0.1"
+    with pytest.raises(Fatal, match='Port 70000 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('127.0.0.1:70000')
+    with pytest.raises(Fatal, match='Port 70000 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('70000')
+    with pytest.raises(Fatal, match='Port 99999 is not between 0 and 65535'):
+        sshuttle.options.parse_ipport('[::1]:99999')
+
+
+@pytest.mark.parametrize("line", [
+    "# whatever something",
+    "  # indented comment",
+    "\t# tab-indented comment",
+    "",
+    "   ",
+    "\n",
+])
+def test_convert_arg_line_to_args_skips_comments_and_blank_lines(line):
     parser = sshuttle.options.MyArgumentParser()
-    assert parser.convert_arg_line_to_args("# whatever something") == []
+    assert parser.convert_arg_line_to_args(line) == []
+
+
+@pytest.mark.parametrize("line, expected", [
+    ("-r user@example.com", ["-r", "user@example.com"]),
+    ("--remote user@example.com", ["--remote", "user@example.com"]),
+    ("  -r\texample.com  ", ["-r", "example.com"]),
+    ("--ssh-cmd ssh -i key", ["--ssh-cmd", "ssh -i key"]),
+    ("-e 'ssh -i key'", ["-e", "ssh -i key"]),
+    ("-e \"ssh -i key\"", ["-e", "ssh -i key"]),
+    ("'-e ssh -i key'", ["-e", "ssh -i key"]),
+])
+def test_convert_arg_line_to_args_splits_option_and_value(line, expected):
+    parser = sshuttle.options.MyArgumentParser()
+    assert parser.convert_arg_line_to_args(line) == expected
+
+
+@pytest.mark.parametrize("line, expected", [
+    ("--remote", "--remote"),
+    ("user@example.com", "user@example.com"),
+    ("192.168.0.0/16", "192.168.0.0/16"),
+    ("-vvv", "-vvv"),
+    ("--ssh-cmd=ssh -i key", "--ssh-cmd=ssh -i key"),
+    ("'--ssh-cmd=ssh -i key'", "--ssh-cmd=ssh -i key"),
+    ("-essh -i key", "-essh -i key"),
+])
+def test_convert_arg_line_to_args_keeps_single_arguments(line, expected):
+    parser = sshuttle.options.MyArgumentParser()
+    assert parser.convert_arg_line_to_args(line) == [expected]
+
+
+def test_parse_args_reads_option_and_value_from_one_line(tmp_path):
+    config = tmp_path / "sshuttle.conf"
+    config.write_text(
+        "-r user@example.com\n"
+        "--exclude 10.0.0.1\n"
+        "-e ssh -i key\n"
+        "10.0.0.0/8\n"
+    )
+    opt = sshuttle.options.parser.parse_args(["@%s" % config])
+    assert opt.remote == "user@example.com"
+    assert opt.ssh_cmd == "ssh -i key"
+    assert opt.exclude == [[(socket.AF_INET, "10.0.0.1", 32, 0, 0)]]
+    assert opt.subnets == [[(socket.AF_INET, "10.0.0.0", 8, 0, 0)]]
+
+
+def test_parse_args_ignores_blank_and_indented_comment_lines(tmp_path):
+    config = tmp_path / "sshuttle.conf"
+    config.write_text(
+        "-r user@example.com\n"
+        "\n"
+        "    # subnets to forward\n"
+        "10.0.0.0/8\n"
+    )
+    opt = sshuttle.options.parser.parse_args(["@%s" % config])
+    assert opt.remote == "user@example.com"
+    assert opt.subnets == [[(socket.AF_INET, "10.0.0.0", 8, 0, 0)]]
 
 
 @patch('sshuttle.options.socket.getaddrinfo', side_effect=_mock_getaddrinfo)
@@ -188,6 +301,11 @@ def test_parse_namespace():
         'my.long_namespace.with.multiple.dots',
         '@my.long_namespace.with.multiple.dots',
         'my.Namespace.With.Mixed.Case',
+        'a',
+        '_',
+        '@a',
+        'a.b',
+        'ns1.x',
     ]
 
     for namespace in valid_namespaces:
@@ -206,3 +324,83 @@ def test_parse_namespace():
     for namespace in invalid_namespaces:
         with pytest.raises(Fatal, match="'.*' is not a valid namespace name."):
             sshuttle.options.parse_namespace(namespace)
+
+
+@pytest.mark.skipif(sys.platform != 'linux', reason='--namespace is Linux-only')
+@pytest.mark.parametrize('optimization', [0, 1], ids=['normal', 'optimized'])
+@pytest.mark.parametrize('namespace', [
+    '',
+    '123namespace',
+    'my-namespace',
+    'my_namespace!',
+    '.my_namespace',
+    'my_namespace.',
+    'my..namespace',
+    'my.namespace',
+])
+def test_namespace_parser_subprocess(optimization, namespace):
+    if sys.flags.optimize != 0:
+        pytest.fail('namespace parser checks require an unoptimized pytest parent')
+    cwd = Path(__file__).resolve().parents[2]
+    child = """
+import argparse
+import json
+import platform
+import sys
+from pathlib import Path
+
+import sshuttle.options as options
+
+print(json.dumps({
+    'executable': sys.executable,
+    'version': list(sys.version_info),
+    'implementation': platform.python_implementation(),
+    'optimization': sys.flags.optimize,
+    'platform': sys.platform,
+    'module': str(Path(options.__file__).resolve()),
+    'fatal_is_argument_type_error': options.Fatal is argparse.ArgumentTypeError,
+}), flush=True)
+parsed = options.parser.parse_args(['--namespace=' + sys.argv[1]])
+print(json.dumps({'namespace': parsed.namespace}))
+"""
+    command = [sys.executable, '-B']
+    if optimization:
+        command.append('-O')
+    command.extend(['-c', child, namespace])
+    result = subprocess.run(
+        command, shell=False, capture_output=True, text=True, timeout=10,
+        cwd=cwd,
+    )
+    records = result.stdout.splitlines()
+    assert json.loads(records[0]) == {
+        'executable': sys.executable,
+        'version': list(sys.version_info),
+        'implementation': platform.python_implementation(),
+        'optimization': optimization,
+        'platform': sys.platform,
+        'module': str(cwd / 'sshuttle' / 'options.py'),
+        'fatal_is_argument_type_error': True,
+    }
+    if namespace == 'my.namespace':
+        assert (result.returncode, len(records)) == (0, 2), result.stderr
+        assert json.loads(records[1]) == {'namespace': namespace}
+    else:
+        assert result.returncode == 2, result.stderr
+        assert len(records) == 1
+        assert result.stderr.splitlines()[-1] == (
+            'sshuttle: error: argument --namespace: %r is not a valid namespace name.'
+            % namespace
+        )
+
+
+def test_invalid_listen_is_a_usage_error(capsys):
+    argv = ['sshuttle', '-l', 'foo:bar', '-r', 'example.invalid', '0/0']
+    with patch.object(sys, 'argv', argv), \
+            patch.dict('os.environ', {}, clear=True), \
+            patch.object(client, 'main', return_value=0) as main, \
+            pytest.raises(SystemExit) as excinfo:
+        cmdline.main()
+    assert excinfo.value.code == 2
+    assert ("argument -l/--listen: 'foo:bar' is not a valid IP:port format"
+            in capsys.readouterr().err)
+    main.assert_not_called()

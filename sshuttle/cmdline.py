@@ -3,6 +3,7 @@ import re
 import shlex
 import socket
 import sys
+from argparse import ArgumentTypeError
 import sshuttle.helpers as helpers
 import sshuttle.client as client
 import sshuttle.firewall as firewall
@@ -51,7 +52,7 @@ def main():
         if opt.firewall:
             if opt.subnets or opt.subnets_file:
                 parser.error('exactly zero arguments expected')
-            return firewall.main(opt.method, opt.syslog)
+            return firewall.main(opt.method, opt.syslog, flush_dns=not opt.no_flush_dns)
         elif opt.hostwatch:
             hostwatch.hw_main(opt.subnets, opt.auto_hosts)
             return 0
@@ -84,7 +85,10 @@ def main():
                 ipport_v4 = None
                 lst = opt.listen.split(",")
                 for ip in lst:
-                    family, ip, port = parse_ipport(ip)
+                    try:
+                        family, ip, port = parse_ipport(ip)
+                    except ArgumentTypeError as e:
+                        parser.error('argument -l/--listen: %s' % e)
                     if family == socket.AF_INET6:
                         ipport_v6 = (ip, port)
                     else:
@@ -94,9 +98,9 @@ def main():
                 ipport_v4 = "auto"
                 # parse_ipport6('[::1]:0')
                 ipport_v6 = "auto" if not opt.disable_ipv6 else None
-            try:
-                int(opt.tmark, 16)
-            except ValueError:
+            # a 32-bit firewall mark; int(x, 16) alone would also accept
+            # signs, underscores and spaces, which break the firewall rules
+            if not re.fullmatch(r'(0x)?[0-9a-f]{1,8}', opt.tmark, re.I):
                 parser.error("--tmark must be a hexadecimal value")
             opt.tmark = opt.tmark.lower()   # make 'x' in 0x lowercase
             if not opt.tmark.startswith("0x"):  # accept without 0x prefix
@@ -128,7 +132,9 @@ def main():
                                       opt.sudo_pythonpath,
                                       opt.add_cmd_delimiter,
                                       opt.remote_shell,
-                                      opt.tmark)
+                                      opt.tmark,
+                                      flush_dns=not opt.no_flush_dns,
+                                      no_auto_exclude=opt.no_auto_exclude)
 
             if return_code == 0:
                 log('Normal exit code, exiting...')

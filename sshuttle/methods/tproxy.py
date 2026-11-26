@@ -145,13 +145,15 @@ class Method(BaseMethod):
         _ipt('-I', 'OUTPUT', '1', '-j', mark_chain)
         _ipt('-I', 'PREROUTING', '1', '-j', tproxy_chain)
 
+        # match only the nameserver itself: /32 for IPv4, /128 for IPv6
+        host_prefix = 32 if family == socket.AF_INET else 128
         for _, ip in [i for i in nslist if i[0] == family]:
             _ipt('-A', mark_chain, '-j', 'MARK', '--set-mark', tmark,
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s/%d' % (ip, host_prefix),
                  '-m', 'udp', '-p', 'udp', '--dport', '53')
             _ipt('-A', tproxy_chain, '-j', 'TPROXY',
                  '--tproxy-mark', tmark,
-                 '--dest', '%s/32' % ip,
+                 '--dest', '%s/%d' % (ip, host_prefix),
                  '-m', 'udp', '-p', 'udp', '--dport', '53',
                  '--on-port', str(dnsport))
 

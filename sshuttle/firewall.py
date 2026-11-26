@@ -9,6 +9,7 @@ import traceback
 import subprocess as ssubprocess
 import base64
 import io
+import threading
 
 import sshuttle.ssyslog as ssyslog
 import sshuttle.helpers as helpers
@@ -65,6 +66,64 @@ def rewrite_etc_hosts(hostmap, port):
         log('Warning: Using a non-atomic way to overwrite %s that can corrupt the file if '
             'multiple processes write to it simultaneously.' % HOSTSFILE)
         shutil.move(tmpname, HOSTSFILE)
+
+
+class HostsWriter:
+    """Keeps the hosts file up to date from a background thread.
+
+       A rewrite takes time proportional to the number of hosts. Hosts
+       that arrive while one is running are written together by the next
+       one, so the number of rewrites adapts to how long they take, a
+       single new host is written right away, and reading commands from
+       the client never waits for a rewrite."""
+
+    def __init__(self, port):
+        self.port = port
+        self.hostmap = {}
+        self._dirty = False
+        self._stopping = False
+        self._last_error = None
+        self._cond = threading.Condition()
+        self._thread = threading.Thread(target=self._run,
+                                        name='hosts-writer', daemon=True)
+        self._thread.start()
+
+    def update(self, hosts):
+        with self._cond:
+            for name, ip in hosts.items():
+                if self.hostmap.get(name) != ip:
+                    self.hostmap[name] = ip
+                    self._dirty = True
+            if self._dirty:
+                self._cond.notify()
+
+    def stop(self):
+        """End the thread. Pending hosts are dropped, as the caller
+           restores the hosts file next."""
+        with self._cond:
+            self._stopping = True
+            self._dirty = False
+            self._cond.notify()
+        self._thread.join()
+
+    def _run(self):
+        while 1:
+            with self._cond:
+                while not self._dirty and not self._stopping:
+                    self._cond.wait()
+                if not self._dirty:
+                    return
+                hostmap = dict(self.hostmap)
+                self._dirty = False
+            debug2('setting up /etc/hosts (%d hosts).' % len(hostmap))
+            try:
+                rewrite_etc_hosts(hostmap, self.port)
+                self._last_error = None
+            except Exception as e:
+                # Log each distinct error once, not for every batch.
+                if str(e) != self._last_error:
+                    self._last_error = str(e)
+                    log('Failed to update /etc/hosts: %s' % e)
 
 
 def restore_etc_hosts(hostmap, port):
@@ -197,10 +256,10 @@ def flush_systemd_dns_cache():
 # exit.  In case that fails, it's not the end of the world; future runs will
 # supersede it in the transproxy list, at least, so the leftover rules
 # are hopefully harmless.
-def main(method_name, syslog):
+def main(method_name, syslog, flush_dns=True):
     helpers.logprefix = 'fw: '
     stdin, stdout = setup_daemon()
-    hostmap = {}
+    hosts_writer = None
     debug1('Starting firewall with Python version %s'
            % platform.python_version())
 
@@ -224,7 +283,14 @@ def main(method_name, syslog):
 
     def _read_next_string_line():
         try:
-            line = stdin.readline(128)
+            line = stdin.readline(1024)
+            while len(line) == 1024 and not line.endswith(b'\n'):
+                # Skip the whole overlong line, so that its tail is not
+                # mistaken for a command.
+                while line and not line.endswith(b'\n'):
+                    line = stdin.readline(1024)
+                log('Ignoring overlong line from client')
+                line = stdin.readline(1024)
             if not line:
                 return  # parent probably exited
             return line.decode('ASCII').strip()
@@ -351,7 +417,7 @@ def main(method_name, syslog):
         except NotImplementedError:
             pass
 
-        if sys.platform == 'linux':
+        if sys.platform == 'linux' and flush_dns:
             flush_systemd_dns_cache()
 
         try:
@@ -364,15 +430,26 @@ def main(method_name, syslog):
         # Now we wait until EOF or any other kind of exception.  We need
         # to stay running so that we don't need a *second* password
         # authentication at shutdown time - that cleanup is important!
+        # The client sends discovered hosts in batches of HOST lines, each
+        # terminated by HOSTS_END. Hand each complete batch to the hosts
+        # writer, which coalesces them into as few rewrites as it can.
+        hosts = {}
         while 1:
             line = _read_next_string_line()
             if not line:
                 return
             if line.startswith('HOST '):
-                (name, ip) = line[5:].split(',', 1)
-                hostmap[name] = ip
-                debug2('setting up /etc/hosts.')
-                rewrite_etc_hosts(hostmap, port_v6 or port_v4)
+                try:
+                    (name, ip) = line[5:].split(',', 1)
+                except ValueError:
+                    log('Ignoring malformed host line %r' % line)
+                    continue
+                hosts[name] = ip
+            elif line == 'HOSTS_END':
+                if hosts_writer is None:
+                    hosts_writer = HostsWriter(port_v6 or port_v4)
+                hosts_writer.update(hosts)
+                hosts = {}
             elif line:
                 if not method.firewall_command(line):
                     raise Fatal('expected command, got %r' % line)
@@ -407,8 +484,10 @@ def main(method_name, syslog):
                 debug2('An error occurred, ignoring it.')
 
         try:
-            # debug2() message printed in restore_etc_hosts() function.
-            restore_etc_hosts(hostmap, port_v6 or port_v4)
+            if hosts_writer is not None:
+                hosts_writer.stop()
+                # debug2() message printed in restore_etc_hosts() function.
+                restore_etc_hosts(hosts_writer.hostmap, port_v6 or port_v4)
         except Exception:
             try:
                 debug1("Error trying to undo /etc/hosts changes.")
@@ -416,7 +495,7 @@ def main(method_name, syslog):
             except Exception:
                 debug2('An error occurred, ignoring it.')
 
-        if sys.platform == 'linux':
+        if sys.platform == 'linux' and flush_dns:
             try:
                 flush_systemd_dns_cache()
             except Exception:
