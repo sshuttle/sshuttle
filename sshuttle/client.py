@@ -56,7 +56,7 @@ def check_daemon(pidfile):
     global _pidname
     _pidname = os.path.abspath(pidfile)
     try:
-        with open(_pidname) as f:
+        with open(_pidname, 'rb') as f:
             if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
                 # Not a regular file (e.g. --pidfile=/dev/null): leave it
                 # alone and don't write a pidfile at all.
