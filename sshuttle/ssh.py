@@ -124,8 +124,10 @@ def parse_hostport(rhostport):
             try:
                 host = str(ipaddress.ip_address(parsed.hostname))
             except ValueError:
-                # else if both fails, we have a hostname with port
-                host = parsed.hostname
+                # else if both fails, we have a hostname with port.
+                # parsed.hostname is lowercased, but ssh matches "Host"
+                # aliases case-sensitively, so keep the original text.
+                host = parsed.netloc.rsplit(':', 1)[0]
             try:
                 port = parsed.port
             except ValueError:

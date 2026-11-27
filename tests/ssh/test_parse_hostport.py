@@ -17,6 +17,13 @@ def test_host_and_port():
     assert parse_hostport("[2001::1]:22") == (None, None, 22, "2001::1")
 
 
+def test_host_and_port_keeps_case():
+    # ssh_config "Host" aliases are case-sensitive
+    assert parse_hostport("MyBastion:2222") == (None, None, 2222, "MyBastion")
+    assert parse_hostport("user@MyBastion:2222") == \
+        ("user", None, 2222, "MyBastion")
+
+
 def test_username_and_host():
     assert parse_hostport("user@host") == ("user", None, None, "host")
     assert parse_hostport("user:@host") == ("user", None, None, "host")
