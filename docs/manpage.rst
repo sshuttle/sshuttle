@@ -177,6 +177,15 @@ Options
     Exclude the subnets specified in a file, one subnet per
     line. Useful when you have lots of subnets to exclude.
 
+.. option:: --no-auto-exclude
+
+    Don't automatically exclude the SSH endpoint from forwarding.
+    By default sshuttle resolves the host given with :option:`-r`
+    (or the ProxyJump host, if one is configured) and excludes its
+    addresses on the SSH port, so the SSH connection itself isn't
+    sent through the tunnel. This is skipped when a ProxyCommand is
+    configured; use :option:`-x` in that case.
+
 .. option:: -v, --verbose
 
     Print more information about the session.  This option
