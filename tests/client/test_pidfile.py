@@ -19,6 +19,13 @@ def test_check_daemon_removes_invalid_pidfile(tmp_path, content):
     assert not pidfile.exists()
 
 
+def test_check_daemon_removes_non_utf8_pidfile(tmp_path):
+    pidfile = tmp_path / "sshuttle.pid"
+    pidfile.write_bytes(b'\xff\xfe')
+    client.check_daemon(str(pidfile))
+    assert not pidfile.exists()
+
+
 def test_check_daemon_already_running(tmp_path):
     pidfile = tmp_path / "sshuttle.pid"
     pidfile.write_text('%d\n' % os.getpid())
